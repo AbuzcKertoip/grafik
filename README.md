@@ -83,7 +83,7 @@ Dzięki Dockerowi możesz uruchomić aplikację bez konieczności instalowania N
 
 ## Wdrożenie na serwer (Debian)
 
-Szczegółowa instrukcja wdrożenia aplikacji na serwerze Debian znajduje się w pliku [DEPLOY.md](./DEPLOY.md).
+Szczegółowa instrukcja wdrożenia „krok po kroku” dla systemu **Debian 12 (Bookworm)** znajduje się w pliku [DEPLOY.md](./DEPLOY.md).
 
 ## Technologie
 

@@ -1,88 +1,108 @@
+# Guide to Deploying on Debian 12 (Bookworm) via Docker
 
-# Deployment Guide (Debian Server)
+This guide contains step-by-step instructions on how to install Docker and run the application on a server running **Debian 12**.
 
-This guide explains how to deploy the application to your Debian server using Docker.
+## 1. System Update and Installation of Required System Tools
 
-## Prerequisites on the Server
+Before installing Docker, ensure your system is up-to-date and has the necessary tools installed.
 
-1.  **Install Docker & Docker Compose:**
+Run the following commands as `root` or with `sudo`:
+
+```bash
+# Update the package list and upgrade the system
+sudo apt-get update && sudo apt-get upgrade -y
+
+# Install tools needed for apt to use packages over HTTPS
+sudo apt-get install -y ca-certificates curl gnupg
+```
+
+## 2. Installation of Docker & Docker Compose (Official Repository)
+
+We will use the official Docker repository to get the latest version.
+
+1.  **Add Docker's official GPG key:**
     ```bash
-    # Update package index
-    sudo apt-get update
-    
-    # Install required packages
-    sudo apt-get install -y ca-certificates curl gnupg
-    
-    # Add Docker's official GPG key
     sudo install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     sudo chmod a+r /etc/apt/keyrings/docker.gpg
+    ```
 
-    # Set up the repository
+2.  **Add the repository to Apt sources:**
+    ```bash
     echo \
       "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
       "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
       sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
-    # Install Docker Engine
+    ```
+
+3.  **Install Docker Engine and Docker Compose:**
+    ```bash
     sudo apt-get update
     sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     ```
 
-2.  **Verify Docker installation:**
+4.  **Verify the installation:**
     ```bash
     sudo docker run hello-world
     ```
+    If you see a "Hello from Docker!" message, the installation was successful.
 
-## Deployment Steps
+## 3. Application Deployment
 
 1.  **Clone the Repository:**
-    Log in to your server and clone your repository (or copy files via SCP/FileZilla).
     ```bash
-    git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git
-    cd YOUR_REPO_NAME
+    # Replace the URL with your repository address
+    git clone https://github.com/your-username/your-repo-name.git
+    cd your-repo-name
     ```
 
-2.  **Create Environment File:**
-    Create a `.env` file in the project root with your secrets.
+2.  **Configuration (.env):**
+    Copy the `.env` example file (create it if it doesn't exist) and fill in the production values.
     ```bash
     nano .env
     ```
-    Paste your environment variables (e.g. `NEXTAUTH_SECRET`, `NEXTAUTH_URL`):
+    **Example content for .env:**
     ```env
-    NEXTAUTH_SECRET="your-super-long-secret-key"
-    NEXTAUTH_URL="http://YOUR_SERVER_IP:3000"
+    # Database (used by Prisma inside the container)
     DATABASE_URL="file:./dev.db"
+
+    # Authentication (generate a random string, e.g., with `openssl rand -base64 32`)
+    NEXTAUTH_SECRET="your-secure-secret-key"
+    NEXTAUTH_URL="http://ip-address-or-domain:3000"
     ```
-    *(Press `Ctrl+O` to save, `Enter` to confirm, and `Ctrl+X` to exit)*
 
 3.  **Run the Application:**
-    Start the application in detach mode (background):
+    Run the container in the background (detached mode):
     ```bash
     sudo docker compose up -d --build
     ```
 
-4.  **Verify:**
-    Open your browser and navigate to `http://YOUR_SERVER_IP:3000`.
-
-## Updating the Application
-
-When you have new changes in GitHub:
-
-1.  Pull the latest code:
+4.  **Check Status:**
     ```bash
-    git pull
+    sudo docker compose ps
     ```
+    The application should be accessible at: `http://server-ip:3000`
 
-2.  Rebuild and restart the container:
-    ```bash
-    sudo docker compose up -d --build
-    ```
+## 4. Updates and Maintenance
 
-## Database Backup (Important!)
+### Updating the Application
+When you have pushed changes to GitHub, run these commands on the server:
 
-Since we use SQLite, your database is a single file `prisma/dev.db`.
-To backup, simply copy this file to a safe location:
 ```bash
-cp prisma/dev.db ~/backup_dev.db_$(date +%F)
+# 1. Download changes
+git pull
+
+# 2. Rebuild and restart containers
+sudo docker compose up -d --build
+
+# 3. Clean up unused images (optional, to save space)
+sudo docker image prune -f
+```
+
+### Database Backup
+The database corresponds to the file `prisma/dev.db`. To safeguard it:
+
+```bash
+# Copy the database to a safe location (e.g., home directory)
+cp prisma/dev.db ~/backup_grafik_$(date +%F).db
 ```
