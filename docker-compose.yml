@@ -7,9 +7,9 @@ services:
       - "3000:3000"
     volumes:
       # Persist the SQLite database file
-      - ./prisma/dev.db:/app/prisma/dev.db
+      - ./data:/app/prisma/data
     environment:
-      # Ensure the app connects to the mounted DB file
-      - DATABASE_URL=file:/app/prisma/dev.db
+      # Database path (absolute, inside the container)
+      - DATABASE_URL=file:/app/prisma/data/dev.db
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL}

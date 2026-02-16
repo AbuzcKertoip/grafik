@@ -32,9 +32,12 @@ RUN npx prisma generate
 # Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Build the project
-ENV DATABASE_URL="file:./dev.db"
+# Create a template database with schema for the build (needed for static page generation)
+# and also to serve as a template for first-run initialization
+ENV DATABASE_URL="file:./prisma/template.db"
 RUN npx prisma db push
+
+# Build the project
 RUN npm run build
 
 # 3. Production image, copy all the files and run next
@@ -59,6 +62,16 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
+# Copy the template database (with schema, no data) for first-run initialization
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/template.db /app/prisma/template.db
+
+# Copy and set up the entrypoint script
+COPY --chown=nextjs:nodejs entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Set the DATABASE_URL for runtime (overridden by docker-compose environment)
+ENV DATABASE_URL="file:/app/prisma/data/dev.db"
+
 USER nextjs
 
 EXPOSE 3000
@@ -67,6 +80,6 @@ ENV PORT 3000
 # set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
 
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"]
+# Use entrypoint script instead of direct CMD
+# It initializes the DB on first run, then starts the server
+ENTRYPOINT ["/app/entrypoint.sh"]
