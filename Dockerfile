@@ -34,7 +34,8 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 # Create a template database with schema for the build (needed for static page generation)
 # and also to serve as a template for first-run initialization
-ENV DATABASE_URL="file:./prisma/template.db"
+# NOTE: Must use absolute path because Prisma resolves relative paths from schema.prisma location
+ENV DATABASE_URL="file:/app/prisma/template.db"
 RUN npx prisma db push
 
 # Build the project
