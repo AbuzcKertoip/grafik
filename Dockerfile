@@ -45,6 +45,9 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
+# Install su-exec for dropping privileges in entrypoint
+RUN apk add --no-cache su-exec
+
 ENV NODE_ENV production
 # Uncomment the following line in case you want to disable telemetry during runtime.
 ENV NEXT_TELEMETRY_DISABLED 1
@@ -55,6 +58,9 @@ RUN adduser --system --uid 1001 nextjs
 # Set the correct permission for prerender cache
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
+
+# Create the data directory for mounted volume
+RUN mkdir -p /app/prisma/data && chown nextjs:nodejs /app/prisma/data
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
@@ -73,7 +79,8 @@ RUN chmod +x /app/entrypoint.sh
 # Set the DATABASE_URL for runtime (overridden by docker-compose environment)
 ENV DATABASE_URL="file:/app/prisma/data/dev.db"
 
-USER nextjs
+# NOTE: We do NOT set USER nextjs here because entrypoint.sh
+# needs root to fix volume permissions, then drops to nextjs via su-exec
 
 EXPOSE 3000
 
