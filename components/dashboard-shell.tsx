@@ -5,16 +5,17 @@ import { MainNav } from "@/components/main-nav"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ModeToggle } from "@/components/mode-toggle"
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden relative">
+        <div className="flex h-screen bg-muted/40 overflow-hidden relative">
             {/* Sidebar */}
             <aside
                 className={cn(
-                    "fixed inset-y-0 left-0 z-50 bg-slate-900 transition-all duration-500 ease-in-out overflow-hidden",
+                    "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transition-all duration-500 ease-in-out overflow-hidden",
                     // Reset to relative on desktop
                     "md:relative",
                     // State handling:
@@ -30,7 +31,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="text-slate-400 hover:text-white hover:bg-slate-800"
+                            className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             onClick={() => setIsSidebarOpen(false)}
                         >
                             <X className="h-6 w-6" />
@@ -42,22 +43,23 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden w-full relative">
-                <header className="flex h-16 items-center gap-4 border-b bg-white px-6 shadow-sm shrink-0 z-30">
+                <header className="flex h-16 items-center gap-4 border-b bg-background px-6 shadow-sm shrink-0 z-30">
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors group"
+                        className="p-2 hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors group"
                     >
                         <Menu className={cn(
-                            "h-6 w-6 text-slate-600 transition-transform duration-500",
+                            "h-6 w-6 text-muted-foreground transition-transform duration-500",
                             !isSidebarOpen && "rotate-180"
                         )} />
                         <span className="sr-only">Przełącz menu</span>
                     </Button>
 
                     <div className="flex flex-1 items-center justify-between">
-                        <h1 className="text-xl font-bold text-slate-800 tracking-tight">System Grafiku</h1>
+                        <h1 className="text-xl font-bold text-foreground tracking-tight">HR4YOU</h1>
+                        <ModeToggle />
                     </div>
                 </header>
 

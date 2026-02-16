@@ -41,7 +41,7 @@ export default function LoginPage() {
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl font-bold text-center">Zaloguj się</CardTitle>
                     <CardDescription className="text-center">
-                        System Grafiku i Ewidencji Czasu Pracy
+                        HR4YOU
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

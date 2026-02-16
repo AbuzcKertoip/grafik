@@ -9,7 +9,7 @@ export function exportWorkLogsToExcel(logs: any[], user: any, year: number, mont
     const rows: any[] = []
 
     // Header Info
-    rows.push(["ENFORMATIC", "", "", "KARTA PRACY", "", "", ""])
+    rows.push(["HR4YOU", "", "", "KARTA PRACY", "", "", ""])
     rows.push([`Imię i Nazwisko: ${user.name || user.username}`, "", "", "", "", `Miesiąc: ${format(new Date(year, month - 1), "LLLL yyyy", { locale: pl })}`, ""])
     rows.push([""]) // Empty row
 

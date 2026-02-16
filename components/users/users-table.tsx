@@ -18,6 +18,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { UserFormDialog } from "./user-form-dialog"
+import { ResetPasswordDialog } from "./reset-password-dialog"
 import { useState } from "react"
 import { deleteUser } from "@/lib/actions/users"
 import { useRouter } from "next/navigation"
@@ -49,7 +50,7 @@ export function UsersTable({ users }: { users: any[] }) {
                 </Button>
             </div>
 
-            <div className="rounded-md border bg-white shadow-sm">
+            <div className="rounded-md border bg-card text-card-foreground shadow-sm dark:border-slate-800">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -73,13 +74,14 @@ export function UsersTable({ users }: { users: any[] }) {
                                     <TableCell className="font-medium">{user.name}</TableCell>
                                     <TableCell>{user.username}</TableCell>
                                     <TableCell>
-                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                                             }`}>
                                             {user.role}
                                         </span>
                                     </TableCell>
                                     <TableCell>{user.hourlyRate.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right flex justify-end gap-2">
+                                        <ResetPasswordDialog userId={user.id} username={user.name || user.username} />
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -92,7 +94,7 @@ export function UsersTable({ users }: { users: any[] }) {
                                                 <DropdownMenuItem onClick={() => handleEdit(user)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edytuj
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleDelete(user.id)} className="text-red-600">
+                                                <DropdownMenuItem onClick={() => handleDelete(user.id)} className="text-red-900 focus:text-red-900 focus:bg-red-50 dark:text-red-400 dark:focus:text-red-400 dark:focus:bg-red-900/20">
                                                     <Trash2 className="mr-2 h-4 w-4" /> Usuń
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>

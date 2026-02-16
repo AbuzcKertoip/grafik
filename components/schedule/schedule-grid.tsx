@@ -37,13 +37,13 @@ const SHIFT_LABELS: Record<string, string> = {
     "OFF": "DW",
 }
 const SHIFT_COLORS: Record<string, string> = {
-    "": "bg-white hover:bg-gray-50",
+    "": "bg-white dark:bg-slate-950 hover:bg-gray-50 dark:hover:bg-slate-900",
     "SHIFT_1": "bg-blue-500 text-white hover:bg-blue-600",
     "SHIFT_2": "bg-orange-400 text-white hover:bg-orange-500",
     "DUTY": "bg-red-500 text-white hover:bg-red-600",
-    "VACATION": "bg-gray-200 text-gray-800 hover:bg-gray-300",
-    "SICK": "bg-gray-300 text-gray-800 hover:bg-gray-400",
-    "OFF": "bg-gray-400 text-white hover:bg-gray-500",
+    "VACATION": "bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-slate-600",
+    "SICK": "bg-gray-300 dark:bg-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-400 dark:hover:bg-slate-500",
+    "OFF": "bg-gray-400 dark:bg-slate-500 text-white hover:bg-gray-500 dark:hover:bg-slate-400",
 }
 
 export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps) {
@@ -91,11 +91,11 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
         <div className="space-y-4">
             {isPending && <span className="text-xs text-muted-foreground ml-2">Zapisywanie...</span>}
 
-            <div className="rounded-md border bg-white overflow-x-auto">
+            <div className="rounded-md border bg-card text-card-foreground overflow-x-auto dark:border-slate-800">
                 <Table className="min-w-max border-collapse">
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[200px] border-r sticky left-0 bg-white z-10">Pracownik</TableHead>
+                            <TableHead className="w-[200px] border-r sticky left-0 bg-card z-10 text-card-foreground">Pracownik</TableHead>
                             {days.map(day => {
                                 const date = new Date(year, month - 1, day)
                                 const isWeekend = date.getDay() === 0 || date.getDay() === 6
@@ -106,12 +106,12 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
                                     <TableHead
                                         key={day}
                                         className={cn(
-                                            "text-center w-10 p-1 border-r text-xs",
-                                            isOff ? "bg-red-50 text-red-900" : ""
+                                            "text-center w-10 p-1 border-r text-xs dark:border-slate-800",
+                                            isOff ? "bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-300" : "bg-card text-card-foreground"
                                         )}
                                     >
                                         {day}
-                                        <div className={cn("text-[10px] font-normal", isOff ? "text-red-700 font-semibold" : "text-gray-400")}>
+                                        <div className={cn("text-[10px] font-normal", isOff ? "text-red-700 dark:text-red-400 font-semibold" : "text-muted-foreground")}>
                                             {format(date, "iii", { locale: pl }).slice(0, 2)}
                                         </div>
                                     </TableHead>
@@ -121,8 +121,8 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
                     </TableHeader>
                     <TableBody>
                         {users.map((user) => (
-                            <TableRow key={user.id}>
-                                <TableCell className="font-medium border-r sticky left-0 bg-white z-10">
+                            <TableRow key={user.id} className="hover:bg-muted/50 dark:hover:bg-slate-900/50">
+                                <TableCell className="font-medium border-r sticky left-0 bg-card z-10 dark:border-slate-800">
                                     {user.name}
                                 </TableCell>
                                 {days.map(day => {
@@ -138,9 +138,9 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
                                         <TableCell
                                             key={day}
                                             className={cn(
-                                                "p-0 border-r text-center cursor-pointer select-none transition-colors h-10 w-10",
+                                                "p-0 border-r text-center cursor-pointer select-none transition-colors h-10 w-10 dark:border-slate-800",
                                                 SHIFT_COLORS[type],
-                                                !type && isOff ? "bg-red-50/50 hover:bg-red-100/50" : ""
+                                                !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
                                             )}
                                             onClick={() => handleCellClick(user.id, day, type)}
                                         >
@@ -156,13 +156,13 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
                 </Table>
             </div>
 
-            <div className="flex flex-wrap gap-4 text-sm mt-4 p-4 bg-gray-50 rounded-lg">
+            <div className="flex flex-wrap gap-4 text-sm mt-4 p-4 bg-muted/40 rounded-lg border dark:border-slate-800">
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-500 rounded"></div> 1 - Pierwsza zmiana</div>
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-orange-400 rounded"></div> 2 - Druga zmiana</div>
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-500 rounded"></div> D - Dyżur</div>
-                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-200 rounded"></div> U - Urlop</div>
-                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-300 rounded"></div> L4 - Chorobowe</div>
-                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-400 rounded"></div> DW - Odbiór dnia</div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-200 dark:bg-slate-700 rounded"></div> U - Urlop</div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-300 dark:bg-slate-600 rounded"></div> L4 - Chorobowe</div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-400 dark:bg-slate-500 rounded"></div> DW - Odbiór dnia</div>
             </div>
         </div>
     )

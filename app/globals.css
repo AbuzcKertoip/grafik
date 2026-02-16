@@ -1,8 +1,8 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-
-@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -121,6 +121,7 @@
     @apply border-border outline-ring/50;
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     @apply bg-background text-foreground;

@@ -80,7 +80,7 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
         const wb = XLSX.utils.book_new()
         const rows: any[] = []
 
-        rows.push(["ENFORMATIC", "", "", "KARTA PRACY", "", "", ""])
+        rows.push(["HR4YOU", "", "", "KARTA PRACY", "", "", ""])
         rows.push([`Imię i Nazwisko: ${user.name || user.username}`, "", "", "", "", `Miesiąc: ${format(new Date(year, month - 1), "LLLL yyyy", { locale: pl })}`, ""])
         rows.push([""])
 
@@ -185,7 +185,7 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
                 </div>
             </div>
 
-            <div className="rounded-md border bg-white shadow-sm overflow-hidden">
+            <div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden dark:border-slate-800">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -203,20 +203,20 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
                             const dayLogs = getLogsForDay(day)
                             const dateObj = new Date(year, month - 1, day)
                             const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6
-                            const rowClass = isWeekend ? "bg-green-50" : ""
+                            const rowClass = isWeekend ? "bg-green-50 dark:bg-green-900/10" : ""
 
                             if (dayLogs.length === 0) {
                                 return (
-                                    <TableRow key={day} className={`hover:bg-gray-50 ${rowClass}`}>
+                                    <TableRow key={day} className={`hover:bg-muted/50 dark:hover:bg-slate-900/50 ${rowClass}`}>
                                         <TableCell className="font-medium align-top py-4">
                                             <div className="flex flex-col">
                                                 <span className="text-lg font-bold">{day}</span>
-                                                <span className="text-xs text-gray-500 capitalize">
+                                                <span className="text-xs text-muted-foreground capitalize">
                                                     {format(dateObj, "EEEE", { locale: pl })}
                                                 </span>
                                             </div>
                                         </TableCell>
-                                        <TableCell colSpan={5} className="text-gray-400 italic align-middle">
+                                        <TableCell colSpan={5} className="text-muted-foreground italic align-middle">
                                             Brak wpisów
                                         </TableCell>
                                         <TableCell className="text-right align-middle">
@@ -231,10 +231,10 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
                             return dayLogs.map((log, index) => (
                                 <TableRow key={log.id} className={rowClass}>
                                     {index === 0 && (
-                                        <TableCell rowSpan={dayLogs.length} className="font-medium align-top py-4 border-r">
+                                        <TableCell rowSpan={dayLogs.length} className="font-medium align-top py-4 border-r dark:border-slate-800">
                                             <div className="flex flex-col">
                                                 <span className="text-lg font-bold">{day}</span>
-                                                <span className="text-xs text-gray-500 capitalize">
+                                                <span className="text-xs text-muted-foreground capitalize">
                                                     {format(dateObj, "EEEE", { locale: pl })}
                                                 </span>
                                             </div>
@@ -260,7 +260,7 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
                                     <TableCell className="align-top text-right font-medium">
                                         {log.duration}
                                     </TableCell>
-                                    <TableCell className="align-top text-right text-red-600 font-medium">
+                                    <TableCell className="align-top text-right text-red-600 dark:text-red-400 font-medium">
                                         {log.overtime > 0 ? log.overtime : "-"}
                                     </TableCell>
                                     <TableCell className="align-top text-right">
@@ -268,7 +268,7 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(log)}>
                                                 <Edit className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(log.id)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 dark:text-red-400 dark:hover:text-red-300" onClick={() => handleDelete(log.id)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>

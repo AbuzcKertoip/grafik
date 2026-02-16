@@ -109,9 +109,9 @@ export default async function DashboardPage() {
     };
 
     const typeColors: Record<string, string> = {
-        'SHIFT_1': 'text-blue-600 bg-blue-50 border-blue-200',
-        'SHIFT_2': 'text-purple-600 bg-purple-50 border-purple-200',
-        'DUTY': 'text-orange-600 bg-orange-50 border-orange-200',
+        'SHIFT_1': 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+        'SHIFT_2': 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800',
+        'DUTY': 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
     };
 
     return (
@@ -119,10 +119,10 @@ export default async function DashboardPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">
+                    <h1 className="text-3xl font-bold text-foreground">
                         {now.getHours() < 18 ? "Dzień dobry" : "Dobry wieczór"}, {session.user.name || session.user.username}!
                     </h1>
-                    <p className="text-gray-500 mt-1">
+                    <p className="text-muted-foreground mt-1">
                         Dziś jest {format(now, "EEEE, d MMMM yyyy", { locale: pl })}
                     </p>
                 </div>
@@ -141,11 +141,11 @@ export default async function DashboardPage() {
             </div>
 
             {expiringExams.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500 mt-0.5" />
                     <div>
-                        <h3 className="font-semibold text-amber-800">Wymagane działanie: Badania kończą ważność</h3>
-                        <ul className="list-disc list-inside mt-1 text-sm text-amber-700">
+                        <h3 className="font-semibold text-amber-800 dark:text-amber-400">Wymagane działanie: Badania kończą ważność</h3>
+                        <ul className="list-disc list-inside mt-1 text-sm text-amber-700 dark:text-amber-300">
                             {expiringExams.map((exam: any) => {
                                 const examLabels: Record<string, string> = {
                                     'MEDICINE_WORK': 'Medycyna Pracy',
@@ -160,7 +160,7 @@ export default async function DashboardPage() {
                                 );
                             })}
                         </ul>
-                        <Link href={session.user.role === 'ADMIN' ? "/dashboard/hr" : "/dashboard/profile"} className="text-amber-900 text-sm font-medium underline mt-2 inline-block">
+                        <Link href={session.user.role === 'ADMIN' ? "/dashboard/hr" : "/dashboard/profile"} className="text-amber-900 dark:text-amber-200 text-sm font-medium underline mt-2 inline-block">
                             {session.user.role === 'ADMIN' ? "Przejdź do panelu HR" : "Przejdź do profilu"}
                         </Link>
                     </div>
@@ -171,36 +171,36 @@ export default async function DashboardPage() {
                 {/* Card 1: My Status */}
                 <Card className="border-l-4 border-l-indigo-500 shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg font-medium text-gray-600 flex items-center gap-2">
+                        <CardTitle className="text-lg font-medium flex items-center gap-2">
                             <Briefcase className="h-5 w-5" /> Twój Status
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         {myStatusToday ? (
-                            <div className={`p-4 rounded-lg border ${typeColors[myStatusToday.type] || 'bg-gray-50'}`}>
+                            <div className={`p-4 rounded-lg border ${typeColors[myStatusToday.type] || 'bg-muted border-border'}`}>
                                 <p className="font-semibold text-lg">{typeLabels[myStatusToday.type] || myStatusToday.type}</p>
                                 <p className="text-sm opacity-80">Dziś pracujesz</p>
                             </div>
                         ) : (
-                            <div className="p-4 rounded-lg bg-green-50 border border-green-100 text-green-700">
+                            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 text-green-700 dark:text-green-400">
                                 <p className="font-semibold text-lg">Wolne 🎉</p>
                                 <p className="text-sm opacity-80">Dziś odpoczywasz</p>
                             </div>
                         )}
 
                         <div className="mt-4 pt-4 border-t">
-                            <p className="text-sm text-gray-500 mb-1">Następna aktywność:</p>
+                            <p className="text-sm text-muted-foreground mb-1">Następna aktywność:</p>
                             {nextShift ? (
                                 <div className="flex justify-between items-center">
-                                    <span className="font-medium text-gray-900">
+                                    <span className="font-medium">
                                         {format(nextShift.date, "d MMMM (EEEE)", { locale: pl })}
                                     </span>
-                                    <span className="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600 font-medium">
+                                    <span className="text-xs bg-muted px-2 py-1 rounded-full text-muted-foreground font-medium">
                                         {typeLabels[nextShift.type]?.split('(')[0] || nextShift.type}
                                     </span>
                                 </div>
                             ) : (
-                                <p className="text-gray-400 italic">Brak zaplanowanych zmian</p>
+                                <p className="text-muted-foreground italic">Brak zaplanowanych zmian</p>
                             )}
                         </div>
                     </CardContent>
@@ -209,7 +209,7 @@ export default async function DashboardPage() {
                 {/* Card 2: Team Today */}
                 <Card className="shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg font-medium text-gray-600 flex items-center gap-2">
+                        <CardTitle className="text-lg font-medium flex items-center gap-2">
                             <Users className="h-5 w-5" /> Kto dziś pracuje?
                         </CardTitle>
                     </CardHeader>
@@ -219,14 +219,14 @@ export default async function DashboardPage() {
                                 {todaySchedule.map(shift => (
                                     <div key={shift.id} className="flex items-center justify-between group">
                                         <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
+                                            <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-xs">
                                                 {(shift.user.name || shift.user.username).substring(0, 2).toUpperCase()}
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-gray-900">
+                                                <span className="text-sm font-medium">
                                                     {shift.user.name || shift.user.username}
                                                 </span>
-                                                <span className="text-xs text-gray-500 md:hidden lg:inline-block">
+                                                <span className="text-xs text-muted-foreground md:hidden lg:inline-block">
                                                     {typeLabels[shift.type]?.split('(')[0]}
                                                 </span>
                                             </div>
@@ -238,7 +238,7 @@ export default async function DashboardPage() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-gray-500 italic text-center py-4">Nikt dzisiaj nie pracuje?</p>
+                            <p className="text-muted-foreground italic text-center py-4">Nikt dzisiaj nie pracuje?</p>
                         )}
                     </CardContent>
                 </Card>
@@ -246,34 +246,34 @@ export default async function DashboardPage() {
                 {/* Card 3: Stats */}
                 <Card className="shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg font-medium text-gray-600 flex items-center gap-2">
+                        <CardTitle className="text-lg font-medium flex items-center gap-2">
                             <FileText className="h-5 w-5" /> Twoje Podsumowanie
                         </CardTitle>
                         <CardDescription>{format(now, "LLLL yyyy", { locale: pl })}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gray-50 p-3 rounded-lg border text-center">
-                                <p className="text-2xl font-bold text-indigo-600">
+                            <div className="bg-muted p-3 rounded-lg border text-center">
+                                <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                                     {workStats._sum.duration || 0}
                                 </p>
-                                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mt-1">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mt-1">
                                     Godziny
                                 </p>
                             </div>
-                            <div className="bg-gray-50 p-3 rounded-lg border text-center">
-                                <p className="text-2xl font-bold text-red-600">
+                            <div className="bg-muted p-3 rounded-lg border text-center">
+                                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                                     {workStats._sum.overtime || 0}
                                 </p>
-                                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mt-1">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mt-1">
                                     Nadgodziny
                                 </p>
                             </div>
                         </div>
 
                         {session.user.role === 'ADMIN' && (
-                            <div className="mt-6 pt-4 border-t">
-                                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-100">
+                            <div className="mt-6 pt-4 border-t dark:border-slate-800">
+                                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-md border border-amber-100 dark:border-amber-800">
                                     <AlertCircle className="h-5 w-5" />
                                     <div className="text-sm">
                                         <p className="font-semibold">Panel Administratora</p>

@@ -153,13 +153,13 @@ export function WorkLogDialog({ log, date, open, onOpenChange }: WorkLogDialogPr
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="quickEntry" className="text-right text-blue-600">Szybkie</Label>
+                        <Label htmlFor="quickEntry" className="text-right text-blue-600 dark:text-blue-400">Szybkie</Label>
                         <Input
                             id="quickEntry"
                             placeholder="np. 8-19"
                             value={quickEntry}
                             onChange={(e: ChangeEvent<HTMLInputElement>) => handleQuickEntryChange(e.target.value)}
-                            className="col-span-3 border-blue-200 focus:border-blue-500"
+                            className="col-span-3 border-blue-200 focus:border-blue-500 dark:border-blue-800 dark:focus:border-blue-400"
                         />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">

@@ -78,3 +78,79 @@ export async function getVacationStats(userId: number, year: number) {
         }
     }
 }
+
+// Equipment Actions
+export async function addEquipment(userId: number, name: string, serialNumber: string, notes: string) {
+    const session = await getServerSession(authOptions)
+    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień" }
+
+    try {
+        await (prisma as any).equipment.create({
+            data: {
+                userId,
+                name,
+                serialNumber,
+                notes
+            }
+        })
+        revalidatePath("/dashboard/profile")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd dodawania sprzętu" }
+    }
+}
+
+export async function deleteEquipment(id: number) {
+    const session = await getServerSession(authOptions)
+    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień" }
+
+    try {
+        await (prisma as any).equipment.delete({ where: { id } })
+        revalidatePath("/dashboard/profile")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd usuwania sprzętu" }
+    }
+}
+
+export async function getEquipment(userId: number) {
+    return await (prisma as any).equipment.findMany({
+        where: { userId },
+        orderBy: { assignedDate: 'desc' }
+    })
+}
+
+// Clothing Size Actions
+export async function updateClothingSizes(userId: number, sizes: { shirt: string, pants: string, shoe: string, jacket: string }) {
+    const session = await getServerSession(authOptions)
+    if (session?.user.role !== 'ADMIN' && parseInt(session?.user.id!) !== userId) return { error: "Brak uprawnień" }
+
+    try {
+        await (prisma as any).user.update({
+            where: { id: userId },
+            data: {
+                shirtSize: sizes.shirt,
+                pantsSize: sizes.pants,
+                shoeSize: sizes.shoe,
+                jacketSize: sizes.jacket
+            }
+        })
+        revalidatePath("/dashboard/profile")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd aktualizacji rozmiarów" }
+    }
+}
+
+export async function getClothingSizes(userId: number) {
+    const user = await (prisma as any).user.findUnique({
+        where: { id: userId },
+        select: {
+            shirtSize: true,
+            pantsSize: true,
+            shoeSize: true,
+            jacketSize: true
+        }
+    })
+    return user || {}
+}

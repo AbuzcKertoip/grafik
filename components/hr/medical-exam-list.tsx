@@ -51,9 +51,9 @@ export function MedicalExamList({ exams, userId, isAdmin }: MedicalExamListProps
         const diffTime = date.getTime() - now.getTime()
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-        if (diffDays < 0) return { color: "text-red-600 bg-red-50", text: "Przeterminowane", icon: <AlertTriangle className="h-4 w-4" /> }
-        if (diffDays < 30) return { color: "text-amber-600 bg-amber-50", text: `Wygasa za ${diffDays} dni`, icon: <AlertTriangle className="h-4 w-4" /> }
-        return { color: "text-green-600 bg-green-50", text: "Ważne", icon: <CheckCircle className="h-4 w-4" /> }
+        if (diffDays < 0) return { color: "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20", text: "Przeterminowane", icon: <AlertTriangle className="h-4 w-4" /> }
+        if (diffDays < 30) return { color: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20", text: `Wygasa za ${diffDays} dni`, icon: <AlertTriangle className="h-4 w-4" /> }
+        return { color: "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20", text: "Ważne", icon: <CheckCircle className="h-4 w-4" /> }
     }
 
     const typeLabels: Record<string, string> = {
@@ -105,15 +105,15 @@ export function MedicalExamList({ exams, userId, isAdmin }: MedicalExamListProps
 
             <div className="grid gap-3">
                 {exams.length === 0 ? (
-                    <p className="text-gray-500 italic">Brak wpisów.</p>
+                    <p className="text-muted-foreground italic">Brak wpisów.</p>
                 ) : (
                     exams.map((exam) => {
                         const status = getStatus(new Date(exam.validUntil))
                         return (
-                            <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg bg-white shadow-sm">
+                            <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg bg-card text-card-foreground shadow-sm dark:border-slate-800">
                                 <div>
                                     <p className="font-medium">{typeLabels[exam.type] || exam.type}</p>
-                                    <p className="text-sm text-gray-500">
+                                    <p className="text-sm text-muted-foreground">
                                         Ważne do: {format(new Date(exam.validUntil), "d MMMM yyyy", { locale: pl })}
                                     </p>
                                 </div>

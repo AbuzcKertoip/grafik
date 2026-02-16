@@ -15,6 +15,7 @@ model User {
   username     String         @unique
   password     String
   name         String?
+  image        String?        // Base64 or URL
   role         String         @default("USER") // 'ADMIN', 'USER'
   hourlyRate   Float          @default(0.0)
   sortOrder    Int            @default(999)
@@ -30,6 +31,14 @@ model User {
   vacationDaysLimit Int           @default(26) // 20 or 26 typically
   carriedOverVacationDays Int     @default(0)
   medicalExams      MedicalExam[]
+  equipment         Equipment[]
+  
+  // Clothing Sizes
+  shirtSize         String?       // XS, S, M, L, XL, XXL
+  pantsSize         String?       // e.g. 32/32, L
+  shoeSize          String?       // e.g. 42, 43
+  jacketSize        String?       // M, L, XL
+  cars              Car[]
 }
 
 model MedicalExam {
@@ -84,4 +93,37 @@ model Vacation {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Equipment {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  name         String   // e.g. "Laptop Dell Latitude", "iPhone 13"
+  serialNumber String?  // e.g. "ABC123456"
+  assignedDate DateTime @default(now())
+  notes        String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Car {
+  id                  Int       @id @default(autoincrement())
+  make                String
+  model               String
+  plate               String    @unique
+  vin                 String    @unique
+  productionYear      Int
+  inspectionValidUntil DateTime
+  insuranceValidUntil  DateTime
+  policyNumber        String
+  status              String    @default("ACTIVE") // ACTIVE, SERVICE, INACTIVE
+
+  caretakerId         Int?
+  caretaker           User?     @relation(fields: [caretakerId], references: [id])
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }

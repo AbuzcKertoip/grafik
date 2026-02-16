@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
-import { hashPassword } from "@/lib/password"
+import { hashPassword, verifyPassword } from "@/lib/password"
 
 export async function getUsers() {
     return await prisma.user.findMany({
@@ -78,5 +78,48 @@ export async function deleteUser(id: number) {
         return { success: true }
     } catch (error) {
         return { error: "Nie można usunąć użytkownika." }
+    }
+}
+
+export async function changePassword(userId: number, oldPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+    })
+
+    if (!user) {
+        return { error: "Użytkownik nie istnieje." }
+    }
+
+    const isValid = await verifyPassword(oldPassword, user.password)
+
+    if (!isValid) {
+        return { error: "Stare hasło jest nieprawidłowe." }
+    }
+
+    const hashedPassword = await hashPassword(newPassword)
+
+    try {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword },
+        })
+        return { success: true }
+    } catch (error) {
+        return { error: "Błąd zmiany hasła." }
+    }
+}
+
+export async function resetPassword(userId: number, newPassword: string) {
+    const hashedPassword = await hashPassword(newPassword)
+
+    try {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword },
+        })
+        revalidatePath("/dashboard/users")
+        return { success: true }
+    } catch (error) {
+        return { error: "Błąd resetowania hasła." }
     }
 }
