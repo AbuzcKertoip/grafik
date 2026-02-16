@@ -33,6 +33,8 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED 1
 
 # Build the project
+ENV DATABASE_URL="file:./dev.db"
+RUN npx prisma db push
 RUN npm run build
 
 # 3. Production image, copy all the files and run next
