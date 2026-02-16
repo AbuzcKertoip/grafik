@@ -3,7 +3,7 @@
 FROM node:20-alpine AS base
 
 # Install dependencies globally (if needed for all stages)
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 
 # 1. Install dependencies only when needed
 FROM base AS deps
