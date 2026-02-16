@@ -72,7 +72,7 @@ We will use the official Docker repository to get the latest version.
     **Example content for .env:**
     ```env
     # Database (used by Prisma inside the container)
-    DATABASE_URL="file:./prisma/dev.db"
+    DATABASE_URL="file:/app/prisma/dev.db"
 
     # Authentication (generate a random string, e.g., with `openssl rand -base64 32`)
     NEXTAUTH_SECRET="your-secure-secret-key"
