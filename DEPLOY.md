@@ -85,7 +85,17 @@ We will use the official Docker repository to get the latest version.
     sudo docker compose up -d --build
     ```
 
-4.  **Check Status:**
+4.  **Initialize Database Schema & Seed Data:**
+    The `dev.db` file is empty. We need to create the tables and add default data:
+    ```bash
+    # Create tables (push schema)
+    sudo docker compose exec app npx prisma db push
+
+    # Seed data (create admin account)
+    sudo docker compose exec app node prisma/seed.js
+    ```
+
+5.  **Check Status:**
     ```bash
     sudo docker compose ps
     ```
