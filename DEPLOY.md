@@ -56,7 +56,15 @@ We will use the official Docker repository to get the latest version.
     cd your-repo-name
     ```
 
-2.  **Configuration (.env):**
+2.  **Prepare Database File:**
+    The database file `dev.db` is ignored by git, but Docker expects it to exist. Create an empty file to prevent Docker from creating a directory instead:
+    ```bash
+    touch prisma/dev.db
+    # Ensure it's writable by the container's user (node/nextjs - uid 1001)
+    chmod 666 prisma/dev.db
+    ```
+
+3.  **Configuration (.env):**
     Copy the `.env` example file (create it if it doesn't exist) and fill in the production values.
     ```bash
     nano .env
