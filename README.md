@@ -85,17 +85,6 @@ Dzięki Dockerowi możesz uruchomić aplikację bez konieczności instalowania N
 
 Szczegółowa instrukcja wdrożenia „krok po kroku” dla systemu **Debian 12 (Bookworm)** znajduje się w pliku [DEPLOY.md](./DEPLOY.md).
 
-## Domyślne konto administratora
-
-Po wykonaniu seedowania bazy danych, w systemie dostępne jest konto administratora:
-- **Login:** `admin`
-- **Hasło:** `password123`
-
-Aby utworzyć to konto, uruchom komendę:
-```bash
-sudo docker compose exec app npx prisma db seed
-```
-
 ## Technologie
 
 - **Frontend/Backend:** Next.js 14+ (App Router)
