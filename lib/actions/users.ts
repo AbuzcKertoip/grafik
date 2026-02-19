@@ -4,9 +4,32 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { hashPassword, verifyPassword } from "@/lib/password"
 
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { ROLES } from "@/lib/auth/permissions"
+
 export async function getUsers() {
+    const session = await getServerSession(authOptions)
+    if (!session) return []
+
+    const { role, departmentId } = session.user
+    const deptId = departmentId ? parseInt(departmentId.toString()) : null
+
+    // ADMIN/HR sees all. MANAGER sees own department. USER sees all (or maybe restricted? Plan says "Manager access to their department")
+    // Let's restrict Manager to department.
+    // If User, maybe they see all for schedule visibility? Usually coworkers see each other.
+    // Let's assume Manager restriction is key.
+
+    const where: any = {}
+    if (role === ROLES.MANAGER && deptId) {
+        where.departmentId = deptId
+    }
+
+    // Include department info for frontend display if needed
     return await prisma.user.findMany({
+        where,
         orderBy: { sortOrder: "asc" },
+        include: { department: true }
     })
 }
 

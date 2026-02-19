@@ -40,6 +40,40 @@ model User {
   shoeSize          String?       // e.g. 42, 43
   jacketSize        String?       // M, L, XL
   cars              Car[]
+
+  // New RBAC & Department fields
+  departmentId      Int?
+  department        Department?   @relation(fields: [departmentId], references: [id])
+  permissions       UserPermission[]
+}
+
+model Department {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  slug        String           @unique // e.g. 'manage_users', 'view_all_schedules'
+  name        String           // Readable name
+  description String?
+  
+  users       UserPermission[]
+}
+
+model UserPermission {
+  userId       Int
+  permissionId Int
+  assignedAt   DateTime @default(now())
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
 }
 
 model MedicalExam {

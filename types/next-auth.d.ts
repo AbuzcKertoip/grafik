@@ -4,6 +4,7 @@ declare module "next-auth" {
     interface User {
         role?: string
         username?: string
+        departmentId?: number | null
     }
 
     interface Session {
@@ -11,6 +12,7 @@ declare module "next-auth" {
             id: string
             role?: string
             username?: string
+            departmentId?: number
         } & DefaultSession["user"]
     }
 }
@@ -19,5 +21,6 @@ declare module "next-auth/jwt" {
     interface JWT {
         id: string
         role?: string
+        departmentId?: number
     }
 }

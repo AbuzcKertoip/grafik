@@ -2,19 +2,33 @@
 
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 
 export async function getSchedule(year: number, month: number) {
+    const session = await getServerSession(authOptions)
+    const { role, departmentId } = session?.user || {}
+
     // Calculate start and end date of the month
     const startDate = new Date(year, month - 1, 1)
     const endDate = new Date(year, month, 0) // last day of month
 
-    const schedule = await prisma.scheduleDay.findMany({
-        where: {
-            date: {
-                gte: startDate,
-                lte: endDate,
-            },
+    const where: any = {
+        date: {
+            gte: startDate,
+            lte: endDate,
         },
+    }
+
+    if (role === 'MANAGER' && departmentId) {
+        where.user = {
+            departmentId: parseInt(departmentId.toString())
+        }
+    }
+
+    const schedule = await prisma.scheduleDay.findMany({
+        where,
+        include: { user: true } // Include user to check correctness if needed, or just standard return
     })
 
     return schedule
@@ -33,9 +47,6 @@ interface UserWithSettings {
     fixedShift: string | null;
     role: string;
 }
-
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 
 export async function generateSchedule(year: number, month: number) {
     const session = await getServerSession(authOptions)

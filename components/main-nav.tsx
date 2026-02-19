@@ -21,6 +21,8 @@ export function MainNav() {
     const pathname = usePathname()
     const { data: session } = useSession()
     const isAdmin = session?.user?.role === "ADMIN"
+    const isHR = session?.user?.role === "HR" || isAdmin
+    const isManager = session?.user?.role === "MANAGER" || isAdmin
     const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
 
     const links = [
@@ -29,6 +31,12 @@ export function MainNav() {
             label: "Pulpit",
             icon: Home,
             show: true,
+        },
+        {
+            href: "/dashboard/admin",
+            label: "Administracja",
+            icon: Shield,
+            show: isAdmin,
         },
         {
             href: "/dashboard/schedule",
@@ -42,17 +50,17 @@ export function MainNav() {
             icon: ClipboardList,
             show: true,
         },
-        {
-            href: "/dashboard/users",
-            label: "Pracownicy",
-            icon: Users,
-            show: isAdmin,
-        },
+        // {
+        //     href: "/dashboard/users",
+        //     label: "Pracownicy",
+        //     icon: Users,
+        //     show: isAdmin, // Superseded by Admin Panel
+        // },
         {
             href: "/dashboard/reports",
             label: "Raporty",
             icon: PieChart,
-            show: isAdmin,
+            show: isAdmin || isManager,
         },
         {
             href: "/dashboard/profile",
@@ -63,20 +71,20 @@ export function MainNav() {
         {
             href: "/dashboard/hr",
             label: "Panel HR",
-            icon: Shield,
-            show: isAdmin,
+            icon: Users, // Changed icon to Users for HR
+            show: isHR,
         },
         {
             href: "/dashboard/fleet",
             label: "Flota",
             icon: Car,
-            show: isAdmin,
+            show: isAdmin, // Or specific fleet manager?
         },
         {
             href: "/dashboard/my-cars",
             label: "Moje Auto",
             icon: Car,
-            show: !isAdmin, // Or true for everyone? Let's show for non-admins, or everyone. User said "assigned caretaker".
+            show: true,
         },
     ]
 

@@ -10,7 +10,7 @@ import { User, Shield, AlertTriangle } from "lucide-react";
 
 export default async function HRPage() {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || !['ADMIN', 'HR'].includes(session.user.role)) {
         redirect("/dashboard");
     }
 
