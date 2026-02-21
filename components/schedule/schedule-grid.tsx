@@ -70,12 +70,8 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
     }
 
     const handleCellClick = (userId: number, day: number, selectedType: string) => {
-        // Use UTC noon to ensure the date string is correct regardless of local timezone
-        const dateObj = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-        const dateStr = dateObj.toISOString();
-
         startTransition(async () => {
-            await upsertShift(userId, dateStr, selectedType)
+            await upsertShift(userId, year, month, day, selectedType)
         })
     }
 

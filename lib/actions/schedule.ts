@@ -336,30 +336,26 @@ export async function generateSchedule(year: number, month: number) {
     return { success: true }
 }
 
-export async function upsertShift(userId: number, dateStr: string, type: string) {
-    const date = new Date(dateStr)
-
+export async function upsertShift(userId: number, year: number, month: number, day: number, type: string) {
     try {
-        if (type === 'OFF' || type === '') {
-            // Remove if setting to empty/off
-            await prisma.scheduleDay.deleteMany({
-                where: {
-                    userId,
-                    date,
+        const startOfDay = new Date(year, month - 1, day, 0, 0, 0)
+        const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
+
+        // Remove any existing shifts in that specific day bracket to prevent timezone-duplicate bugs
+        await prisma.scheduleDay.deleteMany({
+            where: {
+                userId,
+                date: {
+                    gte: startOfDay,
+                    lte: endOfDay
                 },
-            })
-        } else {
-            // Check if user is on vacation? Maybe allow override? 
-            // Allow override manually.
-            await prisma.scheduleDay.upsert({
-                where: {
-                    userId_date: {
-                        userId,
-                        date,
-                    },
-                },
-                update: { type },
-                create: {
+            },
+        })
+
+        if (type !== 'OFF' && type !== '') {
+            const date = new Date(year, month - 1, day) // Same exact logic generateSchedule uses
+            await prisma.scheduleDay.create({
+                data: {
                     userId,
                     date,
                     type,
