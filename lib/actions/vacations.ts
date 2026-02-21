@@ -27,6 +27,54 @@ export async function getVacations(year: number) {
     })
 }
 
+import { getVacationStats } from "./hr"
+
+async function validateVacationLimit(userId: number, startDate: Date, endDate: Date, excludeVacationId?: number) {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const year = start.getFullYear()
+
+    if (start.getFullYear() !== end.getFullYear()) {
+        return { valid: false, error: "Wniosek nie może przekraczać roku kalendarzowego. Złóż dwa osobne wnioski." }
+    }
+
+    // Oblicz liczbę dni wniosku (uproszczone: wszystkie dni, wliczając weekendy jeśli tak liczy system, 
+    // lub tylko robocze. Biorąc pod uwagę obecny model, ScheduleDay generuje się dla każdego dnia.
+    // Skoro limit jest w dniach "roboczych", powinniśmy liczyć realnie dni robocze, 
+    // ale zachowajmy konsekwencję. Najprościej policzyć po prostu dni różnicy, jeśli tak robiliśmy.
+    // Assuming 1 day = 1 unit of limit for simplicity here, or you can implement a business days logic.
+    // Let's count days simply for now:
+    const daysRequested = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+    const stats = await getVacationStats(userId, year)
+
+    // Policz oczekujące wnioski z tego roku (z wyłączeniem obecnego jeśli to edycja/akceptacja)
+    const pendingVacations = await prisma.vacation.findMany({
+        where: {
+            userId: userId,
+            approved: false,
+            startDate: { gte: new Date(year, 0, 1) },
+            endDate: { lte: new Date(year, 11, 31) },
+            ...(excludeVacationId ? { id: { not: excludeVacationId } } : {})
+        }
+    })
+
+    const pendingDays = pendingVacations.reduce((acc, vac) => {
+        return acc + Math.ceil((new Date(vac.endDate).getTime() - new Date(vac.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
+    }, 0)
+
+    const totalNeeded = stats.used + pendingDays + daysRequested
+
+    if (totalNeeded > stats.limit) {
+        return {
+            valid: false,
+            error: `Wykorzystano limit. Przewidywane użycie: ${totalNeeded} dni, Limit: ${stats.limit} dni.`
+        }
+    }
+
+    return { valid: true }
+}
+
 export async function createVacation(data: any) {
     const session = await getServerSession(authOptions)
     if (!session) return { error: "Brak dostępu" }
@@ -39,6 +87,11 @@ export async function createVacation(data: any) {
 
     // If Admin -> Approved immediately. If User -> Pending
     const approved = isAdmin
+
+    const validation = await validateVacationLimit(parseInt(userId), new Date(startDate), new Date(endDate))
+    if (!validation.valid) {
+        return { error: validation.error }
+    }
 
     try {
         await prisma.$transaction(async (tx) => {
@@ -108,6 +161,11 @@ export async function approveVacation(id: number) {
             if (vacation.user.departmentId !== session.user.departmentId) {
                 return { error: "Możesz akceptować urlopy tylko we własnym dziale." }
             }
+        }
+
+        const validation = await validateVacationLimit(vacation.userId, new Date(vacation.startDate), new Date(vacation.endDate), vacation.id)
+        if (!validation.valid) {
+            return { error: "Zatwierdzenie zablokowane: " + validation.error }
         }
 
         await prisma.$transaction(async (tx) => {
