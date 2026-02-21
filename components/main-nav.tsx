@@ -72,7 +72,7 @@ export function MainNav() {
             href: "/dashboard/hr",
             label: "Panel HR",
             icon: Users, // Changed icon to Users for HR
-            show: isHR,
+            show: isHR || isManager,
         },
         {
             href: "/dashboard/fleet",

@@ -5,7 +5,7 @@ import { hashPassword } from '../lib/password'
 const prisma = new PrismaClient()
 
 const employees = [
-    { name: 'Maciej Barć', username: 'mbarc' },
+    { name: 'Admin', username: 'mbarc' },
     { name: 'Dawid Borowiec', username: 'dborowiec' },
     { name: 'Piotr Czuba', username: 'pczuba' }, // Assuming this isn't the admin acc
     { name: 'Brunon Socha', username: 'bsocha' },

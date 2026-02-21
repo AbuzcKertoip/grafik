@@ -18,7 +18,7 @@ interface ScheduleActionsProps {
 export function ScheduleActions({ users, vacations, year, month, currentUser }: ScheduleActionsProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
-    const isAdmin = currentUser?.role === 'ADMIN'
+    const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
 
     const handleGenerate = async () => {
         if (!confirm(`Czy na pewno wygenerować grafik na ${month}/${year}? Istniejące dane dla tego miesiąca zostaną nadpisane.`)) return
@@ -61,7 +61,7 @@ export function ScheduleActions({ users, vacations, year, month, currentUser }: 
     return (
         <div className="flex gap-2">
             <VacationCalendar users={users} vacations={vacations} currentUser={currentUser} />
-            {isAdmin && (
+            {canManage && (
                 <>
                     <Button
                         onClick={handleGenerate}

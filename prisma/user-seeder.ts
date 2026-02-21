@@ -7,7 +7,7 @@ async function main() {
     const password = await hash('password123', 10)
 
     const users = [
-        { name: 'Maciej Barć', username: 'mbarc', role: 'ADMIN', sortOrder: 1, skipDuties: true },
+        { name: 'Admin', username: 'mbarc', role: 'ADMIN', sortOrder: 1, skipDuties: true },
         { name: 'Dawid Borowiec', username: 'dborowiec', role: 'USER', sortOrder: 2 },
         { name: 'Piotr Czuba', username: 'pczuba', role: 'USER', sortOrder: 3 },
         { name: 'Brunon Socha', username: 'bsocha', role: 'USER', sortOrder: 4, fixedShift: 'SHIFT_1' }, // Assumption based on previous context or just default

@@ -92,11 +92,23 @@ export async function createVacation(data: any) {
 
 export async function approveVacation(id: number) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień" }
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
+        return { error: "Brak uprawnień" }
+    }
 
     try {
-        const vacation = await prisma.vacation.findUnique({ where: { id } })
+        const vacation = await prisma.vacation.findUnique({
+            where: { id },
+            include: { user: true }
+        })
         if (!vacation) return { error: "Wniosek nie istnieje" }
+
+        // Manger restriction
+        if (session.user.role === 'MANAGER') {
+            if (vacation.user.departmentId !== session.user.departmentId) {
+                return { error: "Możesz akceptować urlopy tylko we własnym dziale." }
+            }
+        }
 
         await prisma.$transaction(async (tx) => {
             // 1. Approve
@@ -137,8 +149,11 @@ export async function approveVacation(id: number) {
 
 export async function rejectVacation(id: number) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień" }
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
+        return { error: "Brak uprawnień" }
+    }
 
+    // Manger restriction logic inside deleteVacation will handle the check
     return deleteVacation(id)
 }
 
@@ -148,13 +163,20 @@ export async function deleteVacation(id: number) {
 
     try {
         // Optionally add permissions check: Admin or Own
-        const vacation = await prisma.vacation.findUnique({ where: { id } })
+        const vacation = await prisma.vacation.findUnique({
+            where: { id },
+            include: { user: true }
+        })
         if (!vacation) return { error: "Nie znaleziono" }
 
         const isAdmin = session.user.role === 'ADMIN'
+        const isManager = session.user.role === 'MANAGER'
         const isSelf = parseInt(session.user.id) === vacation.userId
+        const isManagersEmployee = isManager && (vacation.user.departmentId === session.user.departmentId)
 
-        if (!isAdmin && !isSelf) return { error: "Brak uprawnień" }
+        if (!isAdmin && !isSelf && !isManagersEmployee) {
+            return { error: "Brak uprawnień" }
+        }
         // Users can only delete their own if PENDING (approved should be immutable for users?)
         // Let's allow users to delete approved too for now or block it?
         // Usually, if approved, they can't delete. But let's keep it simple for now as requested.

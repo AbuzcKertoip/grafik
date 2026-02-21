@@ -79,6 +79,13 @@ export async function getVacationStats(userId: number, year: number) {
     }
 }
 
+export async function getUserVacations(userId: number) {
+    return await prisma.vacation.findMany({
+        where: { userId },
+        orderBy: { startDate: 'desc' },
+    });
+}
+
 // Equipment Actions
 export async function addEquipment(userId: number, name: string, serialNumber: string, notes: string) {
     const session = await getServerSession(authOptions)

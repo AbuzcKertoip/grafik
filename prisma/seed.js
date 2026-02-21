@@ -6,17 +6,18 @@ const prisma = new PrismaClient()
 async function main() {
     const password = await hash('password123', 10)
 
-    // Admin user: Maciej Barc (Manager)
+    // Admin user: Admin (Manager)
     await prisma.user.upsert({
         where: { username: 'admin' },
         update: {
             sortOrder: 1,
             skipDuties: true,
+            name: 'Admin',
         },
         create: {
             username: 'admin',
             password,
-            name: 'Maciej Barc',
+            name: 'Admin',
             role: 'ADMIN',
             sortOrder: 1,
             skipDuties: true,

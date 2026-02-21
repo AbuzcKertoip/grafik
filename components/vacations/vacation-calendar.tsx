@@ -31,6 +31,9 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
     const [selectedUser, setSelectedUser] = useState<string>(currentUser?.role === 'ADMIN' ? "" : currentUser?.id.toString())
     const [isOpen, setIsOpen] = useState(false)
     const [type, setType] = useState("VACATION")
+
+    // Both Admin and Manager can manage vacations (backend isolates Manager to own dept)
+    const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
     const isAdmin = currentUser?.role === 'ADMIN'
 
     const handleAdd = async () => {
@@ -45,9 +48,9 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
 
         if (result?.success) {
             setDateRange(undefined)
-            if (isAdmin) setSelectedUser("")
+            if (canManage) setSelectedUser("")
             router.refresh()
-            alert(isAdmin ? "Urlop dodany." : "Wniosek został wysłany do akceptacji.")
+            alert(canManage ? "Urlop dodany." : "Wniosek został wysłany do akceptacji.")
         } else {
             alert(result?.error || "Błąd dodawania wniosku")
         }
@@ -76,9 +79,9 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
     }
 
     // Filter vacations based on role
-    // Admin sees all? Or maybe we toggle between "All" and "Pending"?
+    // Admin sees all. Manager sees all from their own department (filtered by backend/passed to props). 
     // User sees only their own.
-    const visibleVacations = isAdmin
+    const visibleVacations = canManage
         ? vacations
         : vacations.filter(v => v.userId === currentUser?.id)
 
@@ -89,8 +92,8 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm relative">
-                    {isAdmin ? "Centrum Urlopowe" : "Złóż Wniosek"}
-                    {isAdmin && pendingVacations.length > 0 && (
+                    {canManage ? "Centrum Urlopowe" : "Złóż Wniosek"}
+                    {canManage && pendingVacations.length > 0 && (
                         <span className="absolute -top-2 -right-2 h-5 w-5 bg-red-500 rounded-full text-[10px] flex items-center justify-center border border-white">
                             {pendingVacations.length}
                         </span>
@@ -100,7 +103,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
             <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader className="border-b pb-4">
                     <DialogTitle className="text-2xl font-bold text-foreground">
-                        {isAdmin ? "Centrum Zarządzania Urlopami" : "Twoje Wnioski Urlopowe"}
+                        {canManage ? "Centrum Zarządzania Urlopami" : "Twoje Wnioski Urlopowe"}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -110,12 +113,12 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                         <div className="space-y-1">
                             <h3 className="font-semibold text-lg text-foreground">Nowy wniosek</h3>
                             <p className="text-sm text-muted-foreground">
-                                {isAdmin ? "Dodaj urlop lub zwolnienie." : "Wybierz termin urlopu."}
+                                {canManage ? "Dodaj urlop lub zwolnienie." : "Wybierz termin urlopu."}
                             </p>
                         </div>
 
                         <div className="space-y-4">
-                            {isAdmin && (
+                            {canManage && (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-muted-foreground">Pracownik</label>
                                     <Select value={selectedUser} onValueChange={setSelectedUser}>
@@ -164,14 +167,14 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                 onClick={handleAdd}
                                 disabled={!dateRange?.from || !dateRange?.to || !selectedUser}
                             >
-                                {isAdmin ? "Zatwierdź Urlop" : "Wyślij Wniosek"}
+                                {canManage ? "Zatwierdź Urlop" : "Wyślij Wniosek"}
                             </Button>
                         </div>
                     </div>
 
                     {/* Right Content: Lists */}
                     <div className="md:col-span-8 bg-muted/30 rounded-lg p-6 space-y-6 border border-border h-full flex flex-col">
-                        <Tabs defaultValue={isAdmin && pendingVacations.length > 0 ? "pending" : "all"} className="w-full flex-1 flex flex-col">
+                        <Tabs defaultValue={canManage && pendingVacations.length > 0 ? "pending" : "all"} className="w-full flex-1 flex flex-col">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="pending" className="relative">
                                     Oczekujące
@@ -204,7 +207,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                             Typ: {v.type === 'VACATION' ? 'Urlop' : v.type}
                                                         </div>
                                                     </div>
-                                                    {isAdmin ? (
+                                                    {canManage ? (
                                                         <div className="flex gap-2">
                                                             <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-900" onClick={() => handleApprove(v.id)}>
                                                                 <CheckCircle className="w-4 h-4 mr-1" /> Akceptuj
@@ -242,7 +245,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                     </div>
                                                 </div>
                                             </div>
-                                            {(isAdmin || !v.approved) && (
+                                            {(canManage || !v.approved) && (
                                                 <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-600">
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

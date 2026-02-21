@@ -8,21 +8,40 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { ROLES } from "@/lib/auth/permissions"
 
-export async function getUsers() {
+export async function getUsers(requestedDepartmentId?: string | null) {
     const session = await getServerSession(authOptions)
     if (!session) return []
 
     const { role, departmentId } = session.user
-    const deptId = departmentId ? parseInt(departmentId.toString()) : null
-
-    // ADMIN/HR sees all. MANAGER sees own department. USER sees all (or maybe restricted? Plan says "Manager access to their department")
-    // Let's restrict Manager to department.
-    // If User, maybe they see all for schedule visibility? Usually coworkers see each other.
-    // Let's assume Manager restriction is key.
+    const currentDeptId = departmentId ? parseInt(departmentId.toString()) : null
 
     const where: any = {}
-    if (role === ROLES.MANAGER && deptId) {
-        where.departmentId = deptId
+
+    // Strict RBAC Rules for Schedule Visibility
+    if (role === ROLES.USER || role === ROLES.MANAGER) {
+        // Users and Managers can ONLY see their own department's members
+        if (currentDeptId) {
+            where.departmentId = currentDeptId;
+        } else {
+            // Failsafe: if they have no department assigned, show only themselves
+            // or show an empty list. We'll show just themselves for now.
+            where.id = session.user.id;
+        }
+    } else if (role === ROLES.ADMIN || role === ROLES.HR) {
+        // Admins and HR can see all, but can also filter by a specific department
+        if (requestedDepartmentId && requestedDepartmentId !== "ALL") {
+            where.departmentId = parseInt(requestedDepartmentId);
+        }
+    }
+
+    // Always exclude ADMIN role from employee lists
+    if (!where.role) {
+        where.role = { not: 'ADMIN' }
+    } else if (typeof where.role === 'object') {
+        where.role = { ...where.role, not: 'ADMIN' }
+    } else {
+        // This shouldn't happen based on above logic, but just in case
+        where.role = { not: 'ADMIN' }
     }
 
     // Include department info for frontend display if needed
@@ -95,12 +114,42 @@ export async function updateUser(id: number, data: any) {
 export async function deleteUser(id: number) {
     try {
         await prisma.user.delete({
-            where: { id },
-        })
-        revalidatePath("/dashboard/users")
-        return { success: true }
+            where: { id }
+        });
+        revalidatePath("/dashboard/users");
+        return { success: true };
     } catch (error) {
-        return { error: "Nie można usunąć użytkownika." }
+        console.error("Error deleting user:", error);
+        return { success: false, error: "Failed to delete user" };
+    }
+}
+
+export async function updateContactInfo(formData: FormData) {
+    try {
+        const userId = parseInt(formData.get("userId") as string);
+        const phone = formData.get("phone") as string;
+        const email = formData.get("email") as string;
+        const emergencyContact = formData.get("emergencyContact") as string;
+
+        if (isNaN(userId)) {
+            return { success: false, error: "Invalid user ID" };
+        }
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                phone: phone || null,
+                email: email || null,
+                emergencyContact: emergencyContact || null
+            }
+        });
+
+        revalidatePath("/dashboard/profile");
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating contact info:", error);
+        return { success: false, error: "Wystąpił błąd serwera" };
     }
 }
 

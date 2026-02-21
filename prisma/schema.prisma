@@ -40,6 +40,11 @@ model User {
   shoeSize          String?       // e.g. 42, 43
   jacketSize        String?       // M, L, XL
   cars              Car[]
+  
+  // Contact Info
+  phone             String?
+  email             String?
+  emergencyContact  String?
 
   // New RBAC & Department fields
   departmentId      Int?
@@ -162,3 +167,5 @@ model Car {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 }
+
+

@@ -50,10 +50,20 @@ interface UserWithSettings {
 
 export async function generateSchedule(year: number, month: number) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień do generowania grafiku." }
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
+        return { error: "Brak uprawnień do generowania grafiku." }
+    }
 
-    // 1. Get all users sorted by preference
+    const { role, departmentId } = session.user;
+
+    // 1. Get users based on role
+    const usersWhere: any = {};
+    if (role === 'MANAGER' && departmentId) {
+        usersWhere.departmentId = parseInt(departmentId.toString());
+    }
+
     const usersRaw = await (prisma as any).user.findMany({
+        where: usersWhere,
         orderBy: { sortOrder: "asc" },
     })
     const users = usersRaw as unknown as UserWithSettings[]
@@ -308,9 +318,14 @@ export async function generateSchedule(year: number, month: number) {
         }
     }
 
-    // 5. Save
+    // 5. Save: Delete ONLY the days matching the generated users instead of whole company
+    const targetUserIds = users.map(u => u.id);
+
     await prisma.scheduleDay.deleteMany({
-        where: { date: { gte: targetMonthStart, lte: targetMonthEnd } }
+        where: {
+            date: { gte: targetMonthStart, lte: targetMonthEnd },
+            userId: { in: targetUserIds }
+        }
     })
 
     for (const day of scheduleData) {
@@ -362,20 +377,35 @@ export async function upsertShift(userId: number, dateStr: string, type: string)
 
 export async function clearSchedule(year: number, month: number) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień do usuwania grafiku." }
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
+        return { error: "Brak uprawnień do usuwania grafiku." }
+    }
+
+    const { role, departmentId } = session.user;
 
     // Calculate start and end date of the month
     const startDate = new Date(year, month - 1, 1)
     const endDate = new Date(year, month, 0) // last day of month
 
+    const where: any = {
+        date: {
+            gte: startDate,
+            lte: endDate,
+        },
+    }
+
+    if (role === 'MANAGER' && departmentId) {
+        // Manager can only delete schedule of his own department members
+        const deptUsers = await prisma.user.findMany({
+            where: { departmentId: parseInt(departmentId.toString()) },
+            select: { id: true }
+        })
+        where.userId = { in: deptUsers.map(u => u.id) }
+    }
+
     try {
         await prisma.scheduleDay.deleteMany({
-            where: {
-                date: {
-                    gte: startDate,
-                    lte: endDate,
-                },
-            },
+            where
         })
         revalidatePath("/dashboard/schedule")
         return { success: true }
