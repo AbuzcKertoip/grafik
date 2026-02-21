@@ -21,6 +21,10 @@ export default async function WorkLogsPage(props: WorkLogsPageProps) {
         redirect("/login")
     }
 
+    if (session.user.role === "ADMIN") {
+        redirect("/dashboard")
+    }
+
     const now = new Date()
     const year = searchParams?.year ? parseInt(searchParams.year) : now.getFullYear()
     const month = searchParams?.month ? parseInt(searchParams.month) : now.getMonth() + 1

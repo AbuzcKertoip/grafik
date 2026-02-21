@@ -168,4 +168,27 @@ model Car {
   updatedAt           DateTime  @updatedAt
 }
 
+model SystemSettings {
+  id              Int      @id @default(1)
+  smtpHost        String?
+  smtpPort        Int?
+  smtpUser        String?
+  smtpPassword    String?
+  smtpFromEmail   String?
+  smtpSecure      Boolean  @default(true) // SSL/TLS
+  
+  alertEmails     String?  // Odbiorcy alertów (oddzieleni przecinkami, domyślnie pusty = wszyscy admini?)
+  alertDaysBefore Int      @default(30) // Z ilu dniowym wyprzedzeniem wysyłać powiadomienia
+  lastAlertSent   DateTime? // Kiedy ostatnio sprawdzano i wysłano alerty (chroni przed spamowaniem)
+  
+  updatedAt       DateTime @updatedAt
+}
 
+model EmailLog {
+  id        Int      @id @default(autoincrement())
+  toEmail   String
+  subject   String
+  status    String   // 'SUCCESS', 'FAILED'
+  errorMsg  String?
+  sentAt    DateTime @default(now())
+}

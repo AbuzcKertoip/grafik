@@ -48,7 +48,7 @@ export function MainNav() {
             href: "/dashboard/work-logs",
             label: "Karta Pracy",
             icon: ClipboardList,
-            show: true,
+            show: !isAdmin,
         },
         // {
         //     href: "/dashboard/users",
