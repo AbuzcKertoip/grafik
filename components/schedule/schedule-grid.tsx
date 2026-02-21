@@ -24,6 +24,12 @@ interface ScheduleGridProps {
     month: number
 }
 
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { getPolishHolidays, isHoliday } from "@/lib/holidays"
 
 const SHIFT_TYPES = ["", "SHIFT_1", "SHIFT_2", "DUTY", "VACATION", "SICK", "OFF"]
@@ -63,17 +69,13 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
         })
     }
 
-    const handleCellClick = (userId: number, day: number, currentType: string) => {
-        const currentIndex = SHIFT_TYPES.indexOf(currentType || "")
-        const nextIndex = (currentIndex + 1) % SHIFT_TYPES.length
-        const nextType = SHIFT_TYPES[nextIndex]
-
+    const handleCellClick = (userId: number, day: number, selectedType: string) => {
         // Use UTC noon to ensure the date string is correct regardless of local timezone
         const dateObj = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
         const dateStr = dateObj.toISOString();
 
         startTransition(async () => {
-            await upsertShift(userId, dateStr, nextType)
+            await upsertShift(userId, dateStr, selectedType)
         })
     }
 
@@ -138,15 +140,37 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
                                         <TableCell
                                             key={day}
                                             className={cn(
-                                                "p-0 border-r text-center cursor-pointer select-none transition-colors min-w-[40px] w-10 h-10 overflow-hidden dark:border-slate-800",
+                                                "p-0 border-r text-center select-none transition-colors min-w-[40px] w-10 h-10 overflow-hidden dark:border-slate-800",
                                                 SHIFT_COLORS[type],
                                                 !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
                                             )}
-                                            onClick={() => handleCellClick(user.id, day, type)}
                                         >
-                                            <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none">
-                                                {SHIFT_LABELS[type]}
-                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none cursor-pointer">
+                                                        {SHIFT_LABELS[type]}
+                                                    </div>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="center" className="min-w-[120px]">
+                                                    {SHIFT_TYPES.map(shiftType => (
+                                                        <DropdownMenuItem
+                                                            key={shiftType}
+                                                            onClick={() => handleCellClick(user.id, day, shiftType)}
+                                                            className="cursor-pointer font-medium flex items-center gap-2"
+                                                        >
+                                                            <div className={cn("w-3 h-3 rounded-full border", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
+                                                            {shiftType === "" ? "Wyczyść" : SHIFT_LABELS[shiftType] + " - " + (
+                                                                shiftType === "SHIFT_1" ? "1 Zmiana" :
+                                                                    shiftType === "SHIFT_2" ? "2 Zmiana" :
+                                                                        shiftType === "DUTY" ? "Dyżur" :
+                                                                            shiftType === "VACATION" ? "Urlop" :
+                                                                                shiftType === "SICK" ? "Chorobowe" :
+                                                                                    shiftType === "OFF" ? "Odbiór" : ""
+                                                            )}
+                                                        </DropdownMenuItem>
+                                                    ))}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     )
                                 })}
