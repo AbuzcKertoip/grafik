@@ -92,7 +92,7 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
             {isPending && <span className="text-xs text-muted-foreground ml-2">Zapisywanie...</span>}
 
             <div className="rounded-md border bg-card text-card-foreground overflow-x-auto dark:border-slate-800">
-                <Table className="min-w-max border-collapse">
+                <Table className="min-w-max border-collapse table-fixed w-full">
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[200px] border-r sticky left-0 bg-card z-10 text-card-foreground">Pracownik</TableHead>
@@ -106,7 +106,7 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
                                     <TableHead
                                         key={day}
                                         className={cn(
-                                            "text-center w-10 p-1 border-r text-xs dark:border-slate-800",
+                                            "text-center min-w-[40px] w-10 p-1 border-r text-xs dark:border-slate-800",
                                             isOff ? "bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-300" : "bg-card text-card-foreground"
                                         )}
                                     >
@@ -138,13 +138,13 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
                                         <TableCell
                                             key={day}
                                             className={cn(
-                                                "p-0 border-r text-center cursor-pointer select-none transition-colors h-10 w-10 dark:border-slate-800",
+                                                "p-0 border-r text-center cursor-pointer select-none transition-colors min-w-[40px] w-10 h-10 overflow-hidden dark:border-slate-800",
                                                 SHIFT_COLORS[type],
                                                 !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
                                             )}
                                             onClick={() => handleCellClick(user.id, day, type)}
                                         >
-                                            <div className="flex items-center justify-center h-full w-full text-xs font-bold">
+                                            <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none">
                                                 {SHIFT_LABELS[type]}
                                             </div>
                                         </TableCell>
