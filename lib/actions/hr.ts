@@ -53,7 +53,7 @@ export async function getVacationStats(userId: number, year: number) {
         }
     })
 
-    if (!user) return { limit: 0, used: 0 }
+    if (!user) return { limit: 0, used: 0, details: { base: 26, carriedOver: 0 } }
 
     const totalLimit = (user.vacationDaysLimit || 0) + (user.carriedOverVacationDays || 0)
 
@@ -84,6 +84,27 @@ export async function getUserVacations(userId: number) {
         where: { userId },
         orderBy: { startDate: 'desc' },
     });
+}
+
+export async function updateVacationBalance(userId: number, limit: number, carriedOver: number) {
+    const session = await getServerSession(authOptions)
+    if (session?.user.role !== 'ADMIN' && session?.user.role !== 'HR') {
+        return { error: "Brak uprawnień" }
+    }
+
+    try {
+        await (prisma as any).user.update({
+            where: { id: userId },
+            data: {
+                vacationDaysLimit: limit,
+                carriedOverVacationDays: carriedOver
+            }
+        })
+        revalidatePath("/dashboard/profile")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd aktualizacji bilansu urlopowego" }
+    }
 }
 
 // Equipment Actions

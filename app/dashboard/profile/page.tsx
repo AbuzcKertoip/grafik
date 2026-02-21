@@ -110,7 +110,14 @@ export default async function ProfilePage({
                             <CardTitle>Podsumowanie Urlopowe</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <VacationStats limit={vacationStats.limit} used={vacationStats.used} />
+                            <VacationStats
+                                userId={targetUserId}
+                                isAdmin={canManageHR}
+                                limit={vacationStats.limit}
+                                used={vacationStats.used}
+                                baseLimit={vacationStats.details.base}
+                                carriedOver={vacationStats.details.carriedOver}
+                            />
                         </CardContent>
                     </Card>
 
