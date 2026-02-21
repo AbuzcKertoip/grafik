@@ -91,7 +91,11 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
 
     return (
         <div className="space-y-4">
-            {isPending && <span className="text-xs text-muted-foreground ml-2">Zapisywanie...</span>}
+            <div className="h-5 flex items-center">
+                <span className={cn("text-xs text-muted-foreground ml-2 transition-opacity", isPending ? "opacity-100" : "opacity-0")}>
+                    Zapisywanie...
+                </span>
+            </div>
 
             <div className="rounded-md border bg-card text-card-foreground overflow-x-auto dark:border-slate-800">
                 <Table className="min-w-max border-collapse table-fixed w-full">
@@ -155,7 +159,7 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
                                                     {SHIFT_TYPES.map(shiftType => (
                                                         <DropdownMenuItem
                                                             key={shiftType}
-                                                            onClick={() => handleCellClick(user.id, day, shiftType)}
+                                                            onSelect={() => handleCellClick(user.id, day, shiftType)}
                                                             className="cursor-pointer font-medium flex items-center gap-2"
                                                         >
                                                             <div className={cn("w-3 h-3 rounded-full border", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
