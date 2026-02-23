@@ -90,6 +90,9 @@ export default function LoginPage() {
                     </form>
                 </CardContent>
             </Card>
+            <footer className="absolute bottom-4 left-0 right-0 text-center text-xs text-muted-foreground/60 z-10 select-none">
+                &copy; {new Date().getFullYear()} Piotr Czuba &mdash; HR4YOU Enterprise Portal. Wszelkie prawa zastrzeżone.
+            </footer>
         </div>
     )
 }
