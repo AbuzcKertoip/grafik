@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -35,17 +35,30 @@ interface UserEditDialogProps {
 export function UserEditDialog({ user, open, onOpenChange, departments, allPermissions, onUpdate }: UserEditDialogProps) {
     const [role, setRole] = useState(user?.role || ROLES.USER)
     const [departmentId, setDepartmentId] = useState<string>(user?.departmentId?.toString() || "null")
+    const [skipDuties, setSkipDuties] = useState<boolean>(user?.skipDuties || false)
+    const [fixedShift, setFixedShift] = useState<string>(user?.fixedShift || "NONE")
     const [isLoading, setIsLoading] = useState(false)
 
     // Derived state for permissions would be complex if we want to manage them here fully reactive,
     // but for now, let's just handle role/dept save, and permissions as individual toggles or separate tab?
     // Let's keep it simple: Main tab Role/Dept, Second section Permissions.
 
+    useEffect(() => {
+        if (user) {
+            setRole(user.role || ROLES.USER)
+            setDepartmentId(user.departmentId?.toString() || "null")
+            setSkipDuties(user.skipDuties || false)
+            setFixedShift(user.fixedShift || "NONE")
+        }
+    }, [user])
+
     const handleSave = async () => {
         setIsLoading(true)
         const res = await updateUserRoleAndDepartment(user.id, {
             role,
-            departmentId: departmentId === "null" ? null : parseInt(departmentId)
+            departmentId: departmentId === "null" ? null : parseInt(departmentId),
+            skipDuties,
+            fixedShift: fixedShift === "NONE" ? null : fixedShift
         })
         setIsLoading(false)
 
@@ -110,6 +123,37 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <Label>Opcje Grafiku</Label>
+                        <div className="grid grid-cols-1 gap-4 border rounded-md p-4 bg-muted/20">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="skipDuties"
+                                    checked={skipDuties}
+                                    onCheckedChange={(val) => setSkipDuties(val as boolean)}
+                                />
+                                <Label htmlFor="skipDuties" className="font-normal cursor-pointer">
+                                    Zwolniony z obowiązków dyżurowych (weekendy, święta)
+                                </Label>
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label className="font-normal">Przypisz stałą zmianę (opcjonalnie)</Label>
+                                <Select value={fixedShift} onValueChange={setFixedShift}>
+                                    <SelectTrigger className="w-full sm:w-[250px] bg-background">
+                                        <SelectValue placeholder="Brak" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NONE">Brak przypisania</SelectItem>
+                                        <SelectItem value="SHIFT_1">Zmiana 1</SelectItem>
+                                        <SelectItem value="SHIFT_2">Zmiana 2</SelectItem>
+                                        <SelectItem value="SHIFT_3">Zmiana 3</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
 

@@ -23,11 +23,13 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { toast } from "sonner"
 import { createDepartment, deleteDepartment, updateDepartment } from "@/lib/actions/admin"
+import { Switch } from "@/components/ui/switch"
 
 interface Department {
     id: number
     name: string
     description: string | null
+    hasDuties: boolean
     createdAt: Date
     updatedAt: Date
     _count?: {
@@ -39,10 +41,11 @@ export function DepartmentList({ departments }: { departments: Department[] }) {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [newDeptName, setNewDeptName] = useState("")
     const [newDeptDesc, setNewDeptDesc] = useState("")
+    const [newDeptDuties, setNewDeptDuties] = useState(false)
 
     const handleCreate = async () => {
         if (!newDeptName) return
-        const res = await createDepartment({ name: newDeptName, description: newDeptDesc })
+        const res = await createDepartment({ name: newDeptName, description: newDeptDesc, hasDuties: newDeptDuties })
         if (res.error) {
             toast.error(res.error)
         } else {
@@ -50,6 +53,16 @@ export function DepartmentList({ departments }: { departments: Department[] }) {
             setIsDialogOpen(false)
             setNewDeptName("")
             setNewDeptDesc("")
+            setNewDeptDuties(false)
+        }
+    }
+
+    const handleToggleDuty = async (dept: Department, val: boolean) => {
+        const res = await updateDepartment(dept.id, { name: dept.name, description: dept.description || undefined, hasDuties: val })
+        if (res.error) {
+            toast.error(res.error)
+        } else {
+            toast.success("Zaktualizowano preferencje dyżurów")
         }
     }
 
@@ -103,6 +116,14 @@ export function DepartmentList({ departments }: { departments: Department[] }) {
                                     placeholder="Opcjonalny opis"
                                 />
                             </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="has-duties"
+                                    checked={newDeptDuties}
+                                    onCheckedChange={setNewDeptDuties}
+                                />
+                                <label htmlFor="has-duties">Ten dział pełni dyżury weekendowe/świąteczne</label>
+                            </div>
                             <Button onClick={handleCreate}>Utwórz</Button>
                         </div>
                     </DialogContent>
@@ -115,6 +136,7 @@ export function DepartmentList({ departments }: { departments: Department[] }) {
                             <TableHead>Nazwa</TableHead>
                             <TableHead>Opis</TableHead>
                             <TableHead>Liczba pracowników</TableHead>
+                            <TableHead>Dyżury</TableHead>
                             <TableHead className="text-right">Akcje</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -127,6 +149,12 @@ export function DepartmentList({ departments }: { departments: Department[] }) {
                                 </TableCell>
                                 <TableCell>{dept.description || "-"}</TableCell>
                                 <TableCell>{dept._count?.users || 0}</TableCell>
+                                <TableCell>
+                                    <Switch
+                                        checked={dept.hasDuties}
+                                        onCheckedChange={(val) => handleToggleDuty(dept, val)}
+                                    />
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <Button
                                         variant="ghost"

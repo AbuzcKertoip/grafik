@@ -7,7 +7,7 @@ import { CarList } from "@/components/fleet/car-list"
 
 export default async function FleetPage() {
     const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== "ADMIN") {
+    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "HR")) {
         redirect("/dashboard")
     }
 

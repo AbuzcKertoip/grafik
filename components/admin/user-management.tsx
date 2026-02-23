@@ -15,7 +15,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { UserEditDialog } from "./user-edit-dialog"
+import { UserCreateDialog } from "./user-create-dialog"
 import { useRouter } from "next/navigation"
+import { UserPlus, UserX } from "lucide-react"
+import { deleteEmployee } from "@/lib/actions/admin"
+import { toast } from "sonner"
 
 interface UserManagementProps {
     users: any[]
@@ -28,10 +32,23 @@ export function UserManagement({ users: initialUsers, departments, permissions }
     const [search, setSearch] = useState("")
     const [selectedUser, setSelectedUser] = useState<any>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
     // Normally we should refetch users on update, but for now router.refresh() in parent or here
     const handleUpdate = () => {
         router.refresh()
+    }
+
+    const handleDeleteEmployee = async (id: number) => {
+        if (!window.confirm("UWAGA: Czy na pewno chcesz PEREKMANENTNIE USUNĄĆ tego pracownika? Operacja ta skasuje bezpowrotnie jego użer, nadane urlopy, karty czasu i dostępy!")) return
+
+        const result = await deleteEmployee(id)
+        if (result.success) {
+            toast.success("Pracownik został w pełni poddany usunięciu.")
+            handleUpdate() // Odświeża zawartość po skasowaniu
+        } else {
+            toast.error(result.error || "Wystąpił problem z wymazywaniem rekordu.")
+        }
     }
 
     const filteredUsers = initialUsers.filter(u =>
@@ -45,16 +62,19 @@ export function UserManagement({ users: initialUsers, departments, permissions }
             <CardHeader>
                 <CardTitle>Użytkownicy</CardTitle>
                 <CardDescription>Zarządzaj rolami i przypisaniem do działów.</CardDescription>
-                <div className="pt-4">
-                    <div className="relative">
+                <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-between">
+                    <div className="relative w-full sm:w-[350px]">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Szukaj pracownika..."
-                            className="pl-8"
+                            className="pl-8 w-full"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
+                    <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full sm:w-auto shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white">
+                        <UserPlus className="w-4 h-4 mr-2" /> Dodaj pracownika
+                    </Button>
                 </div>
             </CardHeader>
             <CardContent>
@@ -115,6 +135,15 @@ export function UserManagement({ users: initialUsers, departments, permissions }
                                             <UserCog className="h-4 w-4 mr-2" />
                                             Edytuj
                                         </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeleteEmployee(user.id)}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            <UserX className="h-4 w-4 mr-2" />
+                                            Usuń
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -140,6 +169,13 @@ export function UserManagement({ users: initialUsers, departments, permissions }
                     onUpdate={handleUpdate}
                 />
             )}
+
+            <UserCreateDialog
+                open={isCreateDialogOpen}
+                onOpenChange={setIsCreateDialogOpen}
+                departments={departments}
+                onUpdate={handleUpdate}
+            />
         </Card>
     )
 }

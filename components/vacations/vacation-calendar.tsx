@@ -71,11 +71,16 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
     }
 
     const handleReject = async (id: number) => {
-        if (confirm("Odrzucić wniosek?")) {
-            const result = await rejectVacation(id)
-            if ((result as any)?.success) router.refresh()
-            else alert("Błąd odrzucania")
+        const reason = window.prompt("Podaj powód odrzucenia wniosku:")
+        if (reason === null) return
+        if (reason.trim() === "") {
+            alert("Odrzucenie wymaga podania oficjalnego powodu.")
+            return
         }
+
+        const result = await rejectVacation(id, reason.trim())
+        if ((result as any)?.success) router.refresh()
+        else alert("Błąd odrzucania")
     }
 
     // Filter vacations based on role
@@ -85,8 +90,8 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
         ? vacations
         : vacations.filter(v => v.userId === currentUser?.id)
 
-    const pendingVacations = visibleVacations.filter(v => !v.approved)
-    const approvedVacations = visibleVacations.filter(v => v.approved)
+    const pendingVacations = visibleVacations.filter(v => v.status === "PENDING")
+    const approvedVacations = visibleVacations.filter(v => v.status !== "PENDING")
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -239,13 +244,20 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                     {v.type === 'VACATION' ? '🏖️' : '🤒'}
                                                 </div>
                                                 <div>
-                                                    <div className="font-semibold text-foreground">{v.user.name || v.user.username}</div>
+                                                    <div className="font-semibold text-foreground flex items-center gap-2">
+                                                        {v.user.name || v.user.username}
+                                                        {v.status === "REJECTED" && (
+                                                            <span className="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800">
+                                                                Odrzucony
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <div className="text-sm text-muted-foreground">
                                                         {format(new Date(v.startDate), "d MMM", { locale: pl })} → {format(new Date(v.endDate), "d MMM yyyy", { locale: pl })}
                                                     </div>
                                                 </div>
                                             </div>
-                                            {(canManage || !v.approved) && (
+                                            {(canManage || v.status !== "APPROVED") && (
                                                 <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-600">
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

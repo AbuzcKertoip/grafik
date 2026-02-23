@@ -13,7 +13,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Info } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { getBusinessDaysCount } from "@/lib/holidays";
 
 interface VacationHistoryTableProps {
     vacations: Vacation[];
@@ -88,10 +95,7 @@ export function VacationHistoryTable({ vacations }: VacationHistoryTableProps) {
                             const end = new Date(vacation.endDate);
                             const isFuture = start > now;
                             const isOngoing = start <= now && end >= now;
-                            const durationDays =
-                                Math.ceil(
-                                    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
-                                ) + 1; // inclusive
+                            const durationDays = getBusinessDaysCount(start, end);
 
                             return (
                                 <TableRow key={vacation.id}>
@@ -108,15 +112,29 @@ export function VacationHistoryTable({ vacations }: VacationHistoryTableProps) {
                                     </TableCell>
                                     <TableCell>{durationDays} dni</TableCell>
                                     <TableCell>
-                                        {isFuture && vacation.approved ? (
-                                            <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">Zaplanowany</Badge>
-                                        ) : isOngoing && vacation.approved ? (
-                                            <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 animate-pulse">W trakcie</Badge>
-                                        ) : vacation.approved ? (
-                                            <Badge variant="outline" className="text-muted-foreground border-dashed">Zakończony</Badge>
-                                        ) : (
-                                            <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-500">Oczekujący</Badge>
-                                        )}
+                                        <TooltipProvider>
+                                            {vacation.status === "REJECTED" ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Badge variant="outline" className="border-red-500 text-red-600 dark:text-red-500 cursor-help flex items-center gap-1 w-max">
+                                                            Odrzucony <Info className="h-3 w-3" />
+                                                        </Badge>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="max-w-xs">
+                                                        <p className="font-semibold mb-1">Powód odmowy:</p>
+                                                        <p className="text-sm">{vacation.rejectReason || "Brak uzasadnienia"}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : isFuture && vacation.status === "APPROVED" ? (
+                                                <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">Zaplanowany</Badge>
+                                            ) : isOngoing && vacation.status === "APPROVED" ? (
+                                                <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 animate-pulse">W trakcie</Badge>
+                                            ) : vacation.status === "APPROVED" ? (
+                                                <Badge variant="outline" className="text-muted-foreground border-dashed">Zakończony</Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-500">Oczekujący</Badge>
+                                            )}
+                                        </TooltipProvider>
                                     </TableCell>
                                 </TableRow>
                             );

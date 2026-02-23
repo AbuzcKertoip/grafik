@@ -14,8 +14,9 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ChangePasswordDialog } from "@/components/user-profile/change-password-dialog"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { CalendarDays, ClipboardList, Users, PieChart, LogOut, Home, User, Shield, Car, KeyRound } from "lucide-react"
+import { getUserCars } from "@/lib/actions/fleet"
 
 export function MainNav() {
     const pathname = usePathname()
@@ -24,6 +25,15 @@ export function MainNav() {
     const isHR = session?.user?.role === "HR" || isAdmin
     const isManager = session?.user?.role === "MANAGER" || isAdmin
     const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
+    const [hasCar, setHasCar] = useState(false)
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            getUserCars(parseInt(session.user.id)).then(cars => {
+                setHasCar(cars.length > 0)
+            }).catch(e => console.error("Failed to load cars permission", e))
+        }
+    }, [session?.user?.id])
 
     const links = [
         {
@@ -78,13 +88,13 @@ export function MainNav() {
             href: "/dashboard/fleet",
             label: "Flota",
             icon: Car,
-            show: isAdmin, // Or specific fleet manager?
+            show: isAdmin || isHR, // Dostęp z panelu Administracyjnego lub dedykowanego HR
         },
         {
             href: "/dashboard/my-cars",
             label: "Moje Auto",
             icon: Car,
-            show: true,
+            show: hasCar,
         },
     ]
 

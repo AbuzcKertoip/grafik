@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { sendEmail } from "@/lib/actions/mailer"
 
 export async function getVacations(year: number) {
     const startDate = new Date(year, 0, 1)
@@ -28,6 +29,7 @@ export async function getVacations(year: number) {
 }
 
 import { getVacationStats } from "./hr"
+import { getBusinessDaysCount } from "../holidays"
 
 async function validateVacationLimit(userId: number, startDate: Date, endDate: Date, excludeVacationId?: number) {
     const start = new Date(startDate)
@@ -43,8 +45,7 @@ async function validateVacationLimit(userId: number, startDate: Date, endDate: D
     // Skoro limit jest w dniach "roboczych", powinniśmy liczyć realnie dni robocze, 
     // ale zachowajmy konsekwencję. Najprościej policzyć po prostu dni różnicy, jeśli tak robiliśmy.
     // Assuming 1 day = 1 unit of limit for simplicity here, or you can implement a business days logic.
-    // Let's count days simply for now:
-    const daysRequested = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    const daysRequested = getBusinessDaysCount(start, end)
 
     const stats = await getVacationStats(userId, year)
 
@@ -52,7 +53,7 @@ async function validateVacationLimit(userId: number, startDate: Date, endDate: D
     const pendingVacations = await prisma.vacation.findMany({
         where: {
             userId: userId,
-            approved: false,
+            status: "PENDING",
             startDate: { gte: new Date(year, 0, 1) },
             endDate: { lte: new Date(year, 11, 31) },
             ...(excludeVacationId ? { id: { not: excludeVacationId } } : {})
@@ -60,7 +61,7 @@ async function validateVacationLimit(userId: number, startDate: Date, endDate: D
     })
 
     const pendingDays = pendingVacations.reduce((acc, vac) => {
-        return acc + Math.ceil((new Date(vac.endDate).getTime() - new Date(vac.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
+        return acc + getBusinessDaysCount(new Date(vac.startDate), new Date(vac.endDate))
     }, 0)
 
     const totalNeeded = stats.used + pendingDays + daysRequested
@@ -102,7 +103,7 @@ export async function createVacation(data: any) {
                     startDate: new Date(startDate),
                     endDate: new Date(endDate),
                     type: type || "VACATION",
-                    approved: approved
+                    status: isAdmin ? "APPROVED" : "PENDING"
                 },
             })
 
@@ -113,7 +114,8 @@ export async function createVacation(data: any) {
                 const vacationType = type || "VACATION"
 
                 for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                    const dateStr = d.toISOString().split('T')[0] // YYYY-MM-DD
+                    // Pomiń weekendy - nie liczymy ich jako dni urlopowe
+                    if (d.getDay() === 0 || d.getDay() === 6) continue
 
                     await tx.scheduleDay.upsert({
                         where: {
@@ -134,6 +136,35 @@ export async function createVacation(data: any) {
                 }
             }
         })
+
+        // Wysyłka emaila do kierownika
+        if (!isAdmin) {
+            const user = await prisma.user.findUnique({
+                where: { id: parseInt(userId) },
+                include: { department: true }
+            })
+
+            if (user && user.departmentId) {
+                const manager = await prisma.user.findFirst({
+                    where: {
+                        role: "MANAGER",
+                        departmentId: user.departmentId
+                    }
+                })
+
+                if (manager && manager.email) {
+                    const mailHtml = `
+                    <div style="font-family: sans-serif; color: #333;">
+                        <h2>Nowy wniosek urlopowy oczekuje!</h2>
+                        <p>Pracownik <b>${user.name || user.username}</b> złożył nowy wniosek (typ: ${type || 'VACATION'}).</p>
+                        <p>Termin: od ${startDate.toISOString().split('T')[0]} do ${endDate.toISOString().split('T')[0]}</p>
+                        <p>Zaloguj się do systemu HR4YOU, by zatwierdzić lub odrzucić.</p>
+                    </div>
+                    `
+                    await sendEmail(manager.email, "Nowy wniosek urlopowy do akceptacji", mailHtml).catch(e => console.error("Email failed", e))
+                }
+            }
+        }
 
         revalidatePath("/dashboard/schedule")
         return { success: true, approved }
@@ -172,7 +203,7 @@ export async function approveVacation(id: number) {
             // 1. Approve
             await tx.vacation.update({
                 where: { id },
-                data: { approved: true }
+                data: { status: "APPROVED" }
             })
 
             // 2. Sync
@@ -181,6 +212,9 @@ export async function approveVacation(id: number) {
             const vacationType = vacation.type
 
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                // Pomiń weekendy - nie liczymy ich jako dni urlopowe
+                if (d.getDay() === 0 || d.getDay() === 6) continue
+
                 await tx.scheduleDay.upsert({
                     where: {
                         userId_date: {
@@ -198,6 +232,17 @@ export async function approveVacation(id: number) {
             }
         })
 
+        if (vacation.user.email) {
+            const mailHtml = `
+            <div style="font-family: sans-serif; color: #333;">
+                <h2 style="color: #10b981;">Twój wniosek urlopowy został zatwierdzony!</h2>
+                <p>Termin: od ${format(new Date(vacation.startDate), "d-MM-yyyy")} do ${format(new Date(vacation.endDate), "d-MM-yyyy")}</p>
+                <p>Możesz już zobaczyć zmiany w grafiku systemu.</p>
+            </div>
+            `
+            await sendEmail(vacation.user.email, "Wniosek urlopowy zaakceptowany", mailHtml).catch(e => console.error(e))
+        }
+
         revalidatePath("/dashboard/schedule")
         return { success: true }
     } catch (error) {
@@ -205,14 +250,54 @@ export async function approveVacation(id: number) {
     }
 }
 
-export async function rejectVacation(id: number) {
+import { format } from "date-fns" // Dodałem dla approve emaila
+
+export async function rejectVacation(id: number, reason: string) {
     const session = await getServerSession(authOptions)
     if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
         return { error: "Brak uprawnień" }
     }
 
-    // Manger restriction logic inside deleteVacation will handle the check
-    return deleteVacation(id)
+    try {
+        const vacation = await prisma.vacation.findUnique({
+            where: { id },
+            include: { user: true }
+        })
+
+        if (!vacation) return { error: "Wniosek nie istnieje" }
+
+        if (session.user.role === 'MANAGER' && vacation.user.departmentId !== session.user.departmentId) {
+            return { error: "Brak dostępu do pracownika z innego działu" }
+        }
+
+        await prisma.vacation.update({
+            where: { id },
+            data: {
+                status: "REJECTED",
+                rejectReason: reason
+            }
+        })
+
+        if (vacation.user.email) {
+            const mailHtml = `
+            <div style="font-family: sans-serif; color: #333;">
+                <h2 style="color: #ef4444;">Twój wniosek urlopowy został odrzucony</h2>
+                <p>Termin: od ${format(new Date(vacation.startDate), "d-MM-yyyy")} do ${format(new Date(vacation.endDate), "d-MM-yyyy")}</p>
+                <p><b>Powód odrzucenia:</b></p>
+                <blockquote style="border-left: 4px solid #ef4444; padding-left: 10px; font-style: italic;">
+                    ${reason}
+                </blockquote>
+                <p>Jeśli masz pytania, skontaktuj się ze swoim kierownikiem.</p>
+            </div>
+            `
+            await sendEmail(vacation.user.email, "Odrzucenie wniosku urlopowego", mailHtml).catch(e => console.error(e))
+        }
+
+        revalidatePath("/dashboard/schedule")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd z zapisem odrzucenia wniosku." }
+    }
 }
 
 export async function deleteVacation(id: number) {

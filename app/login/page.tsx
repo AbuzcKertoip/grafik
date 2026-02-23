@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import Link from "next/link"
+import { AnimatedBackground } from "@/components/ui/animated-background"
+import { ModernClock } from "@/components/ui/modern-clock"
+import { AuthBanner } from "@/components/ui/auth-banner"
 
 export default function LoginPage() {
     const router = useRouter()
@@ -36,8 +40,15 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="flex h-screen items-center justify-center bg-gray-50">
-            <Card className="w-full max-w-sm shadow-lg">
+        <div className="relative flex flex-col gap-8 h-screen items-center justify-center bg-background overflow-hidden p-4 pt-16">
+            <AuthBanner />
+            <AnimatedBackground />
+
+            <div className="z-10 w-full max-w-sm">
+                <ModernClock />
+            </div>
+
+            <Card className="z-10 w-full max-w-sm shadow-2xl border-white/10 bg-card/80 backdrop-blur-md">
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl font-bold text-center">Zaloguj się</CardTitle>
                     <CardDescription className="text-center">
@@ -47,18 +58,23 @@ export default function LoginPage() {
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="username">Login</Label>
+                            <Label htmlFor="username">Login lub E-Mail</Label>
                             <Input
                                 id="username"
                                 type="text"
-                                placeholder="np. admin"
+                                placeholder="np. admin lub j.kowalski@firma.pl"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 required
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="password">Hasło</Label>
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="password">Hasło</Label>
+                                <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+                                    Zapomniałeś hasła?
+                                </Link>
+                            </div>
                             <Input
                                 id="password"
                                 type="password"

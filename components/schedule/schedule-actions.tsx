@@ -13,24 +13,30 @@ interface ScheduleActionsProps {
     year: number
     month: number
     currentUser: any
+    departmentId?: number
 }
 
-export function ScheduleActions({ users, vacations, year, month, currentUser }: ScheduleActionsProps) {
+export function ScheduleActions({ users, vacations, year, month, currentUser, departmentId }: ScheduleActionsProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
 
     const handleGenerate = async () => {
-        if (!confirm(`Czy na pewno wygenerować grafik na ${month}/${year}? Istniejące dane dla tego miesiąca zostaną nadpisane.`)) return
+        if (!departmentId && currentUser?.role !== 'MANAGER') {
+            alert("Proszę najpierw wybrać konkretny dział z filtra, aby wygenerować dla niego grafik.")
+            return
+        }
+
+        if (!confirm(`Czy na pewno wygenerować grafik wybranego działu na ${month}/${year}? Istniejące dane dla tego miesiąca zostaną nadpisane.`)) return
 
         setLoading(true)
         try {
-            const result = await generateSchedule(year, month)
+            const result = await generateSchedule(year, month, departmentId)
             if (result.success) {
                 router.refresh()
                 alert("Grafik został wygenerowany pomyślnie.")
             } else {
-                alert("Wystąpił błąd podczas generowania grafiku.")
+                alert(result.error || "Wystąpił błąd podczas generowania grafiku.")
             }
         } catch (e) {
             alert("Błąd podczas generowania grafiku: " + e)
@@ -40,11 +46,16 @@ export function ScheduleActions({ users, vacations, year, month, currentUser }: 
     }
 
     const handleClear = async () => {
-        if (!confirm(`Czy na pewno usunąć CAŁY grafik na ${month}/${year}? Ta operacja jest nieodwracalna.`)) return
+        if (!departmentId && currentUser?.role !== 'MANAGER') {
+            alert("Proszę najpierw wybrać konkretny dział z filtra, aby usunąć dla niego grafik.")
+            return
+        }
+
+        if (!confirm(`Czy na pewno usunąć grafiki wybranego działu na ${month}/${year}? Ta operacja jest nieodwracalna.`)) return
 
         setLoading(true)
         try {
-            const result = await clearSchedule(year, month)
+            const result = await clearSchedule(year, month, departmentId)
             if (result.success) {
                 router.refresh()
                 alert("Grafik został wyczyszczony.")

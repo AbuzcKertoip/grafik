@@ -206,7 +206,7 @@ export function SystemSettingsTab({ settings }: SystemSettingsProps) {
                     </Card>
 
                     <Card className="border-indigo-500/20 shadow-sm">
-                        <CardHeader className="bg-indigo-50/50 pb-4">
+                        <CardHeader className="pb-4">
                             <CardTitle className="text-lg">Test Wysyłki</CardTitle>
                             <CardDescription>Sprawdź, czy dane SMTP są poprawne przed ustawieniem automatyzacji.</CardDescription>
                         </CardHeader>

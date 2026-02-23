@@ -48,7 +48,7 @@ interface UserWithSettings {
     role: string;
 }
 
-export async function generateSchedule(year: number, month: number) {
+export async function generateSchedule(year: number, month: number, targetDepartmentId?: number) {
     const session = await getServerSession(authOptions)
     if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
         return { error: "Brak uprawnień do generowania grafiku." }
@@ -56,11 +56,21 @@ export async function generateSchedule(year: number, month: number) {
 
     const { role, departmentId } = session.user;
 
-    // 1. Get users based on role
-    const usersWhere: any = {};
-    if (role === 'MANAGER' && departmentId) {
-        usersWhere.departmentId = parseInt(departmentId.toString());
+    const finalDepartmentId = role === 'MANAGER' && departmentId
+        ? parseInt(departmentId.toString())
+        : targetDepartmentId;
+
+    if (!finalDepartmentId) {
+        return { error: "Proszę wybrać dział, dla którego chcesz wygenerować grafik." }
     }
+
+    const targetDept = await prisma.department.findUnique({
+        where: { id: finalDepartmentId }
+    })
+    const hasDuties = targetDept?.hasDuties ?? false
+
+    // 1. Get users based on role
+    const usersWhere: any = { departmentId: finalDepartmentId };
 
     const usersRaw = await (prisma as any).user.findMany({
         where: usersWhere,
@@ -120,7 +130,7 @@ export async function generateSchedule(year: number, month: number) {
     // Assuming target is >= Feb 2026.
 
     // Optimization: If target is far in future, simple loop is fine (JS is fast).
-    if (targetMonthEnd >= dutySimStart) {
+    if (hasDuties && targetMonthEnd >= dutySimStart) {
         while (dutySimCurrent <= targetMonthEnd) {
             const currentYear = dutySimCurrent.getFullYear()
             const currentHolidays = getPolishHolidays(currentYear)
@@ -371,7 +381,7 @@ export async function upsertShift(userId: number, year: number, month: number, d
     }
 }
 
-export async function clearSchedule(year: number, month: number) {
+export async function clearSchedule(year: number, month: number, targetDepartmentId?: number) {
     const session = await getServerSession(authOptions)
     if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
         return { error: "Brak uprawnień do usuwania grafiku." }
@@ -379,24 +389,33 @@ export async function clearSchedule(year: number, month: number) {
 
     const { role, departmentId } = session.user;
 
+    const finalDepartmentId = role === 'MANAGER' && departmentId
+        ? parseInt(departmentId.toString())
+        : targetDepartmentId;
+
+    if (!finalDepartmentId) {
+        return { error: "Proszę wybrać dział, dla którego chcesz usunąć grafik." }
+    }
+
     // Calculate start and end date of the month
     const startDate = new Date(year, month - 1, 1)
     const endDate = new Date(year, month, 0) // last day of month
+
+    const deptUsers = await prisma.user.findMany({
+        where: { departmentId: finalDepartmentId },
+        select: { id: true }
+    })
+
+    if (deptUsers.length === 0) {
+        return { error: "Brak użytkowników w wybranym dziale." }
+    }
 
     const where: any = {
         date: {
             gte: startDate,
             lte: endDate,
         },
-    }
-
-    if (role === 'MANAGER' && departmentId) {
-        // Manager can only delete schedule of his own department members
-        const deptUsers = await prisma.user.findMany({
-            where: { departmentId: parseInt(departmentId.toString()) },
-            select: { id: true }
-        })
-        where.userId = { in: deptUsers.map(u => u.id) }
+        userId: { in: deptUsers.map(u => u.id) }
     }
 
     try {

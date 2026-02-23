@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, addMonths } from "date-fns"
+import { getBusinessDaysCount } from "../holidays"
 
 // Helper to check permissions
 async function checkReportAccess(departmentId?: number) {
@@ -123,17 +124,11 @@ export async function getVacationsReport(year: number, departmentId?: number): P
         let pendingThisYear = 0
 
         user.vacations.forEach(v => {
-            // Calculate days (simple calculation, doesn't account for weekends if not stored that way,
-            // but for existing system we count approved/pending days)
-            // Assuming 1 record = 1 block of days. We need accurate day count.
-            // For now, let's use a rough calculation based on dates.
-            const diffTime = Math.abs(v.endDate.getTime() - v.startDate.getTime());
-            // +1 because same day is 1 day of vacation
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            const diffDays = getBusinessDaysCount(v.startDate, v.endDate)
 
-            if (v.approved) {
+            if (v.status === "APPROVED") {
                 usedThisYear += diffDays
-            } else {
+            } else if (v.status === "PENDING") {
                 pendingThisYear += diffDays
             }
         })

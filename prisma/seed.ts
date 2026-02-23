@@ -1,14 +1,23 @@
 import { PrismaClient } from '@prisma/client'
 import { hash } from 'bcrypt'
-
 import { fakerPL as faker } from '@faker-js/faker';
 
 const prisma = new PrismaClient()
 
+// Removes polish accents from string to generate valid simple username
+function toSimpleUsername(firstName: string, lastName: string) {
+  const map: Record<string, string> = {
+    'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n', 'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z',
+    'Ą': 'a', 'Ć': 'c', 'Ę': 'e', 'Ł': 'l', 'Ń': 'n', 'Ó': 'o', 'Ś': 's', 'Ź': 'z', 'Ż': 'z'
+  };
+  const str = `${firstName}.${lastName}`.toLowerCase().replace(/[ąćęłńóśźż]/g, match => map[match] || match);
+  return str.replace(/[^a-z0-9.]/g, ''); // leave only alpha-numeric and dot
+}
+
 async function main() {
   const password = await hash('password123', 10)
 
-  // System Roles (just to be sure permissions exist)
+  // System Roles
   const permissions = [
     { slug: 'manage_users', name: 'Zarządzanie użytkownikami' },
     { slug: 'manage_departments', name: 'Zarządzanie działami' },
@@ -20,189 +29,156 @@ async function main() {
     await prisma.permission.upsert({ where: { slug: perm.slug }, update: {}, create: perm })
   }
 
-  // Create Departments
+  // Create Departments IT, BOK, Przedstawiciele Handlowi
   const departmentsData = [
-    { name: 'IT', description: 'Wsparcie Informatyczne' },
-    { name: 'HR', description: 'Zasoby Ludzkie i Kadry' },
-    { name: 'Sales', description: 'Sprzedaż i Pozyskiwanie Klienta' },
-    { name: 'Logistics', description: 'Transport i Planowanie' },
-    { name: 'Marketing', description: 'Promocja i PR' }
+    { name: 'IT', description: 'Technologia i Rozwój' },
+    { name: 'BOK', description: 'Biuro Obsługi Klienta' },
+    { name: 'Przedstawiciele Handlowi', description: 'Sprzedaż w Terenie' }
   ]
 
   const createdDepartments = []
   for (const d of departmentsData) {
     const dept = await prisma.department.upsert({
-      where: { name: d.name }, update: {}, create: d
+      where: { name: d.name }, update: { description: d.description }, create: d
     })
     createdDepartments.push(dept)
   }
 
-  // Base System Users
-  const baseUsers = [
-    { user: 'admin', name: 'Admin', role: 'ADMIN', dept: 'IT', skipDuties: true },
-    { user: 'user', name: 'Jan Kowalski', role: 'USER', dept: 'Sales', skipDuties: false },
-    { user: 'anna', name: 'Anna Nowak', role: 'USER', dept: 'HR', skipDuties: false },
-    { user: 'hr', name: 'Katarzyna Kadrowa', role: 'HR', dept: 'HR', skipDuties: false },
-  ]
+  // Admin user
+  await prisma.user.upsert({
+    where: { username: 'admin' },
+    update: { name: 'Admin', role: 'ADMIN', skipDuties: true },
+    create: {
+      username: 'admin', password, name: 'Admin', role: 'ADMIN', sortOrder: 1,
+      skipDuties: true
+    },
+  })
 
-  for (let i = 0; i < baseUsers.length; i++) {
-    const b = baseUsers[i]
-    const assignedDept = createdDepartments.find(d => d.name === b.dept)
-    await prisma.user.upsert({
-      where: { username: b.user },
-      update: { name: b.name, departmentId: assignedDept?.id, role: b.role },
-      create: {
-        username: b.user, password, name: b.name, role: b.role, sortOrder: i + 1,
-        skipDuties: b.skipDuties, departmentId: assignedDept?.id
-      },
-    })
+  // Data structure for employee generation
+  const departmentCounts = {
+    'IT': 10,
+    'BOK': 5,
+    'Przedstawiciele Handlowi': 3
   }
 
-  // Generate a dedicated MANAGER for every created department
-  for (let i = 0; i < createdDepartments.length; i++) {
-    const dept = createdDepartments[i]
-    const managerUsername = `manager_${dept.name.toLowerCase()}`
+  const userIds = []
+  let sortBase = 100
 
-    await prisma.user.upsert({
+  // Managers & Users for each department
+  for (const dept of createdDepartments) {
+    // Generate Manager
+    const managerFirstName = faker.person.firstName()
+    const managerLastName = faker.person.lastName()
+    const managerUsername = toSimpleUsername(managerFirstName, managerLastName)
+
+    const manager = await prisma.user.upsert({
       where: { username: managerUsername },
       update: { departmentId: dept.id, role: 'MANAGER' },
       create: {
         username: managerUsername,
         password,
-        name: `Kierownik ${dept.name}`,
+        name: `${managerFirstName} ${managerLastName}`,
         role: 'MANAGER',
-        sortOrder: 100 + i,
+        sortOrder: sortBase,
         skipDuties: true,
         departmentId: dept.id
       },
     })
-  }
+    userIds.push(manager.id)
+    sortBase++
 
-  console.log('--- Generating Mock Users (Faker.js) ---')
+    // Generate Users for this department
+    const employeeCount = departmentCounts[dept.name as keyof typeof departmentCounts] || 0
+    for (let i = 0; i < employeeCount; i++) {
+      const firstName = faker.person.firstName()
+      const lastName = faker.person.lastName()
+      const username = toSimpleUsername(firstName, lastName)
 
-  const userIds = []
-  // Generate ~30 mock employees
-  for (let i = 0; i < 30; i++) {
-    const firstName = faker.person.firstName()
-    const lastName = faker.person.lastName()
-    const randomDept = createdDepartments[Math.floor(Math.random() * createdDepartments.length)]
-
-    // Some basic phone numbers and emergency contacts
-    const phone = faker.phone.number({ style: 'national' })
-    const email = faker.internet.email({ firstName, lastName }).toLowerCase()
-
-    const createdUser = await prisma.user.create({
-      data: {
-        username: faker.internet.username({ firstName, lastName }).toLowerCase().replace(/[^a-z0-9]/g, ''),
-        password,
-        name: `${firstName} ${lastName}`,
-        role: 'USER',
-        sortOrder: i + 10,
-        departmentId: randomDept.id,
+      let existingUser = await prisma.user.findUnique({ where: { username } })
+      let finalUsername = username
+      let attempt = 1
+      while (existingUser) {
+        finalUsername = `${username}${attempt}`
+        existingUser = await prisma.user.findUnique({ where: { username: finalUsername } })
+        attempt++
       }
-    })
-    userIds.push(createdUser.id)
 
-    // Generate Medical Exam
-    // ~20% chance of expiring soon (<30 days), ~10% expired, rest OK
-    const examSeed = Math.random()
-    let validUntil = new Date()
-    if (examSeed < 0.1) {
-      validUntil = faker.date.recent({ days: 60 }) // expired
-    } else if (examSeed < 0.3) {
-      validUntil = faker.date.soon({ days: 25 }) // expiring soon
-    } else {
-      validUntil = faker.date.future({ years: 2 }) // valid
-    }
+      const createdUser = await prisma.user.create({
+        data: {
+          username: finalUsername,
+          password,
+          name: `${firstName} ${lastName}`,
+          role: 'USER',
+          sortOrder: sortBase + i + 1,
+          departmentId: dept.id,
+          skipDuties: false,
+        }
+      })
+      userIds.push(createdUser.id)
 
-    await prisma.medicalExam.create({
-      data: {
-        userId: createdUser.id,
-        validUntil: validUntil,
-        type: faker.helpers.arrayElement(['MEDICINE_WORK', 'SANITARY', 'SAFETY_TRAINING']),
-        status: validUntil < new Date() ? 'EXPIRED' : 'VALID'
-      } as any // Ignoring status as it might not be in the original schema if we use custom components locally
-    }).catch(() => {
-      return prisma.medicalExam.create({
+      // Medical Exam
+      const validUntil = faker.date.future({ years: 2 })
+      await prisma.medicalExam.create({
         data: {
           userId: createdUser.id,
           validUntil: validUntil,
           type: faker.helpers.arrayElement(['MEDICINE_WORK', 'SANITARY', 'SAFETY_TRAINING']),
-        }
+          status: 'VALID'
+        } as any
+      }).catch(() => {
+        return prisma.medicalExam.create({
+          data: {
+            userId: createdUser.id,
+            validUntil: validUntil,
+            type: faker.helpers.arrayElement(['MEDICINE_WORK', 'SANITARY', 'SAFETY_TRAINING']),
+          }
+        })
       })
-    })
 
-    // Generate Basic Equipment
-    await prisma.equipment.create({
-      data: {
-        userId: createdUser.id,
-        name: `Laptop ${faker.helpers.arrayElement(['Dell', 'Lenovo ThinkPad', 'HP', 'Apple MacBook'])}`,
-        serialNumber: faker.string.uuid(),
-        notes: `Wydano ${faker.date.past({ years: 2 }).toLocaleDateString()}`
-      }
-    })
-
-    // Randomize Phone
-    if (Math.random() > 0.3) {
+      // Equipment
       await prisma.equipment.create({
         data: {
           userId: createdUser.id,
-          name: `Telefon ${faker.helpers.arrayElement(['Samsung Galaxy', 'Apple iPhone', 'Google Pixel'])}`,
+          name: `Laptop ${faker.helpers.arrayElement(['Dell Latitude', 'Lenovo ThinkPad', 'HP ProBook', 'MacBook Air'])}`,
           serialNumber: faker.string.uuid(),
         }
       })
     }
-
-    // Generate Vacations
-    const vacationsCount = faker.number.int({ min: 1, max: 4 })
-    for (let v = 0; v < vacationsCount; v++) {
-      const type = faker.helpers.arrayElement(['VACATION', 'SICK', 'OTHER'])
-      const approved = faker.datatype.boolean()
-      const startDate = faker.date.between({ from: '2025-01-01', to: '2026-12-31' })
-      const duration = faker.number.int({ min: 1, max: 14 })
-      const endDate = new Date(startDate)
-      endDate.setDate(startDate.getDate() + duration)
-
-      await prisma.vacation.create({
-        data: {
-          userId: createdUser.id,
-          startDate: startDate,
-          endDate: endDate,
-          type: type,
-          approved: approved
-        }
-      })
-    }
+    sortBase += 100 // separate sorts per department nicely
   }
 
-  console.log('--- Generating Mock Cars (Faker.js) ---')
+  console.log('--- Generating Realistic Mock Cars ---')
 
-  // Generating fleet cars
-  for (let i = 0; i < 15; i++) {
-    const isAssigned = Math.random() > 0.4
-    const caretakerId = isAssigned ? faker.helpers.arrayElement(userIds) : null
+  const realisticCars = [
+    { make: 'Skoda', model: 'Octavia' },
+    { make: 'Toyota', model: 'Corolla' },
+    { make: 'Volkswagen', model: 'Golf' },
+    { make: 'Ford', model: 'Focus' },
+    { make: 'Kia', model: 'Ceed' },
+  ]
 
-    // ~20% chance of expiring policy or review
-    const inspectionValidUntil = Math.random() < 0.2 ? faker.date.soon({ days: 15 }) : faker.date.future({ years: 1 })
-    const insuranceValidUntil = Math.random() < 0.2 ? faker.date.soon({ days: 20 }) : faker.date.future({ years: 1 })
+  for (let i = 0; i < 5; i++) {
+    const carData = realisticCars[i]
+    // random caretaker from created users
+    const caretakerId = faker.helpers.arrayElement(userIds)
 
     await prisma.car.create({
       data: {
-        make: faker.vehicle.manufacturer(),
-        model: faker.vehicle.model(),
-        plate: faker.vehicle.vrm(),
+        make: carData.make,
+        model: carData.model,
+        plate: `W${faker.string.alpha({ length: 1, casing: 'upper' })} ${faker.number.int({ min: 10000, max: 99999 })}`,
         vin: faker.vehicle.vin(),
-        productionYear: faker.number.int({ min: 2015, max: 2024 }),
-        inspectionValidUntil: inspectionValidUntil,
-        insuranceValidUntil: insuranceValidUntil,
+        productionYear: faker.number.int({ min: 2020, max: 2024 }),
+        inspectionValidUntil: faker.date.future({ years: 1 }),
+        insuranceValidUntil: faker.date.future({ years: 1 }),
         policyNumber: faker.string.alphanumeric({ length: 10, casing: 'upper' }),
-        status: faker.helpers.arrayElement(['ACTIVE', 'SERVICE', 'ACTIVE', 'ACTIVE']),
+        status: 'ACTIVE',
         caretakerId: caretakerId
       }
     })
   }
 
-  console.log('Database successfully seeded with realistic mock data!')
+  console.log('Database successfully seeded with requested specific requirements!')
 }
 
 main()

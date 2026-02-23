@@ -5,10 +5,11 @@ import { revalidatePath } from "next/cache"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { ROLES } from "@/lib/auth/permissions"
+import { hashPassword } from "@/lib/password"
 
 // --- Department Management ---
 
-export async function createDepartment(data: { name: string; description?: string }) {
+export async function createDepartment(data: { name: string; description?: string; hasDuties?: boolean }) {
     const session = await getServerSession(authOptions)
     if (session?.user?.role !== ROLES.ADMIN) {
         return { error: "Brak uprawnień (Wymagany Administrator)" }
@@ -19,6 +20,7 @@ export async function createDepartment(data: { name: string; description?: strin
             data: {
                 name: data.name,
                 description: data.description,
+                hasDuties: data.hasDuties ?? false,
             },
         })
         revalidatePath("/dashboard/admin")
@@ -28,7 +30,7 @@ export async function createDepartment(data: { name: string; description?: strin
     }
 }
 
-export async function updateDepartment(id: number, data: { name: string; description?: string }) {
+export async function updateDepartment(id: number, data: { name: string; description?: string; hasDuties?: boolean }) {
     const session = await getServerSession(authOptions)
     if (session?.user?.role !== ROLES.ADMIN) {
         return { error: "Brak uprawnień" }
@@ -40,6 +42,7 @@ export async function updateDepartment(id: number, data: { name: string; descrip
             data: {
                 name: data.name,
                 description: data.description,
+                hasDuties: data.hasDuties ?? false,
             },
         })
         revalidatePath("/dashboard/admin")
@@ -100,7 +103,7 @@ export async function getAllUsers() {
     return { success: true, users }
 }
 
-export async function updateUserRoleAndDepartment(userId: number, data: { role: string; departmentId?: number | null }) {
+export async function updateUserRoleAndDepartment(userId: number, data: { role: string; departmentId?: number | null; skipDuties?: boolean; fixedShift?: string | null }) {
     const session = await getServerSession(authOptions)
     if (session?.user?.role !== ROLES.ADMIN) {
         return { error: "Brak uprawnień" }
@@ -112,6 +115,8 @@ export async function updateUserRoleAndDepartment(userId: number, data: { role: 
             data: {
                 role: data.role,
                 departmentId: data.departmentId ? parseInt(data.departmentId.toString()) : null,
+                skipDuties: data.skipDuties ?? false,
+                fixedShift: data.fixedShift === "NONE" ? null : (data.fixedShift || null),
             }
         })
         revalidatePath("/dashboard/admin")
@@ -171,5 +176,101 @@ export async function toggleUserPermission(userId: number, permissionId: number,
     } catch (e) {
         console.error(e)
         return { error: "Błąd zmiany uprawnień" }
+    }
+}
+
+export async function createUser(data: any) {
+    const session = await getServerSession(authOptions)
+    if (session?.user?.role !== ROLES.ADMIN) {
+        return { error: "Brak uprawnień" }
+    }
+
+    try {
+        const existingUsername = await prisma.user.findUnique({
+            where: { username: data.username }
+        })
+
+        if (existingUsername) {
+            return { error: "Użytkownik o takiej nazwie już istnieje" }
+        }
+
+        if (data.email) {
+            const existingEmail = await prisma.user.findFirst({
+                where: { email: data.email }
+            })
+            if (existingEmail) {
+                return { error: "Ten adres e-mail jest już przypisany do innego konta" }
+            }
+        }
+
+        const hashedPassword = await hashPassword(data.password || "Start123!")
+
+        await prisma.user.create({
+            data: {
+                username: data.username,
+                email: data.email || null,
+                password: hashedPassword,
+                name: data.name,
+                role: data.role || ROLES.USER,
+                departmentId: data.departmentId ? parseInt(data.departmentId.toString()) : null,
+                skipDuties: data.skipDuties ?? false,
+                fixedShift: data.fixedShift === "NONE" ? null : (data.fixedShift || null),
+            }
+        })
+        revalidatePath("/dashboard/admin")
+        return { success: true }
+    } catch (error: any) {
+        console.error(error)
+        return { error: "Wystąpił błąd podczas tworzenia użytkownika" }
+    }
+}
+
+export async function deleteEmployee(id: number) {
+    const session = await getServerSession(authOptions)
+    if (!session || ![ROLES.ADMIN, ROLES.HR].includes(session.user?.role as any)) {
+        return { error: "Brak uprawnień do wykonania tej operacji." }
+    }
+
+    try {
+        // Blokada przed usunięciem konta zalogowanego administratora
+        if (id === parseInt(session.user?.id || "0")) {
+            return { error: "Nie możesz usunąć aktualnie zalogowanego konta!" }
+        }
+
+        // Transakcja w Prisma, na wypadek gdy kaskadowe usuwanie natrafia na limity więzów we flagach
+        await prisma.$transaction(async (tx) => {
+            // Czyszczenie przypisanych dyżurów w grafiku
+            await tx.scheduleDay.deleteMany({ where: { userId: id } })
+
+            // Czyszczenie wygenerowanych wniosków urlopowych
+            await tx.vacation.deleteMany({ where: { userId: id } })
+
+            // Usunięcie wpisów z kart pracy
+            await tx.workLogEntry.deleteMany({ where: { userId: id } })
+
+            // Odpięcie wszelkich powiązań z pojazdami we flocie 
+            await tx.car.updateMany({
+                where: { caretakerId: id },
+                data: { caretakerId: null }
+            })
+
+            // Usunięcie ekwipunku przypisanego
+            await tx.equipment.deleteMany({ where: { userId: id } })
+
+            // Usunięcie archiwalnych badań medycznych
+            await tx.medicalExam.deleteMany({ where: { userId: id } })
+
+            // Skasowanie uprawnień przypisanych dla użytkownika
+            await tx.userPermission.deleteMany({ where: { userId: id } })
+
+            // Właściwe usunięcie pracownika 
+            await tx.user.delete({ where: { id } })
+        })
+
+        revalidatePath("/dashboard/admin")
+        return { success: true }
+    } catch (error: any) {
+        console.error("Błąd podczas usuwania użytkownika:", error)
+        return { error: "Błąd bazy danych przy usuwaniu pracownika. Upewnij się, że nie został przypisany m.in do krytycznych raportów archiwalnych." }
     }
 }

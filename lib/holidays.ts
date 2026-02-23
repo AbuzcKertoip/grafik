@@ -46,3 +46,32 @@ export function isHoliday(date: Date, holidays: Date[]): boolean {
         h.getFullYear() === date.getFullYear()
     )
 }
+
+export function getBusinessDaysCount(startDate: Date, endDate: Date): number {
+    let count = 0
+    const current = new Date(startDate)
+    const end = new Date(endDate)
+    current.setHours(0, 0, 0, 0)
+    end.setHours(0, 0, 0, 0)
+
+    // Wczytaj raz tablicę na obydwa obejmujące lata w pętli (dla bezpieczeństwa skrajnych urlopów 30.12 - 04.01)
+    const holidays = [
+        ...getPolishHolidays(current.getFullYear()),
+        ...(current.getFullYear() !== end.getFullYear() ? getPolishHolidays(end.getFullYear()) : [])
+    ]
+
+    while (current <= end) {
+        const dayOfWeek = current.getDay()
+
+        if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(current, holidays)) {
+            // Sobota, Niedziela albo Polskie święto - Pomiń.
+            current.setDate(current.getDate() + 1)
+            continue
+        }
+
+        count++
+        current.setDate(current.getDate() + 1)
+    }
+
+    return count
+}

@@ -87,6 +87,7 @@ export default async function SchedulePage(props: SchedulePageProps) {
                     year={year}
                     month={month}
                     currentUser={session?.user}
+                    departmentId={requestedDeptId ? parseInt(requestedDeptId) : undefined}
                 />
             </div>
 
