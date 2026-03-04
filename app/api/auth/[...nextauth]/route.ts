@@ -2,6 +2,7 @@ import NextAuth, { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import { verifyPassword } from "@/lib/password"
+import { createLog } from "@/lib/actions/log-actions"
 
 export const authOptions: NextAuthOptions = {
     session: {
@@ -29,14 +30,31 @@ export const authOptions: NextAuthOptions = {
                 })
 
                 if (!user) {
+                    await createLog({
+                        action: "LOGIN_FAILED",
+                        description: `Błędna próba logowania dla autoryzatora: ${credentials.username}`,
+                        errorCodeKey: "AUTH_LOGIN_FAILED"
+                    });
                     return null
                 }
 
                 const isValid = await verifyPassword(credentials.password, user.password)
 
                 if (!isValid) {
+                    await createLog({
+                        action: "LOGIN_FAILED",
+                        description: `Błędne hasło dla użytkownika: ${user.username}`,
+                        errorCodeKey: "AUTH_LOGIN_FAILED"
+                    });
                     return null
                 }
+
+                await createLog({
+                    action: "LOGIN_SUCCESS",
+                    description: `Pomyślne logowanie użytkownika: ${user.username}`,
+                    userId: user.id,
+                    errorCodeKey: "AUTH_LOGIN_SUCCESS"
+                });
 
                 return {
                     id: user.id.toString(),

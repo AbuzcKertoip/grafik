@@ -50,6 +50,9 @@ model User {
   departmentId      Int?
   department        Department?   @relation(fields: [departmentId], references: [id])
   permissions       UserPermission[]
+
+  // System Logs
+  systemLogs        SystemLog[]
 }
 
 model Department {
@@ -202,3 +205,16 @@ model PasswordResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 }
+
+model SystemLog {
+  id          Int      @id @default(autoincrement())
+  action      String
+  description String
+  userId      Int?
+  errorCode   String?
+  details     String?
+  createdAt   DateTime @default(now())
+
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+

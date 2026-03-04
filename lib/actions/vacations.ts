@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { sendEmail } from "@/lib/actions/mailer"
+import { createLog } from "@/lib/actions/log-actions"
 
 export async function getVacations(year: number) {
     const startDate = new Date(year, 0, 1)
@@ -165,6 +166,13 @@ export async function createVacation(data: any) {
                 }
             }
         }
+        await createLog({
+            action: "VACATION_REQUESTED",
+            description: `Wniosek urlopowy (${type || 'VACATION'}) złożony: od ${startDate} do ${endDate}`,
+            userId: parseInt(session.user.id),
+            errorCodeKey: "VACATION_REQUESTED",
+            details: { targetUserId: userId, startDate, endDate, status: approved ? "APPROVED" : "PENDING" }
+        });
 
         revalidatePath("/dashboard/schedule")
         return { success: true, approved }
@@ -242,6 +250,13 @@ export async function approveVacation(id: number) {
             `
             await sendEmail(vacation.user.email, "Wniosek urlopowy zaakceptowany", mailHtml).catch(e => console.error(e))
         }
+        await createLog({
+            action: "VACATION_APPROVED",
+            description: `Zatwierdzono urlop (ID: ${vacation.id}) dla pracownika ${vacation.user.username}`,
+            userId: parseInt(session.user.id),
+            errorCodeKey: "VACATION_APPROVED",
+            details: { vacationId: id, targetUserId: vacation.userId }
+        });
 
         revalidatePath("/dashboard/schedule")
         return { success: true }
@@ -292,6 +307,13 @@ export async function rejectVacation(id: number, reason: string) {
             `
             await sendEmail(vacation.user.email, "Odrzucenie wniosku urlopowego", mailHtml).catch(e => console.error(e))
         }
+        await createLog({
+            action: "VACATION_REJECTED",
+            description: `Odrzucono urlop (ID: ${vacation.id}) dla pracownika ${vacation.user.username}`,
+            userId: parseInt(session.user.id),
+            errorCodeKey: "VACATION_REJECTED",
+            details: { vacationId: id, targetUserId: vacation.userId, reason }
+        });
 
         revalidatePath("/dashboard/schedule")
         return { success: true }

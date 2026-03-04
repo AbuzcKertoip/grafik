@@ -14,6 +14,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 
 import { sendEmail } from "@/lib/actions/mailer"
 import { addDays, format } from "date-fns"
+import { createLog } from "@/lib/actions/log-actions"
 
 export async function getEmailLogs() {
     const session = await getServerSession(authOptions)
@@ -121,6 +122,13 @@ export async function triggerManualAlerts() {
             where: { id: 1 },
             data: { lastAlertSent: new Date() }
         })
+
+        await createLog({
+            action: "MANUAL_ALERT_TRIGGERED",
+            description: `Wygenerowano i wysłano ręczny raport alertów. Znaleziono: ${medicalExams.length} badań, ${cars.length} pojazdów.`,
+            userId: parseInt(session.user.id),
+            errorCodeKey: "MANUAL_ALERT_TRIGGERED",
+        });
 
         return { success: true, message: "Raport został wygenerowany i wysłany pomyślnie na zdefiniowane skrzynki odbiorecze." }
 

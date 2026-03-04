@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { createLog } from "@/lib/actions/log-actions"
 
 export async function getSchedule(year: number, month: number) {
     const session = await getServerSession(authOptions)
@@ -342,6 +343,14 @@ export async function generateSchedule(year: number, month: number, targetDepart
         await prisma.scheduleDay.create({ data: day })
     }
 
+    await createLog({
+        action: "GENERATE_SCHEDULE",
+        description: `Wygenerowano grafik dla działu ID: ${finalDepartmentId} (${year}-${month})`,
+        userId: session.user.id ? parseInt(session.user.id) : undefined,
+        errorCodeKey: "SCHEDULE_MODIFIED",
+        details: { year, month, departmentId: finalDepartmentId }
+    });
+
     revalidatePath("/dashboard/schedule")
     return { success: true }
 }
@@ -372,6 +381,15 @@ export async function upsertShift(userId: number, year: number, month: number, d
                 },
             })
         }
+
+        const session = await getServerSession(authOptions)
+        await createLog({
+            action: "UPSERT_SHIFT",
+            description: `Zmieniono dyżur (Dzień: ${day}.${month}.${year}, Typ: ${type}) dla pracownika ID: ${userId}`,
+            userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+            errorCodeKey: "SHIFT_ADDED",
+            details: { targetUserId: userId, date: `${year}-${month}-${day}`, type }
+        });
 
         revalidatePath("/dashboard/schedule")
         return { success: true }
@@ -419,9 +437,18 @@ export async function clearSchedule(year: number, month: number, targetDepartmen
     }
 
     try {
-        await prisma.scheduleDay.deleteMany({
+        const deleted = await prisma.scheduleDay.deleteMany({
             where
         })
+
+        await createLog({
+            action: "CLEAR_SCHEDULE",
+            description: `Wyczyszczono grafik działu ID: ${finalDepartmentId} (${year}-${month}). Usunięto ${deleted.count} wpisów.`,
+            userId: parseInt(session.user.id),
+            errorCodeKey: "SCHEDULE_MODIFIED",
+            details: { year, month, departmentId: finalDepartmentId, deletedCount: deleted.count }
+        });
+
         revalidatePath("/dashboard/schedule")
         return { success: true }
     } catch (error) {

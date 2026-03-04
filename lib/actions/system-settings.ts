@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { sendEmail } from "@/lib/actions/mailer"
+import { createLog } from "@/lib/actions/log-actions"
 
 export async function getSystemSettings() {
     const session = await getServerSession(authOptions)
@@ -44,6 +45,14 @@ export async function updateSystemSettings(data: any) {
                 alertDaysBefore: data.alertDaysBefore ? parseInt(data.alertDaysBefore) : 30
             }
         })
+
+        await createLog({
+            action: "SETTINGS_UPDATED",
+            description: `Zaktualizowano ustawienia systemowe (SMTP i powiadomienia)`,
+            userId: parseInt(session.user.id),
+            errorCodeKey: "SETTINGS_UPDATED",
+        });
+
         return { success: true, settings: updated }
     } catch (error: any) {
         console.error("Update settings error:", error)

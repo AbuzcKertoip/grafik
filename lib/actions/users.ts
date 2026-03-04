@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword } from "@/lib/password"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { ROLES } from "@/lib/auth/permissions"
+import { createLog } from "@/lib/actions/log-actions"
 
 export async function getUsers(requestedDepartmentId?: string | null) {
     const session = await getServerSession(authOptions)
@@ -65,7 +66,7 @@ export async function createUser(data: any) {
 
     const hashedPassword = await hashPassword(password)
 
-    await prisma.user.create({
+    const addedUser = await prisma.user.create({
         data: {
             username,
             password: hashedPassword,
@@ -77,6 +78,15 @@ export async function createUser(data: any) {
             skipDuties: skipDuties === "on" || skipDuties === true,
         },
     })
+
+    const session = await getServerSession(authOptions);
+    await createLog({
+        action: "USER_CREATED",
+        description: `Dodano nowego użytkownika ${username} (Rola: ${role || "USER"})`,
+        userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+        errorCodeKey: "USER_CREATED",
+        details: { targetUserId: addedUser.id, role }
+    });
 
     revalidatePath("/dashboard/users")
     return { success: true }
@@ -104,6 +114,16 @@ export async function updateUser(id: number, data: any) {
             where: { id },
             data: updateData,
         })
+
+        const session = await getServerSession(authOptions);
+        await createLog({
+            action: "USER_UPDATED",
+            description: `Zaktualizowano dane użytkownika: ${username || id}`,
+            userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+            errorCodeKey: "USER_UPDATED",
+            details: { targetUserId: id, updateData }
+        });
+
         revalidatePath("/dashboard/users")
         return { success: true }
     } catch (error) {
@@ -113,9 +133,20 @@ export async function updateUser(id: number, data: any) {
 
 export async function deleteUser(id: number) {
     try {
+        const userToDelete = await prisma.user.findUnique({ where: { id } });
         await prisma.user.delete({
             where: { id }
         });
+
+        const session = await getServerSession(authOptions);
+        await createLog({
+            action: "USER_DELETED",
+            description: `Usunięto użytkownika ${userToDelete?.username || id}`,
+            userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+            errorCodeKey: "USER_DELETED",
+            details: { targetUserId: id }
+        });
+
         revalidatePath("/dashboard/users");
         return { success: true };
     } catch (error) {
