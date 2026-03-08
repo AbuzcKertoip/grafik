@@ -97,97 +97,99 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                 </span>
             </div>
 
-            <div className="rounded-md border bg-card text-card-foreground overflow-x-auto dark:border-slate-800">
-                <Table className="w-max min-w-full border-collapse">
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[200px] min-w-[200px] max-w-[200px] border-r sticky left-0 bg-card z-10 text-card-foreground">Pracownik</TableHead>
-                            {days.map(day => {
-                                const date = new Date(year, month - 1, day)
-                                const isWeekend = date.getDay() === 0 || date.getDay() === 6
-                                const isHolidayDate = isHoliday(date, holidays)
-                                const isOff = isWeekend || isHolidayDate
-
-                                return (
-                                    <TableHead
-                                        key={day}
-                                        className={cn(
-                                            "text-center min-w-[40px] w-10 p-1 border-r text-xs dark:border-slate-800",
-                                            isOff ? "bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-300" : "bg-card text-card-foreground"
-                                        )}
-                                    >
-                                        {day}
-                                        <div className={cn("text-[10px] font-normal", isOff ? "text-red-700 dark:text-red-400 font-semibold" : "text-muted-foreground")}>
-                                            {format(date, "iii", { locale: pl }).slice(0, 2)}
-                                        </div>
-                                    </TableHead>
-                                )
-                            })}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {users.map((user) => (
-                            <TableRow key={user.id} className="hover:bg-muted/50 dark:hover:bg-slate-900/50">
-                                <TableCell className="w-[200px] min-w-[200px] max-w-[200px] font-medium border-r sticky left-0 bg-card z-10 dark:border-slate-800 truncate">
-                                    {user.name}
-                                </TableCell>
+            <div className="rounded-md border bg-card text-card-foreground w-full overflow-hidden dark:border-slate-800">
+                <div className="overflow-x-auto">
+                    <Table className="w-max min-w-full border-collapse">
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[200px] min-w-[200px] max-w-[200px] border-r sticky left-0 bg-card z-10 text-card-foreground">Pracownik</TableHead>
                                 {days.map(day => {
-                                    const shift = getShift(user.id, day)
-                                    const type = shift?.type || ""
-
                                     const date = new Date(year, month - 1, day)
                                     const isWeekend = date.getDay() === 0 || date.getDay() === 6
                                     const isHolidayDate = isHoliday(date, holidays)
                                     const isOff = isWeekend || isHolidayDate
 
                                     return (
-                                        <TableCell
+                                        <TableHead
                                             key={day}
                                             className={cn(
-                                                "p-0 border-r text-center select-none transition-colors min-w-[40px] w-10 h-10 overflow-hidden dark:border-slate-800",
-                                                SHIFT_COLORS[type],
-                                                !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
+                                                "text-center min-w-[40px] w-10 p-1 border-r text-xs dark:border-slate-800",
+                                                isOff ? "bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-300" : "bg-card text-card-foreground"
                                             )}
                                         >
-                                            {isEditable ? (
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none cursor-pointer">
-                                                            {SHIFT_LABELS[type]}
-                                                        </div>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="center" className="min-w-[120px]">
-                                                        {SHIFT_TYPES.map(shiftType => (
-                                                            <DropdownMenuItem
-                                                                key={shiftType}
-                                                                onSelect={() => handleCellClick(user.id, day, shiftType)}
-                                                                className="cursor-pointer font-medium flex items-center gap-2"
-                                                            >
-                                                                <div className={cn("w-3 h-3 rounded-full border", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
-                                                                {shiftType === "" ? "Wyczyść" : SHIFT_LABELS[shiftType] + " - " + (
-                                                                    shiftType === "SHIFT_1" ? "1 Zmiana" :
-                                                                        shiftType === "SHIFT_2" ? "2 Zmiana" :
-                                                                            shiftType === "DUTY" ? "Dyżur" :
-                                                                                shiftType === "VACATION" ? "Urlop" :
-                                                                                    shiftType === "SICK" ? "Chorobowe" :
-                                                                                        shiftType === "OFF" ? "Odbiór" : ""
-                                                                )}
-                                                            </DropdownMenuItem>
-                                                        ))}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            ) : (
-                                                <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none">
-                                                    {SHIFT_LABELS[type]}
-                                                </div>
-                                            )}
-                                        </TableCell>
+                                            {day}
+                                            <div className={cn("text-[10px] font-normal", isOff ? "text-red-700 dark:text-red-400 font-semibold" : "text-muted-foreground")}>
+                                                {format(date, "iii", { locale: pl }).slice(0, 2)}
+                                            </div>
+                                        </TableHead>
                                     )
                                 })}
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {users.map((user) => (
+                                <TableRow key={user.id} className="hover:bg-muted/50 dark:hover:bg-slate-900/50">
+                                    <TableCell className="w-[200px] min-w-[200px] max-w-[200px] font-medium border-r sticky left-0 bg-card z-10 dark:border-slate-800 truncate">
+                                        {user.name}
+                                    </TableCell>
+                                    {days.map(day => {
+                                        const shift = getShift(user.id, day)
+                                        const type = shift?.type || ""
+
+                                        const date = new Date(year, month - 1, day)
+                                        const isWeekend = date.getDay() === 0 || date.getDay() === 6
+                                        const isHolidayDate = isHoliday(date, holidays)
+                                        const isOff = isWeekend || isHolidayDate
+
+                                        return (
+                                            <TableCell
+                                                key={day}
+                                                className={cn(
+                                                    "p-0 border-r text-center select-none transition-colors min-w-[40px] w-10 h-10 overflow-hidden dark:border-slate-800",
+                                                    SHIFT_COLORS[type],
+                                                    !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
+                                                )}
+                                            >
+                                                {isEditable ? (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none cursor-pointer">
+                                                                {SHIFT_LABELS[type]}
+                                                            </div>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="center" className="min-w-[120px]">
+                                                            {SHIFT_TYPES.map(shiftType => (
+                                                                <DropdownMenuItem
+                                                                    key={shiftType}
+                                                                    onSelect={() => handleCellClick(user.id, day, shiftType)}
+                                                                    className="cursor-pointer font-medium flex items-center gap-2"
+                                                                >
+                                                                    <div className={cn("w-3 h-3 rounded-full border", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
+                                                                    {shiftType === "" ? "Wyczyść" : SHIFT_LABELS[shiftType] + " - " + (
+                                                                        shiftType === "SHIFT_1" ? "1 Zmiana" :
+                                                                            shiftType === "SHIFT_2" ? "2 Zmiana" :
+                                                                                shiftType === "DUTY" ? "Dyżur" :
+                                                                                    shiftType === "VACATION" ? "Urlop" :
+                                                                                        shiftType === "SICK" ? "Chorobowe" :
+                                                                                            shiftType === "OFF" ? "Odbiór" : ""
+                                                                    )}
+                                                                </DropdownMenuItem>
+                                                            ))}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                ) : (
+                                                    <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none">
+                                                        {SHIFT_LABELS[type]}
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                        )
+                                    })}
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
             </div>
 
             <div className="flex flex-wrap gap-4 text-sm mt-4 p-4 bg-muted/40 rounded-lg border dark:border-slate-800">
