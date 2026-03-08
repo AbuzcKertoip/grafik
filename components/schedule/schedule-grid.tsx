@@ -98,10 +98,10 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
             </div>
 
             <div className="rounded-md border bg-card text-card-foreground overflow-x-auto dark:border-slate-800">
-                <Table className="min-w-max border-collapse table-fixed w-full">
+                <Table className="w-max min-w-full border-collapse">
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[200px] border-r sticky left-0 bg-card z-10 text-card-foreground">Pracownik</TableHead>
+                            <TableHead className="w-[200px] min-w-[200px] max-w-[200px] border-r sticky left-0 bg-card z-10 text-card-foreground">Pracownik</TableHead>
                             {days.map(day => {
                                 const date = new Date(year, month - 1, day)
                                 const isWeekend = date.getDay() === 0 || date.getDay() === 6
@@ -128,7 +128,7 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                     <TableBody>
                         {users.map((user) => (
                             <TableRow key={user.id} className="hover:bg-muted/50 dark:hover:bg-slate-900/50">
-                                <TableCell className="font-medium border-r sticky left-0 bg-card z-10 dark:border-slate-800">
+                                <TableCell className="w-[200px] min-w-[200px] max-w-[200px] font-medium border-r sticky left-0 bg-card z-10 dark:border-slate-800 truncate">
                                     {user.name}
                                 </TableCell>
                                 {days.map(day => {
