@@ -6,7 +6,7 @@ import { hashPassword, verifyPassword } from "@/lib/password"
 
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import { ROLES } from "@/lib/auth/permissions"
+import { ROLES, hasPermission } from "@/lib/auth/permissions"
 import { createLog } from "@/lib/actions/log-actions"
 
 export async function getUsers(requestedDepartmentId?: string | null) {
@@ -19,20 +19,21 @@ export async function getUsers(requestedDepartmentId?: string | null) {
     const where: any = {}
 
     // Strict RBAC Rules for Schedule Visibility
-    if (role === ROLES.USER || role === ROLES.MANAGER) {
-        // Users and Managers can ONLY see their own department's members
-        if (currentDeptId) {
-            where.departmentId = currentDeptId;
-        } else {
-            // Failsafe: if they have no department assigned, show only themselves
-            // or show an empty list. We'll show just themselves for now.
-            where.id = session.user.id;
-        }
-    } else if (role === ROLES.ADMIN || role === ROLES.HR) {
+    if (role === ROLES.ADMIN || role === ROLES.HR || hasPermission(session.user as any, "manage_users") || hasPermission(session.user as any, "view_users")) {
         // Admins and HR can see all, but can also filter by a specific department
         if (requestedDepartmentId && requestedDepartmentId !== "ALL") {
             where.departmentId = parseInt(requestedDepartmentId);
         }
+    } else if (role === ROLES.MANAGER) {
+        // Managers can see their own department's members
+        if (currentDeptId) {
+            where.departmentId = currentDeptId;
+        } else {
+            where.id = parseInt(session.user.id.toString());
+        }
+    } else {
+        // Regular users can ONLY see themselves
+        where.id = parseInt(session.user.id.toString());
     }
 
     // Always exclude ADMIN role from employee lists
@@ -54,6 +55,11 @@ export async function getUsers(requestedDepartmentId?: string | null) {
 }
 
 export async function createUser(data: any) {
+    const session = await getServerSession(authOptions)
+    if (!session || (session.user.role !== ROLES.ADMIN && !hasPermission(session.user as any, "manage_users"))) {
+        return { error: "Brak uprawnień" }
+    }
+
     const { username, password, name, role, hourlyRate, sortOrder, fixedShift, skipDuties } = data
 
     const existingUser = await prisma.user.findUnique({
@@ -79,7 +85,6 @@ export async function createUser(data: any) {
         },
     })
 
-    const session = await getServerSession(authOptions);
     await createLog({
         action: "USER_CREATED",
         description: `Dodano nowego użytkownika ${username} (Rola: ${role || "USER"})`,
@@ -93,6 +98,11 @@ export async function createUser(data: any) {
 }
 
 export async function updateUser(id: number, data: any) {
+    const session = await getServerSession(authOptions)
+    if (!session || (session.user.role !== ROLES.ADMIN && !hasPermission(session.user as any, "manage_users"))) {
+        return { error: "Brak uprawnień" }
+    }
+
     const { username, password, name, role, hourlyRate, sortOrder, fixedShift, skipDuties } = data
 
     const updateData: any = {
@@ -115,7 +125,6 @@ export async function updateUser(id: number, data: any) {
             data: updateData,
         })
 
-        const session = await getServerSession(authOptions);
         await createLog({
             action: "USER_UPDATED",
             description: `Zaktualizowano dane użytkownika: ${username || id}`,
@@ -132,13 +141,17 @@ export async function updateUser(id: number, data: any) {
 }
 
 export async function deleteUser(id: number) {
+    const session = await getServerSession(authOptions)
+    if (!session || (session.user.role !== ROLES.ADMIN && !hasPermission(session.user as any, "manage_users"))) {
+        return { success: false, error: "Brak uprawnień" }
+    }
+
     try {
         const userToDelete = await prisma.user.findUnique({ where: { id } });
         await prisma.user.delete({
             where: { id }
         });
 
-        const session = await getServerSession(authOptions);
         await createLog({
             action: "USER_DELETED",
             description: `Usunięto użytkownika ${userToDelete?.username || id}`,

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { revalidatePath } from "next/cache"
+import { hasPermission } from "@/lib/auth/permissions"
 
 export async function getCars() {
     const session = await getServerSession(authOptions)
@@ -62,7 +63,7 @@ export async function createCar(data: {
     status: string
 }) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "HR")) {
+    if (!session || !hasPermission(session.user as any, "manage_fleet")) {
         return { success: false, error: "Unauthorized" }
     }
 
@@ -94,7 +95,7 @@ export async function updateCar(id: number, data: {
     caretakerId?: number | null
 }) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "HR")) {
+    if (!session || !hasPermission(session.user as any, "manage_fleet")) {
         return { success: false, error: "Unauthorized" }
     }
 
@@ -114,7 +115,7 @@ export async function updateCar(id: number, data: {
 
 export async function deleteCar(id: number) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "HR")) {
+    if (!session || !hasPermission(session.user as any, "manage_fleet")) {
         return { success: false, error: "Unauthorized" }
     }
 
@@ -132,7 +133,7 @@ export async function deleteCar(id: number) {
 
 export async function assignCaretaker(carId: number, caretakerId: number | null) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "HR")) {
+    if (!session || !hasPermission(session.user as any, "manage_fleet")) {
         return { success: false, error: "Unauthorized" }
     }
 

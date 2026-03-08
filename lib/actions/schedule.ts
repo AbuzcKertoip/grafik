@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { createLog } from "@/lib/actions/log-actions"
+import { hasPermission } from "@/lib/auth/permissions"
 
 export async function getSchedule(year: number, month: number) {
     const session = await getServerSession(authOptions)
@@ -21,7 +22,11 @@ export async function getSchedule(year: number, month: number) {
         },
     }
 
-    if (role === 'MANAGER' && departmentId) {
+    if (role === 'USER' && session?.user?.id) {
+        // Regular users only see their own schedule
+        where.userId = parseInt(session.user.id.toString());
+    } else if (role === 'MANAGER' && departmentId) {
+        // Managers see their whole department
         where.user = {
             departmentId: parseInt(departmentId.toString())
         }
@@ -51,7 +56,7 @@ interface UserWithSettings {
 
 export async function generateSchedule(year: number, month: number, targetDepartmentId?: number) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "generate_schedule"))) {
         return { error: "Brak uprawnień do generowania grafiku." }
     }
 
@@ -357,6 +362,30 @@ export async function generateSchedule(year: number, month: number, targetDepart
 
 export async function upsertShift(userId: number, year: number, month: number, day: number, type: string) {
     try {
+        const session = await getServerSession(authOptions)
+
+        if (!session || !session.user) {
+            return { error: "Brak autoryzacji" }
+        }
+
+        const { role, departmentId } = session.user
+
+        if (role !== 'ADMIN' && role !== 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
+            return { error: "Brak uprawnień do edycji grafiku" }
+        }
+
+        if (role !== 'ADMIN' && hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
+            const targetUser = await prisma.user.findUnique({ where: { id: userId } })
+            if (!targetUser || targetUser.departmentId !== Number(departmentId)) {
+                return { error: "Możesz edytować tylko pracowników swojego działu" }
+            }
+        } else if (role === 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_all")) {
+            const targetUser = await prisma.user.findUnique({ where: { id: userId } })
+            if (!targetUser || targetUser.departmentId !== Number(departmentId)) {
+                return { error: "Możesz edytować tylko pracowników swojego działu" }
+            }
+        }
+
         const startOfDay = new Date(year, month - 1, day, 0, 0, 0)
         const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
 
@@ -382,11 +411,10 @@ export async function upsertShift(userId: number, year: number, month: number, d
             })
         }
 
-        const session = await getServerSession(authOptions)
         await createLog({
             action: "UPSERT_SHIFT",
             description: `Zmieniono dyżur (Dzień: ${day}.${month}.${year}, Typ: ${type}) dla pracownika ID: ${userId}`,
-            userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+            userId: session.user.id ? parseInt(session.user.id) : undefined,
             errorCodeKey: "SHIFT_ADDED",
             details: { targetUserId: userId, date: `${year}-${month}-${day}`, type }
         });
@@ -401,7 +429,7 @@ export async function upsertShift(userId: number, year: number, month: number, d
 
 export async function clearSchedule(year: number, month: number, targetDepartmentId?: number) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "clear_schedule"))) {
         return { error: "Brak uprawnień do usuwania grafiku." }
     }
 

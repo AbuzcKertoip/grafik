@@ -22,6 +22,7 @@ interface ScheduleGridProps {
     schedule: any[] // ScheduleDay[]
     year: number
     month: number
+    currentUser: any // Current session user
 }
 
 import {
@@ -52,9 +53,12 @@ const SHIFT_COLORS: Record<string, string> = {
     "OFF": "bg-gray-400 dark:bg-slate-500 text-white hover:bg-gray-500 dark:hover:bg-slate-400",
 }
 
-export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps) {
+export function ScheduleGrid({ users, schedule, year, month, currentUser }: ScheduleGridProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
+
+    // Determine if the current user has permission to edit the schedule
+    const isEditable = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
 
     const daysInMonth = getDaysInMonth(new Date(year, month - 1))
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
@@ -145,32 +149,38 @@ export function ScheduleGrid({ users, schedule, year, month }: ScheduleGridProps
                                                 !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
                                             )}
                                         >
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none cursor-pointer">
-                                                        {SHIFT_LABELS[type]}
-                                                    </div>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="center" className="min-w-[120px]">
-                                                    {SHIFT_TYPES.map(shiftType => (
-                                                        <DropdownMenuItem
-                                                            key={shiftType}
-                                                            onSelect={() => handleCellClick(user.id, day, shiftType)}
-                                                            className="cursor-pointer font-medium flex items-center gap-2"
-                                                        >
-                                                            <div className={cn("w-3 h-3 rounded-full border", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
-                                                            {shiftType === "" ? "Wyczyść" : SHIFT_LABELS[shiftType] + " - " + (
-                                                                shiftType === "SHIFT_1" ? "1 Zmiana" :
-                                                                    shiftType === "SHIFT_2" ? "2 Zmiana" :
-                                                                        shiftType === "DUTY" ? "Dyżur" :
-                                                                            shiftType === "VACATION" ? "Urlop" :
-                                                                                shiftType === "SICK" ? "Chorobowe" :
-                                                                                    shiftType === "OFF" ? "Odbiór" : ""
-                                                            )}
-                                                        </DropdownMenuItem>
-                                                    ))}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            {isEditable ? (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none cursor-pointer">
+                                                            {SHIFT_LABELS[type]}
+                                                        </div>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="center" className="min-w-[120px]">
+                                                        {SHIFT_TYPES.map(shiftType => (
+                                                            <DropdownMenuItem
+                                                                key={shiftType}
+                                                                onSelect={() => handleCellClick(user.id, day, shiftType)}
+                                                                className="cursor-pointer font-medium flex items-center gap-2"
+                                                            >
+                                                                <div className={cn("w-3 h-3 rounded-full border", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
+                                                                {shiftType === "" ? "Wyczyść" : SHIFT_LABELS[shiftType] + " - " + (
+                                                                    shiftType === "SHIFT_1" ? "1 Zmiana" :
+                                                                        shiftType === "SHIFT_2" ? "2 Zmiana" :
+                                                                            shiftType === "DUTY" ? "Dyżur" :
+                                                                                shiftType === "VACATION" ? "Urlop" :
+                                                                                    shiftType === "SICK" ? "Chorobowe" :
+                                                                                        shiftType === "OFF" ? "Odbiór" : ""
+                                                                )}
+                                                            </DropdownMenuItem>
+                                                        ))}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            ) : (
+                                                <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none">
+                                                    {SHIFT_LABELS[type]}
+                                                </div>
+                                            )}
                                         </TableCell>
                                     )
                                 })}

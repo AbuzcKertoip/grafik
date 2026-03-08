@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, addMonths } from "date-fns"
 import { getBusinessDaysCount } from "../holidays"
+import { hasPermission } from "@/lib/auth/permissions"
 
 // Helper to check permissions
 async function checkReportAccess(departmentId?: number) {
@@ -14,7 +15,7 @@ async function checkReportAccess(departmentId?: number) {
     }
 
     const role = session.user.role
-    if (role !== "ADMIN" && role !== "MANAGER") {
+    if (role !== "ADMIN" && role !== "MANAGER" && !hasPermission(session.user as any, "view_reports")) {
         throw new Error("Brak uprawnień")
     }
 

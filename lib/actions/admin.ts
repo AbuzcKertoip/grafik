@@ -4,15 +4,15 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import { ROLES } from "@/lib/auth/permissions"
+import { ROLES, hasPermission } from "@/lib/auth/permissions"
 import { hashPassword } from "@/lib/password"
 
 // --- Department Management ---
 
 export async function createDepartment(data: { name: string; description?: string; hasDuties?: boolean }) {
     const session = await getServerSession(authOptions)
-    if (session?.user?.role !== ROLES.ADMIN) {
-        return { error: "Brak uprawnień (Wymagany Administrator)" }
+    if (!session || !hasPermission(session.user as any, "manage_departments")) {
+        return { error: "Brak uprawnień do dodawania działów" }
     }
 
     try {
@@ -32,8 +32,8 @@ export async function createDepartment(data: { name: string; description?: strin
 
 export async function updateDepartment(id: number, data: { name: string; description?: string; hasDuties?: boolean }) {
     const session = await getServerSession(authOptions)
-    if (session?.user?.role !== ROLES.ADMIN) {
-        return { error: "Brak uprawnień" }
+    if (!session || !hasPermission(session.user as any, "manage_departments")) {
+        return { error: "Brak uprawnień do edycji działów" }
     }
 
     try {
@@ -54,8 +54,8 @@ export async function updateDepartment(id: number, data: { name: string; descrip
 
 export async function deleteDepartment(id: number) {
     const session = await getServerSession(authOptions)
-    if (session?.user?.role !== ROLES.ADMIN) {
-        return { error: "Brak uprawnień" }
+    if (!session || !hasPermission(session.user as any, "manage_departments")) {
+        return { error: "Brak uprawnień do usuwania działów" }
     }
 
     try {
@@ -84,8 +84,8 @@ export async function getDepartments() {
 
 export async function getAllUsers() {
     const session = await getServerSession(authOptions)
-    if (![ROLES.ADMIN, ROLES.HR].includes(session?.user?.role as any)) {
-        return { error: "Brak uprawnień" }
+    if (!session || (!hasPermission(session.user as any, "manage_users") && !hasPermission(session.user as any, "manage_hr_data"))) {
+        return { error: "Brak uprawnień do wyświetlania użytkowników" }
     }
 
     const users = await prisma.user.findMany({
@@ -105,7 +105,7 @@ export async function getAllUsers() {
 
 export async function updateUserRoleAndDepartment(userId: number, data: { role: string; departmentId?: number | null; skipDuties?: boolean; fixedShift?: string | null }) {
     const session = await getServerSession(authOptions)
-    if (session?.user?.role !== ROLES.ADMIN) {
+    if (!session || !hasPermission(session.user as any, "manage_users")) {
         return { error: "Brak uprawnień" }
     }
 
@@ -129,7 +129,7 @@ export async function updateUserRoleAndDepartment(userId: number, data: { role: 
 
 export async function createPermission(data: { slug: string; name: string; description?: string }) {
     const session = await getServerSession(authOptions)
-    if (session?.user?.role !== ROLES.ADMIN) {
+    if (!session || !hasPermission(session.user as any, "manage_permissions")) {
         return { error: "Brak uprawnień" }
     }
     try {
@@ -151,7 +151,7 @@ export async function getAllPermissions() {
 
 export async function toggleUserPermission(userId: number, permissionId: number, enable: boolean) {
     const session = await getServerSession(authOptions)
-    if (session?.user?.role !== ROLES.ADMIN) {
+    if (!session || !hasPermission(session.user as any, "manage_permissions")) {
         return { error: "Brak uprawnień" }
     }
 
@@ -181,7 +181,7 @@ export async function toggleUserPermission(userId: number, permissionId: number,
 
 export async function createUser(data: any) {
     const session = await getServerSession(authOptions)
-    if (session?.user?.role !== ROLES.ADMIN) {
+    if (!session || !hasPermission(session.user as any, "manage_users")) {
         return { error: "Brak uprawnień" }
     }
 
@@ -227,7 +227,7 @@ export async function createUser(data: any) {
 
 export async function deleteEmployee(id: number) {
     const session = await getServerSession(authOptions)
-    if (!session || ![ROLES.ADMIN, ROLES.HR].includes(session.user?.role as any)) {
+    if (!session || !hasPermission(session.user as any, "manage_users")) {
         return { error: "Brak uprawnień do wykonania tej operacji." }
     }
 

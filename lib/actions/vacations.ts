@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { sendEmail } from "@/lib/actions/mailer"
 import { createLog } from "@/lib/actions/log-actions"
+import { hasPermission } from "@/lib/auth/permissions"
 
 export async function getVacations(year: number) {
     const startDate = new Date(year, 0, 1)
@@ -82,7 +83,7 @@ export async function createVacation(data: any) {
     if (!session) return { error: "Brak dostępu" }
 
     const { userId, startDate, endDate, type } = data
-    const isAdmin = session.user.role === 'ADMIN'
+    const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
     const isSelf = parseInt(session.user.id) === parseInt(userId)
 
     if (!isAdmin && !isSelf) return { error: "Możesz składać wnioski tylko za siebie." }
@@ -184,7 +185,7 @@ export async function createVacation(data: any) {
 
 export async function approveVacation(id: number) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
         return { error: "Brak uprawnień" }
     }
 
@@ -196,7 +197,7 @@ export async function approveVacation(id: number) {
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
         // Manger restriction
-        if (session.user.role === 'MANAGER') {
+        if (session.user.role === 'MANAGER' && !hasPermission(session.user as any, "manage_vacations")) {
             if (vacation.user.departmentId !== session.user.departmentId) {
                 return { error: "Możesz akceptować urlopy tylko we własnym dziale." }
             }
@@ -269,7 +270,7 @@ import { format } from "date-fns" // Dodałem dla approve emaila
 
 export async function rejectVacation(id: number, reason: string) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
         return { error: "Brak uprawnień" }
     }
 
@@ -281,7 +282,7 @@ export async function rejectVacation(id: number, reason: string) {
 
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
-        if (session.user.role === 'MANAGER' && vacation.user.departmentId !== session.user.departmentId) {
+        if (session.user.role === 'MANAGER' && vacation.user.departmentId !== session.user.departmentId && !hasPermission(session.user as any, "manage_vacations")) {
             return { error: "Brak dostępu do pracownika z innego działu" }
         }
 
@@ -334,7 +335,7 @@ export async function deleteVacation(id: number) {
         })
         if (!vacation) return { error: "Nie znaleziono" }
 
-        const isAdmin = session.user.role === 'ADMIN'
+        const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
         const isManager = session.user.role === 'MANAGER'
         const isSelf = parseInt(session.user.id) === vacation.userId
         const isManagersEmployee = isManager && (vacation.user.departmentId === session.user.departmentId)

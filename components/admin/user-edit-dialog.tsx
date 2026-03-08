@@ -32,12 +32,30 @@ interface UserEditDialogProps {
     onUpdate: () => void
 }
 
+const INHERENT_PERMISSIONS: Record<string, string[]> = {
+    [ROLES.ADMIN]: [
+        'manage_departments', 'manage_users', 'manage_permissions', 'manage_hr_data',
+        'manage_fleet', 'manage_vacations', 'manage_work_logs', 'view_users',
+        'view_hr_panel', 'view_fleet', 'view_reports', 'generate_schedule',
+        'edit_schedule_dept', 'edit_schedule_all', 'clear_schedule'
+    ],
+    [ROLES.HR]: [
+        'manage_hr_data', 'manage_fleet', 'view_users', 'view_hr_panel', 'view_fleet'
+    ],
+    [ROLES.MANAGER]: [
+        'manage_vacations', 'view_users', 'view_hr_panel', 'view_reports',
+        'generate_schedule', 'edit_schedule_dept'
+    ],
+    [ROLES.USER]: []
+}
+
 export function UserEditDialog({ user, open, onOpenChange, departments, allPermissions, onUpdate }: UserEditDialogProps) {
     const [role, setRole] = useState(user?.role || ROLES.USER)
     const [departmentId, setDepartmentId] = useState<string>(user?.departmentId?.toString() || "null")
     const [skipDuties, setSkipDuties] = useState<boolean>(user?.skipDuties || false)
     const [fixedShift, setFixedShift] = useState<string>(user?.fixedShift || "NONE")
     const [isLoading, setIsLoading] = useState(false)
+    const [localPermissions, setLocalPermissions] = useState<Set<number>>(new Set())
 
     // Derived state for permissions would be complex if we want to manage them here fully reactive,
     // but for now, let's just handle role/dept save, and permissions as individual toggles or separate tab?
@@ -49,6 +67,7 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
             setDepartmentId(user.departmentId?.toString() || "null")
             setSkipDuties(user.skipDuties || false)
             setFixedShift(user.fixedShift || "NONE")
+            setLocalPermissions(new Set(user.permissions?.map((p: any) => p.permissionId)))
         }
     }, [user])
 
@@ -72,18 +91,29 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
     }
 
     const handlePermissionToggle = async (permissionId: number, checked: boolean) => {
-        // Optimistic update or just wait?
-        // Let's wait to be safe
+        // Optimistic update 
+        setLocalPermissions(prev => {
+            const next = new Set(prev)
+            if (checked) next.add(permissionId)
+            else next.delete(permissionId)
+            return next
+        })
+
         const res = await toggleUserPermission(user.id, permissionId, checked)
         if (res.error) {
             toast.error(res.error)
+            // Revert on error
+            setLocalPermissions(prev => {
+                const next = new Set(prev)
+                if (checked) next.delete(permissionId)
+                else next.add(permissionId)
+                return next
+            })
         } else {
             toast.success(checked ? "Nadano uprawnienie" : "Odebrano uprawnienie")
             onUpdate() // Refresh parent to get new permissions list
         }
     }
-
-    const userPermissions = new Set(user?.permissions?.map((p: any) => p.permissionId))
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -161,20 +191,29 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
                         <Label>Dodatkowe Uprawnienia</Label>
                         <div className="grid grid-cols-1 gap-2 border rounded-md p-4">
                             {allPermissions.map((perm) => {
-                                const isChecked = userPermissions.has(perm.id)
+                                const inherentForRole = INHERENT_PERMISSIONS[role] || []
+                                const isInherentlyGranted = role === ROLES.ADMIN || inherentForRole.includes(perm.slug)
+                                const isChecked = isInherentlyGranted || localPermissions.has(perm.id)
+
                                 return (
                                     <div key={perm.id} className="flex items-center space-x-2">
                                         <Checkbox
                                             id={`perm-${perm.id}`}
                                             checked={isChecked}
-                                            onCheckedChange={(checked) => handlePermissionToggle(perm.id, checked as boolean)}
+                                            disabled={isInherentlyGranted}
+                                            onCheckedChange={isInherentlyGranted ? undefined : ((checked) => handlePermissionToggle(perm.id, checked as boolean))}
                                         />
                                         <div className="grid gap-1.5 leading-none">
                                             <label
                                                 htmlFor={`perm-${perm.id}`}
-                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                className={`text-sm font-medium leading-none ${isInherentlyGranted ? 'text-muted-foreground' : ''} peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2`}
                                             >
                                                 {perm.name}
+                                                {isInherentlyGranted && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted border text-muted-foreground whitespace-nowrap">
+                                                        Wynika z roli
+                                                    </span>
+                                                )}
                                             </label>
                                             <p className="text-sm text-muted-foreground">
                                                 {perm.description || perm.slug}

@@ -6,24 +6,26 @@ import { DepartmentList } from "@/components/admin/department-list"
 import { UserManagement } from "@/components/admin/user-management"
 import { SystemSettingsTab } from "@/components/admin/system-settings"
 import { SystemLogsTable } from "@/components/admin/system-logs-table"
+import { PermissionsManager } from "@/components/admin/permissions-manager"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
+import { hasPermission } from "@/lib/auth/permissions"
 
 export default async function AdminPage() {
     const session = await getServerSession(authOptions)
 
-    if (!session || session.user.role !== 'ADMIN') {
+    const canViewAdmin = session?.user?.role === 'ADMIN' || hasPermission(session?.user as any, "manage_departments") || hasPermission(session?.user as any, "manage_users") || hasPermission(session?.user as any, "manage_permissions")
+    if (!session || !canViewAdmin) {
         redirect("/dashboard")
     }
     // Fetch data in parallel
-    const [departments, permissions, usersRes, systemSettings, logsRes] = await Promise.all([
+    const [departments, permissions, usersRes, systemSettings] = await Promise.all([
         getDepartments(),
         getAllPermissions(),
         getAllUsers(),
         getSystemSettings(),
-        getSystemLogs(200),
     ])
 
     const users = usersRes.success ? usersRes.users : []
@@ -38,6 +40,7 @@ export default async function AdminPage() {
                 <TabsList>
                     <TabsTrigger value="departments">Działy</TabsTrigger>
                     <TabsTrigger value="users">Użytkownicy i Uprawnienia</TabsTrigger>
+                    <TabsTrigger value="permissionsDb">Baza Uprawnień</TabsTrigger>
                     <TabsTrigger value="settings">Ustawienia Systemu</TabsTrigger>
                     <TabsTrigger value="logs">Dziennik Zdarzeń</TabsTrigger>
                 </TabsList>
@@ -54,12 +57,16 @@ export default async function AdminPage() {
                     />
                 </TabsContent>
 
+                <TabsContent value="permissionsDb" className="space-y-4">
+                    <PermissionsManager permissions={permissions} />
+                </TabsContent>
+
                 <TabsContent value="settings" className="space-y-4">
                     <SystemSettingsTab settings={systemSettings} />
                 </TabsContent>
 
                 <TabsContent value="logs" className="space-y-4">
-                    <SystemLogsTable logs={logsRes.success ? (logsRes.logs as any) : []} />
+                    <SystemLogsTable />
                 </TabsContent>
             </Tabs>
         </div>

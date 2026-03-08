@@ -96,6 +96,7 @@ export default async function SchedulePage(props: SchedulePageProps) {
                 schedule={schedule}
                 year={year}
                 month={month}
+                currentUser={session?.user}
             />
         </div>
     )

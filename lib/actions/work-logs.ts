@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { sendEmail } from "@/lib/actions/mailer"
+import * as XLSX from 'xlsx'
+import { format } from "date-fns"
+import { pl } from "date-fns/locale"
+import { hasPermission } from "@/lib/auth/permissions"
 
 export async function getWorkLogs(userId: number, year: number, month: number) {
     const startDate = new Date(year, month - 1, 1)
@@ -203,7 +208,7 @@ export async function clearWorkLogs(userId: number, year: number, month: number)
     // Ensure userId is treated as number for comparison
     const targetUserId = parseInt(userId.toString())
 
-    const candelete = session?.user.role === 'ADMIN' || sessionUserId === targetUserId
+    const candelete = session?.user.role === 'ADMIN' || hasPermission(session?.user as any, "manage_work_logs") || sessionUserId === targetUserId
 
     if (!candelete) {
         return { error: "Brak uprawnień do usuwania karty pracy." }
@@ -227,5 +232,144 @@ export async function clearWorkLogs(userId: number, year: number, month: number)
     } catch (error: any) {
         console.error("Clear logs error:", error)
         return { error: "Błąd podczas usuwania karty pracy: " + (error.message || error) }
+    }
+}
+
+export async function submitWorkLogToManager(userId: number | string, year: number, month: number) {
+    const session = await getServerSession(authOptions)
+
+    const targetUserId = parseInt(userId.toString())
+    const sessionUserId = parseInt(session?.user?.id || "0")
+
+    if (sessionUserId !== targetUserId && session?.user.role !== 'ADMIN' && !hasPermission(session?.user as any, "manage_work_logs")) {
+        return { success: false, error: "Brak uprawnień do zapisu tej karty pracy." }
+    }
+
+    try {
+        // 1. Dociągnij użytkownika, jego departament i przełożonego
+        const user = await prisma.user.findUnique({
+            where: { id: targetUserId },
+            include: { department: true }
+        })
+
+        if (!user) {
+            return { success: false, error: "Nie znaleziono użytkownika." }
+        }
+
+        if (!user.departmentId) {
+            return { success: false, error: "Użytkownik nie jest przypisany do żadnego działu. Karty pracy nie można wysłać." }
+        }
+
+        // Szukaj menadżera dla tego departamentu
+        const manager = await prisma.user.findFirst({
+            where: {
+                departmentId: user.departmentId,
+                role: 'MANAGER'
+            }
+        })
+
+        if (!manager || !manager.email) {
+            return { success: false, error: "W Twoim dziale nie zdefiniowano menadżera (bądź nie ma on przypisanego adresu e-mail). Skontaktuj się z administratorem." }
+        }
+
+        // 2. Pobierz wpisy karty pracy
+        const logs = await getWorkLogs(targetUserId, year, month)
+
+        if (logs.length === 0) {
+            return { success: false, error: "Twoja karta pracy dla tego miesiąca jest pusta." }
+        }
+
+        // 3. Generuj Excel-a (Buffer)
+        const wb = XLSX.utils.book_new()
+        const rows: any[] = []
+
+        rows.push(["HR4YOU", "", "", "KARTA PRACY", "", "", ""])
+        rows.push([`Imię i Nazwisko: ${user.name || user.username}`, "", "", "", "", `Miesiąc: ${format(new Date(year, month - 1), "LLLL yyyy", { locale: pl })}`, ""])
+        rows.push([""]) // Empty row
+
+        rows.push(["Dzień", "Wykonywane czynności", "", "Czas pracy", "Projekt", "Nadgodziny", "Godziny pracy"])
+        rows.push(["", "", "", "Ilość godzin", "", "", "od do"])
+
+        const daysInMonth = new Date(year, month, 0).getDate()
+        let totalHours = 0
+        let totalOvertime = 0
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayLogs = logs.filter((log: any) => new Date(log.date).getDate() === day)
+
+            if (dayLogs.length === 0) {
+                rows.push([day, "", "", "", "", ""])
+                continue;
+            }
+
+            dayLogs.forEach((log: any, index: number) => {
+                totalHours += log.duration
+                totalOvertime += log.overtime
+                rows.push([
+                    index === 0 ? day : "",
+                    log.description,
+                    "",
+                    log.duration,
+                    log.project,
+                    log.overtime > 0 ? log.overtime : "",
+                    `${log.startTime}-${log.endTime}`
+                ])
+            })
+        }
+
+        rows.push([""])
+        rows.push(["", "", "SUMA", totalHours, "", "Nadgodziny suma", totalOvertime])
+        rows.push(["", "", "wg kalendarza", 168, "", "Godziny nocne", ""])
+
+        const ws = XLSX.utils.aoa_to_sheet(rows)
+        if (!ws['!merges']) ws['!merges'] = []
+        ws['!merges'].push(
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+            { s: { r: 0, c: 3 }, e: { r: 0, c: 6 } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+            { s: { r: 1, c: 5 }, e: { r: 1, c: 6 } },
+            { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
+            { s: { r: 3, c: 1 }, e: { r: 4, c: 2 } }
+        )
+
+        ws['!cols'] = [
+            { wch: 5 }, { wch: 40 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 12 }, { wch: 15 },
+        ]
+
+        XLSX.utils.book_append_sheet(wb, ws, "Karta Pracy")
+
+        // Zapisz Workbook do Bufora, by mozna bylo go wysłać mailowo
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+
+        // 4. Wyślij Email
+        const mailContent = `
+            <h3>Dzień dobry,</h3>
+            <p>W systemie HR4YOU wygenerowano nową <strong>Kartę Pracy</strong> oczekującą na Twoją weryfikację.</p>
+            <ul>
+                <li><strong>Pracownik:</strong> ${user.name || user.username}</li>
+                <li><strong>Miesiąc:</strong> ${format(new Date(year, month - 1), "LLLL yyyy", { locale: pl })}</li>
+                <li><strong>Zaraportowane godziny:</strong> ${totalHours}</li>
+                <li><strong>Zaraportowane nadgodziny:</strong> ${totalOvertime}</li>
+            </ul>
+            <p>Szczegółowa ewidencja znajduje się w załączniku.</p>
+        `
+
+        // Konstrukcja dla NodeMailera
+        const attachments = [
+            {
+                filename: `Karta_Pracy_${user.username}_${year}_${month}.xlsx`,
+                content: buffer
+            }
+        ]
+
+        await sendEmail(manager.email, `Karta Pracy - ${user.name || user.username} (${format(new Date(year, month - 1), "LLLL yyyy", { locale: pl })})`, mailContent, attachments)
+
+        // 5. Wyczyść robocze wpisy karty po pomyślnym przesłaniu
+        await clearWorkLogs(targetUserId, year, month)
+
+        return { success: true }
+    } catch (error: any) {
+        console.error("Submit Worklog Error:", error)
+        return { success: false, error: "Błąd podczas składania karty pracy: " + (error.message || error) }
     }
 }

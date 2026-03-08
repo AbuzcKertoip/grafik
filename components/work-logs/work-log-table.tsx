@@ -14,9 +14,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Plus, Edit, Trash2, Download } from "lucide-react"
 import { WorkLogDialog } from "./work-log-dialog"
-import { deleteWorkLog, syncScheduleToWorkLogs, clearWorkLogs } from "@/lib/actions/work-logs"
+import { deleteWorkLog, syncScheduleToWorkLogs, clearWorkLogs, submitWorkLogToManager } from "@/lib/actions/work-logs"
 import { useRouter } from "next/navigation"
-import * as XLSX from 'xlsx'
+import { Loader2, Send } from "lucide-react"
 
 interface WorkLogTableProps {
     logs: any[]
@@ -72,84 +72,37 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
         }
     }
 
-    const handleExport = () => {
-        // Lazy load export logic or just implement here since we imported xlsx
-        // Re-implementing logic here for safety as import might fail on client if not bundled correctly? 
-        // Actually import 'xlsx' works fine in client components.
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
-        const wb = XLSX.utils.book_new()
-        const rows: any[] = []
-
-        rows.push(["HR4YOU", "", "", "KARTA PRACY", "", "", ""])
-        rows.push([`Imię i Nazwisko: ${user.name || user.username}`, "", "", "", "", `Miesiąc: ${format(new Date(year, month - 1), "LLLL yyyy", { locale: pl })}`, ""])
-        rows.push([""])
-
-        rows.push(["Dzień", "Wykonywane czynności", "", "Czas pracy", "Projekt", "Nadgodziny", "Godziny pracy"])
-        rows.push(["", "", "", "Ilość godzin", "", "", "od do"])
-
-        let totalHours = 0
-        let totalOvertime = 0
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dayLogs = getLogsForDay(day)
-
-            if (dayLogs.length === 0) {
-                rows.push([day, "", "", "", "", ""])
-                continue;
+    const handleSubmitToManager = async () => {
+        if (confirm("Czy na pewno chcesz wysłać kartę pracy do akceptacji? Ta akcja wygeneruje plik Excel i wyśle go e-mailem bezpośrednio na skrzynkę do Twojego Przełożonego. \n\nUWAGA: Twoja robocza wersja w systemie zostanie po wysłaniu BEZPOWROTNIE WYCZYSZCZONA! To jest wersja ostateczna.")) {
+            setIsSubmitting(true)
+            try {
+                const res = await submitWorkLogToManager(user.id, year, month)
+                if (res.success) {
+                    alert("Karta pracy została pomyślnie wysłana i przekazana Twojemu przełożonemu do akceptacji.")
+                    router.refresh()
+                } else {
+                    alert(`Błąd: ${res.error}`)
+                }
+            } catch (err) {
+                alert("Wystąpił nieoczekiwany błąd serwera. Spróbuj ponownie później.")
+            } finally {
+                setIsSubmitting(false)
             }
-
-            dayLogs.forEach((log: any, index: number) => {
-                totalHours += log.duration
-                totalOvertime += log.overtime
-                rows.push([
-                    index === 0 ? day : "",
-                    log.description,
-                    "",
-                    log.duration,
-                    log.project,
-                    log.overtime > 0 ? log.overtime : "",
-                    `${log.startTime}-${log.endTime}`
-                ])
-            })
         }
-
-        rows.push([""])
-        rows.push(["", "", "SUMA", totalHours, "", "Nadgodziny suma", totalOvertime])
-        rows.push(["", "", "wg kalendarza", 168, "", "Godziny nocne", ""])
-
-        const ws = XLSX.utils.aoa_to_sheet(rows)
-
-        // Apply merges (basic ones that won't break if not supported)
-        if (!ws['!merges']) ws['!merges'] = []
-        ws['!merges'].push(
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
-            { s: { r: 0, c: 3 }, e: { r: 0, c: 6 } },
-            { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
-            { s: { r: 1, c: 5 }, e: { r: 1, c: 6 } },
-            { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
-            { s: { r: 3, c: 1 }, e: { r: 4, c: 2 } }
-        )
-
-        // Column widths
-        ws['!cols'] = [
-            { wch: 5 },
-            { wch: 40 },
-            { wch: 10 },
-            { wch: 10 },
-            { wch: 15 },
-            { wch: 12 },
-            { wch: 15 },
-        ]
-
-        XLSX.utils.book_append_sheet(wb, ws, "Karta Pracy")
-        XLSX.writeFile(wb, `Karta_Pracy_${user.username}_${year}_${month}.xlsx`)
     }
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-end">
-                <Button onClick={handleExport} variant="outline" className="gap-2 text-green-700 border-green-200 bg-green-50 hover:bg-green-100">
-                    <Download className="h-4 w-4" /> Eksportuj do Excela
+            <div className="flex justify-end border bg-muted/40 p-4 rounded-lg">
+                <Button
+                    onClick={handleSubmitToManager}
+                    className="gap-2 font-semibold py-6 w-full sm:w-auto"
+                    disabled={isSubmitting || logs.length === 0}
+                >
+                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                    Wyślij Ewidencję do Menadżera Działu (Akcja Ostateczna)
                 </Button>
             </div>
 
@@ -185,7 +138,7 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
                 </div>
             </div>
 
-            <div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden dark:border-slate-800">
+            <div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -203,11 +156,11 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
                             const dayLogs = getLogsForDay(day)
                             const dateObj = new Date(year, month - 1, day)
                             const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6
-                            const rowClass = isWeekend ? "bg-green-50 dark:bg-green-900/10" : ""
+                            const rowClass = isWeekend ? "bg-green-50 dark:bg-green-900/25" : ""
 
                             if (dayLogs.length === 0) {
                                 return (
-                                    <TableRow key={day} className={`hover:bg-muted/50 dark:hover:bg-slate-900/50 ${rowClass}`}>
+                                    <TableRow key={day} className={`hover:bg-muted/50 transition-colors ${rowClass}`}>
                                         <TableCell className="font-medium align-top py-4">
                                             <div className="flex flex-col">
                                                 <span className="text-lg font-bold">{day}</span>
@@ -231,7 +184,7 @@ export function WorkLogTable({ logs, year, month, user }: WorkLogTableProps) {
                             return dayLogs.map((log, index) => (
                                 <TableRow key={log.id} className={rowClass}>
                                     {index === 0 && (
-                                        <TableCell rowSpan={dayLogs.length} className="font-medium align-top py-4 border-r dark:border-slate-800">
+                                        <TableCell rowSpan={dayLogs.length} className="font-medium align-top py-4 border-r">
                                             <div className="flex flex-col">
                                                 <span className="text-lg font-bold">{day}</span>
                                                 <span className="text-xs text-muted-foreground capitalize">

@@ -21,7 +21,7 @@ export async function getTransporter() {
     return { transporter, settings }
 }
 
-export async function sendEmail(to: string, subject: string, htmlContent: string) {
+export async function sendEmail(to: string, subject: string, htmlContent: string, attachments?: any[]) {
     const { transporter, settings } = await getTransporter()
 
     const mailOptions = {
@@ -29,6 +29,7 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
         to,
         subject,
         html: htmlContent,
+        attachments: attachments || []
     }
 
     try {

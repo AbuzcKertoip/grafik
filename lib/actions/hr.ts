@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { hasPermission } from "@/lib/auth/permissions"
 
 export async function getMedicalExams(userId: number) {
     return await prisma.medicalExam.findMany({
@@ -14,7 +15,7 @@ export async function getMedicalExams(userId: number) {
 
 export async function addMedicalExam(userId: number, type: string, validUntil: Date) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień" }
+    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
 
     try {
         await prisma.medicalExam.create({
@@ -33,7 +34,7 @@ export async function addMedicalExam(userId: number, type: string, validUntil: D
 
 export async function deleteMedicalExam(id: number) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień" }
+    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
 
     try {
         await prisma.medicalExam.delete({ where: { id } })
@@ -88,7 +89,7 @@ export async function getUserVacations(userId: number) {
 
 export async function updateVacationBalance(userId: number, limit: number, carriedOver: number) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN' && session?.user.role !== 'HR') {
+    if (!session || !hasPermission(session.user as any, "manage_hr_data")) {
         return { error: "Brak uprawnień" }
     }
 
@@ -110,7 +111,7 @@ export async function updateVacationBalance(userId: number, limit: number, carri
 // Equipment Actions
 export async function addEquipment(userId: number, name: string, serialNumber: string, notes: string) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień" }
+    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
 
     try {
         await (prisma as any).equipment.create({
@@ -130,7 +131,7 @@ export async function addEquipment(userId: number, name: string, serialNumber: s
 
 export async function deleteEquipment(id: number) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN') return { error: "Brak uprawnień" }
+    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
 
     try {
         await (prisma as any).equipment.delete({ where: { id } })
@@ -151,7 +152,8 @@ export async function getEquipment(userId: number) {
 // Clothing Size Actions
 export async function updateClothingSizes(userId: number, sizes: { shirt: string, pants: string, shoe: string, jacket: string }) {
     const session = await getServerSession(authOptions)
-    if (session?.user.role !== 'ADMIN' && parseInt(session?.user.id!) !== userId) return { error: "Brak uprawnień" }
+    const isSelf = parseInt(session?.user.id!) === userId
+    if (!session || (!hasPermission(session.user as any, "manage_hr_data") && !isSelf)) return { error: "Brak uprawnień" }
 
     try {
         await (prisma as any).user.update({

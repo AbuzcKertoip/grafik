@@ -24,20 +24,9 @@ export function hasPermission(user: User, permissionSlug: string) {
     // ADMIN has all permissions
     if (user.role === ROLES.ADMIN) return true
 
-    // Check for specific permissions assigned to the user (if we had them in session)
-    // currently session doesn't carry full permissions list, usually we check DB or assume roles have sets.
-    // For now, let's map Roles to implicit permissions + allow checking specific if we fetch them.
-
-    // Simplification for now: Map roles to permission sets
-    if (user.role === ROLES.HR) {
-        if (permissionSlug === PERMISSIONS.MANAGE_USERS) return true // restricted to some users normally
-        if (permissionSlug === PERMISSIONS.VIEW_ALL_SCHEDULES) return true
-    }
-
-    if (user.role === ROLES.MANAGER) {
-        if (permissionSlug === PERMISSIONS.MANAGE_SCHEDULES) return true
-        if (permissionSlug === PERMISSIONS.VIEW_ALL_SCHEDULES) return true // maybe only their department?
-    }
+    // Check against granular permissions attached to user session
+    const userPermissions = user.permissions || []
+    if (userPermissions.includes(permissionSlug)) return true
 
     return false
 }

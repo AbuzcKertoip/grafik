@@ -27,6 +27,13 @@ export const authOptions: NextAuthOptions = {
                             { email: credentials.username }
                         ]
                     },
+                    include: {
+                        permissions: {
+                            include: {
+                                permission: true
+                            }
+                        }
+                    }
                 })
 
                 if (!user) {
@@ -62,6 +69,7 @@ export const authOptions: NextAuthOptions = {
                     name: user.name,
                     role: user.role,
                     departmentId: user.departmentId,
+                    permissions: user.permissions.map(p => p.permission.slug),
                 }
             },
         }),
@@ -75,6 +83,7 @@ export const authOptions: NextAuthOptions = {
                     id: token.id,
                     role: token.role,
                     departmentId: token.departmentId as number | undefined,
+                    permissions: token.permissions as string[] | undefined,
                 },
             }
         },
@@ -86,6 +95,7 @@ export const authOptions: NextAuthOptions = {
                     id: u.id,
                     role: u.role,
                     departmentId: u.departmentId,
+                    permissions: u.permissions,
                 }
             }
             return token

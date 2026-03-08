@@ -17,13 +17,16 @@ import { ChangePasswordDialog } from "@/components/user-profile/change-password-
 import { useState, useEffect } from "react"
 import { CalendarDays, ClipboardList, Users, PieChart, LogOut, Home, User, Shield, Car, KeyRound } from "lucide-react"
 import { getUserCars } from "@/lib/actions/fleet"
+import { hasPermission } from "@/lib/auth/permissions"
 
 export function MainNav() {
     const pathname = usePathname()
     const { data: session } = useSession()
     const isAdmin = session?.user?.role === "ADMIN"
-    const isHR = session?.user?.role === "HR" || isAdmin
-    const isManager = session?.user?.role === "MANAGER" || isAdmin
+    const canViewAdmin = isAdmin || hasPermission(session?.user as any, "manage_departments") || hasPermission(session?.user as any, "manage_users") || hasPermission(session?.user as any, "manage_permissions")
+    const canViewHR = isAdmin || session?.user?.role === "HR" || session?.user?.role === "MANAGER" || hasPermission(session?.user as any, "view_hr_panel") || hasPermission(session?.user as any, "manage_hr_data")
+    const canViewReports = isAdmin || session?.user?.role === "MANAGER" || hasPermission(session?.user as any, "view_reports")
+    const canViewFleet = isAdmin || session?.user?.role === "HR" || hasPermission(session?.user as any, "view_fleet") || hasPermission(session?.user as any, "manage_fleet")
     const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
     const [hasCar, setHasCar] = useState(false)
 
@@ -46,7 +49,7 @@ export function MainNav() {
             href: "/dashboard/admin",
             label: "Administracja",
             icon: Shield,
-            show: isAdmin,
+            show: canViewAdmin,
         },
         {
             href: "/dashboard/schedule",
@@ -70,7 +73,7 @@ export function MainNav() {
             href: "/dashboard/reports",
             label: "Raporty",
             icon: PieChart,
-            show: isAdmin || isManager,
+            show: canViewReports,
         },
         {
             href: "/dashboard/profile",
@@ -82,13 +85,13 @@ export function MainNav() {
             href: "/dashboard/hr",
             label: "Panel HR",
             icon: Users, // Changed icon to Users for HR
-            show: isHR || isManager,
+            show: canViewHR,
         },
         {
             href: "/dashboard/fleet",
             label: "Flota",
             icon: Car,
-            show: isAdmin || isHR, // Dostęp z panelu Administracyjnego lub dedykowanego HR
+            show: canViewFleet, // Dostęp z panelu Administracyjnego lub dedykowanego HR
         },
         {
             href: "/dashboard/my-cars",

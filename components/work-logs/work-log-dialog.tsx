@@ -113,11 +113,23 @@ export function WorkLogDialog({ log, date, open, onOpenChange }: WorkLogDialogPr
     const handleChange = (field: string, value: string | number) => {
         setFormData((prev) => {
             const next = { ...prev, [field]: value }
+
+            // Auto total hours on time change
             if (field === 'startTime' || field === 'endTime') {
                 const total = calculateDuration(next.startTime as string, next.endTime as string)
                 next.duration = Math.min(total, 8)
                 next.overtime = Math.max(0, total - 8)
             }
+
+            // Auto overtime on manual total hours change 
+            if (field === 'duration') {
+                const total = Number(value)
+                if (total > 8) {
+                    next.duration = 8
+                    next.overtime = total - 8
+                }
+            }
+
             return next
         })
     }

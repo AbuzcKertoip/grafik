@@ -41,11 +41,46 @@ export async function createLog({
     }
 }
 
-export async function getSystemLogs(limit = 100, offset = 0) {
+export async function getSystemLogs(
+    limit = 100,
+    offset = 0,
+    search?: string,
+    actionFilter?: string,
+    dateFrom?: Date,
+    dateTo?: Date
+) {
     try {
+        const where: any = {};
+
+        if (search) {
+            where.OR = [
+                { description: { contains: search } },
+                { errorCode: { contains: search } },
+                {
+                    user: {
+                        OR: [
+                            { name: { contains: search } },
+                            { username: { contains: search } }
+                        ]
+                    }
+                }
+            ];
+        }
+
+        if (actionFilter && actionFilter !== "ALL") {
+            where.action = actionFilter;
+        }
+
+        if (dateFrom || dateTo) {
+            where.createdAt = {};
+            if (dateFrom) where.createdAt.gte = dateFrom;
+            if (dateTo) where.createdAt.lte = dateTo;
+        }
+
         const logs = await db.systemLog.findMany({
             take: limit,
             skip: offset,
+            where,
             orderBy: {
                 createdAt: 'desc',
             },
@@ -60,7 +95,7 @@ export async function getSystemLogs(limit = 100, offset = 0) {
             }
         })
 
-        const total = await db.systemLog.count()
+        const total = await db.systemLog.count({ where })
 
         return {
             success: true,
