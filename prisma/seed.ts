@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { hash } from 'bcrypt'
 import { fakerPL as faker } from '@faker-js/faker';
+import fs from 'fs';
 
 const prisma = new PrismaClient()
 
@@ -38,22 +39,7 @@ async function main() {
     await prisma.permission.upsert({ where: { slug: perm.slug }, update: { name: perm.name, description: perm.description }, create: perm })
   }
 
-  // Create Departments IT, BOK, Przedstawiciele Handlowi
-  const departmentsData = [
-    { name: 'IT', description: 'Technologia i Rozwój' },
-    { name: 'BOK', description: 'Biuro Obsługi Klienta' },
-    { name: 'Przedstawiciele Handlowi', description: 'Sprzedaż w Terenie' }
-  ]
-
-  const createdDepartments = []
-  for (const d of departmentsData) {
-    const dept = await prisma.department.upsert({
-      where: { name: d.name }, update: { description: d.description }, create: d
-    })
-    createdDepartments.push(dept)
-  }
-
-  // Admin user
+  // Admin user - top level
   await prisma.user.upsert({
     where: { username: 'admin' },
     update: { name: 'Admin', role: 'ADMIN', skipDuties: true },
@@ -63,46 +49,27 @@ async function main() {
     },
   })
 
-  // Data structure for employee generation
-  const departmentCounts = {
-    'IT': 10,
-    'BOK': 5,
-    'Przedstawiciele Handlowi': 3
-  }
+  // Read required realistic structure
+  const rawData = fs.readFileSync('/tmp/grafik-seed-data.json', 'utf8')
+  const departmentsData = JSON.parse(rawData)
 
   const userIds = []
   let sortBase = 100
 
-  // Managers & Users for each department
-  for (const dept of createdDepartments) {
-    // Generate Manager
-    const managerFirstName = faker.person.firstName()
-    const managerLastName = faker.person.lastName()
-    const managerUsername = toSimpleUsername(managerFirstName, managerLastName)
-
-    const manager = await prisma.user.upsert({
-      where: { username: managerUsername },
-      update: { departmentId: dept.id, role: 'MANAGER' },
-      create: {
-        username: managerUsername,
-        password,
-        name: `${managerFirstName} ${managerLastName}`,
-        role: 'MANAGER',
-        sortOrder: sortBase,
-        skipDuties: true,
-        departmentId: dept.id
-      },
+  for (const d of departmentsData) {
+    // Create department
+    const dept = await prisma.department.upsert({
+      where: { name: d.department }, update: { description: d.description }, create: { name: d.department, description: d.description }
     })
-    userIds.push(manager.id)
-    sortBase++
 
-    // Generate Users for this department
-    const employeeCount = departmentCounts[dept.name as keyof typeof departmentCounts] || 0
-    for (let i = 0; i < employeeCount; i++) {
-      const firstName = faker.person.firstName()
-      const lastName = faker.person.lastName()
+    for (let i = 0; i < d.users.length; i++) {
+      const u = d.users[i];
+      const parts = u.name.split(' ')
+      const firstName = parts[0]
+      const lastName = parts.slice(1).join(' ')
+      
       const username = toSimpleUsername(firstName, lastName)
-
+      
       let existingUser = await prisma.user.findUnique({ where: { username } })
       let finalUsername = username
       let attempt = 1
@@ -112,20 +79,29 @@ async function main() {
         attempt++
       }
 
-      const createdUser = await prisma.user.create({
-        data: {
+      const createdUser = await prisma.user.upsert({
+        where: { username: finalUsername },
+        update: {
+            name: u.name,
+            role: u.role,
+            sortOrder: sortBase + i + 1,
+            departmentId: dept.id,
+            skipDuties: u.role !== 'USER', // Example: managers/admins skip duties
+        },
+        create: {
           username: finalUsername,
           password,
-          name: `${firstName} ${lastName}`,
-          role: 'USER',
+          name: u.name,
+          role: u.role,
           sortOrder: sortBase + i + 1,
           departmentId: dept.id,
-          skipDuties: false,
+          skipDuties: u.role !== 'USER',
         }
       })
+      
       userIds.push(createdUser.id)
 
-      // Medical Exam
+      // Random Medical Exam
       const validUntil = faker.date.future({ years: 2 })
       await prisma.medicalExam.create({
         data: {
@@ -144,7 +120,7 @@ async function main() {
         })
       })
 
-      // Equipment
+      // Random Equipment
       await prisma.equipment.create({
         data: {
           userId: createdUser.id,
@@ -153,7 +129,8 @@ async function main() {
         }
       })
     }
-    sortBase += 100 // separate sorts per department nicely
+    
+    sortBase += 100
   }
 
   console.log('--- Generating Realistic Mock Cars ---')
