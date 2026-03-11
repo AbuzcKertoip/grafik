@@ -33,6 +33,11 @@ model User {
   carriedOverVacationDays Int     @default(0)
   medicalExams      MedicalExam[]
   equipment         Equipment[]
+  tools             Tool[]
+  
+  // Benefits
+  hasInternetPackage Boolean @default(false)
+  hasMultisportCard  Boolean @default(false)
   
   // Clothing Sizes
   shirtSize         String?       // XS, S, M, L, XL, XXL
@@ -145,6 +150,19 @@ model Equipment {
   userId       Int
   name         String   // e.g. "Laptop Dell Latitude", "iPhone 13"
   serialNumber String?  // e.g. "ABC123456"
+  assignedDate DateTime @default(now())
+  notes        String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Tool {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  name         String   // e.g. "Wkrętarka Makita", "Zestaw kluczy"
   assignedDate DateTime @default(now())
   notes        String?
   

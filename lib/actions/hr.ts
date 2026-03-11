@@ -184,3 +184,57 @@ export async function getClothingSizes(userId: number) {
     })
     return user || {}
 }
+
+// Tool Actions
+export async function addTool(userId: number, name: string, notes: string) {
+    const session = await getServerSession(authOptions)
+    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
+
+    try {
+        await (prisma as any).tool.create({
+            data: {
+                userId,
+                name,
+                notes
+            }
+        })
+        revalidatePath("/dashboard/profile")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd dodawania narzędzia" }
+    }
+}
+
+export async function deleteTool(id: number) {
+    const session = await getServerSession(authOptions)
+    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
+
+    try {
+        await (prisma as any).tool.delete({ where: { id } })
+        revalidatePath("/dashboard/profile")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd usuwania narzędzia" }
+    }
+}
+
+// Benefit Actions
+export async function updateBenefits(userId: number, hasInternetPackage: boolean, hasMultisportCard: boolean) {
+    const session = await getServerSession(authOptions)
+    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
+
+    try {
+        await (prisma as any).user.update({
+            where: { id: userId },
+            data: {
+                hasInternetPackage,
+                hasMultisportCard
+            }
+        })
+        revalidatePath("/dashboard/profile")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd aktualizacji benefitów" }
+    }
+}
+

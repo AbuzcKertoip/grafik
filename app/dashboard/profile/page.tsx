@@ -7,6 +7,8 @@ import { MedicalExamList } from "@/components/hr/medical-exam-list";
 import { VacationStats } from "@/components/hr/vacation-stats";
 import { VacationHistoryTable } from "@/components/hr/vacation-history-table";
 import { EquipmentList } from "@/components/hr/equipment-list";
+import { ToolList } from "@/components/hr/tool-list";
+import { BenefitsCard } from "@/components/hr/benefits-card";
 import { ClothingSizes } from "@/components/hr/clothing-sizes";
 import { ContactInfo } from "@/components/user-profile/contact-info";
 import { AvatarUpload } from "@/components/user-profile/avatar-upload";
@@ -40,7 +42,8 @@ export default async function ProfilePage({
         where: { id: targetUserId },
         include: {
             medicalExams: true,
-            equipment: true // Fetch equipment
+            equipment: true,
+            tools: true
         }
     });
 
@@ -91,12 +94,13 @@ export default async function ProfilePage({
                     <TabsTrigger value="contact">Kontakt</TabsTrigger>
                     <TabsTrigger value="vacations">Urlopy</TabsTrigger>
                     <TabsTrigger value="medical">Badania</TabsTrigger>
-                    <TabsTrigger value="equipment">Sprzęt</TabsTrigger>
+                    <TabsTrigger value="equipment">Mienie</TabsTrigger>
+                    <TabsTrigger value="benefits">Benefity</TabsTrigger>
                     <TabsTrigger value="clothing">Rozmiary</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="contact" className="space-y-6">
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="max-w-4xl">
                         <ContactInfo
                             user={user}
                             isAdminOrOwner={isOwner || canManageHR}
@@ -125,7 +129,7 @@ export default async function ProfilePage({
                 </TabsContent>
 
                 <TabsContent value="medical" className="space-y-6">
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="max-w-4xl">
                         <MedicalExamList
                             exams={user.medicalExams}
                             userId={targetUserId}
@@ -139,13 +143,29 @@ export default async function ProfilePage({
                         <EquipmentList
                             equipment={user.equipment}
                             userId={targetUserId}
-                            isAdmin={isAdmin} // Equipment is mostly Admin managed? Or HR? Let's say Admin for now or both.
+                            isAdmin={isAdmin}
+                        />
+                        <ToolList
+                            tools={user.tools}
+                            userId={targetUserId}
+                            isAdmin={isAdmin}
+                        />
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="benefits" className="space-y-6">
+                    <div className="max-w-4xl">
+                        <BenefitsCard
+                            userId={targetUserId}
+                            initialInternet={user.hasInternetPackage}
+                            initialMultisport={user.hasMultisportCard}
+                            isAdmin={canManageHR}
                         />
                     </div>
                 </TabsContent>
 
                 <TabsContent value="clothing" className="space-y-6">
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="max-w-4xl">
                         <ClothingSizes
                             sizes={sizes}
                             userId={targetUserId}
