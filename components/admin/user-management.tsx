@@ -25,14 +25,17 @@ interface UserManagementProps {
     users: any[]
     departments: any[]
     permissions: any[]
+    currentUser: any
 }
 
-export function UserManagement({ users: initialUsers, departments, permissions }: UserManagementProps) {
+export function UserManagement({ users: initialUsers, departments, permissions, currentUser }: UserManagementProps) {
     const router = useRouter()
     const [search, setSearch] = useState("")
     const [selectedUser, setSelectedUser] = useState<any>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+    const isSzef = currentUser?.role === 'SZEF'
+    const canManageUsers = !isSzef
 
     // Normally we should refetch users on update, but for now router.refresh() in parent or here
     const handleUpdate = () => {
@@ -72,9 +75,11 @@ export function UserManagement({ users: initialUsers, departments, permissions }
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full sm:w-auto shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white">
-                        <UserPlus className="w-4 h-4 mr-2" /> Dodaj pracownika
-                    </Button>
+                    {canManageUsers && (
+                        <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full sm:w-auto shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white">
+                            <UserPlus className="w-4 h-4 mr-2" /> Dodaj pracownika
+                        </Button>
+                    )}
                 </div>
             </CardHeader>
             <CardContent>
@@ -86,7 +91,7 @@ export function UserManagement({ users: initialUsers, departments, permissions }
                                 <TableHead>Rola</TableHead>
                                 <TableHead>Dział</TableHead>
                                 <TableHead>Uprawnienia</TableHead>
-                                <TableHead className="text-right">Akcje</TableHead>
+                                {canManageUsers && <TableHead className="text-right">Akcje</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -123,28 +128,30 @@ export function UserManagement({ users: initialUsers, departments, permissions }
                                             <span className="text-muted-foreground text-sm">-</span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                setSelectedUser(user)
-                                                setIsDialogOpen(true)
-                                            }}
-                                        >
-                                            <UserCog className="h-4 w-4 mr-2" />
-                                            Edytuj
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleDeleteEmployee(user.id)}
-                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        >
-                                            <UserX className="h-4 w-4 mr-2" />
-                                            Usuń
-                                        </Button>
-                                    </TableCell>
+                                    {canManageUsers && (
+                                        <TableCell className="text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setSelectedUser(user)
+                                                    setIsDialogOpen(true)
+                                                }}
+                                            >
+                                                <UserCog className="h-4 w-4 mr-2" />
+                                                Edytuj
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDeleteEmployee(user.id)}
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            >
+                                                <UserX className="h-4 w-4 mr-2" />
+                                                Usuń
+                                            </Button>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))}
                             {filteredUsers.length === 0 && (

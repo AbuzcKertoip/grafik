@@ -54,6 +54,7 @@ export default async function AdminPage() {
                         users={users}
                         departments={departments}
                         permissions={permissions}
+                        currentUser={session.user}
                     />
                 </TabsContent>
 

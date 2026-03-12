@@ -39,6 +39,9 @@ const INHERENT_PERMISSIONS: Record<string, string[]> = {
         'view_hr_panel', 'view_fleet', 'view_reports', 'generate_schedule',
         'edit_schedule_dept', 'edit_schedule_all', 'clear_schedule'
     ],
+    [ROLES.SZEF]: [
+        'view_users', 'view_hr_panel', 'view_fleet', 'view_reports'
+    ],
     [ROLES.HR]: [
         'manage_hr_data', 'manage_fleet', 'view_users', 'view_hr_panel', 'view_fleet'
     ],

@@ -10,6 +10,7 @@ export const PERMISSIONS = {
 
 export const ROLES = {
     ADMIN: "ADMIN",
+    SZEF: "SZEF",
     HR: "HR",
     MANAGER: "MANAGER",
     USER: "USER",
@@ -32,7 +33,7 @@ export function hasPermission(user: User, permissionSlug: string) {
 }
 
 export function canManageDepartment(user: User, departmentId: number) {
-    if (user.role === ROLES.ADMIN) return true
+    if (user.role === ROLES.ADMIN || user.role === ROLES.SZEF) return true
     if (user.role === ROLES.HR) return true // HR can usually see all?
     if (user.role === ROLES.MANAGER && user.departmentId === departmentId) return true
     return false

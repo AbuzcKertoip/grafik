@@ -23,11 +23,13 @@ import { useState } from "react"
 import { deleteUser } from "@/lib/actions/users"
 import { useRouter } from "next/navigation"
 
-export function UsersTable({ users }: { users: any[] }) {
+export function UsersTable({ users, currentUser }: { users: any[], currentUser?: any }) {
     const router = useRouter()
     const [editingUser, setEditingUser] = useState<any>(null)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [isAddUserOpen, setIsAddUserOpen] = useState(false)
+    const isSzef = currentUser?.role === 'SZEF'
+    const canManageUsers = !isSzef // Admin or whoever else has access to this page
 
     const handleEdit = (user: any) => {
         setEditingUser(user)
@@ -45,9 +47,11 @@ export function UsersTable({ users }: { users: any[] }) {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold tracking-tight">Pracownicy</h2>
-                <Button onClick={() => setIsAddUserOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" /> Dodaj pracownika
-                </Button>
+                {canManageUsers && (
+                    <Button onClick={() => setIsAddUserOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> Dodaj pracownika
+                    </Button>
+                )}
             </div>
 
             <div className="rounded-md border bg-card text-card-foreground shadow-sm dark:border-slate-800">
@@ -58,7 +62,7 @@ export function UsersTable({ users }: { users: any[] }) {
                             <TableHead>Login</TableHead>
                             <TableHead>Rola</TableHead>
                             <TableHead>Stawka (PLN)</TableHead>
-                            <TableHead className="text-right">Akcje</TableHead>
+                            {canManageUsers && <TableHead className="text-right">Akcje</TableHead>}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -80,26 +84,28 @@ export function UsersTable({ users }: { users: any[] }) {
                                         </span>
                                     </TableCell>
                                     <TableCell>{user.hourlyRate.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right flex justify-end gap-2">
-                                        <ResetPasswordDialog userId={user.id} username={user.name || user.username} />
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <span className="sr-only">Otwórz menu</span>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Akcje</DropdownMenuLabel>
-                                                <DropdownMenuItem onClick={() => handleEdit(user)}>
-                                                    <Edit className="mr-2 h-4 w-4" /> Edytuj
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleDelete(user.id)} className="text-red-900 focus:text-red-900 focus:bg-red-50 dark:text-red-400 dark:focus:text-red-400 dark:focus:bg-red-900/20">
-                                                    <Trash2 className="mr-2 h-4 w-4" /> Usuń
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+                                    {canManageUsers && (
+                                        <TableCell className="text-right flex justify-end gap-2">
+                                            <ResetPasswordDialog userId={user.id} username={user.name || user.username} />
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                        <span className="sr-only">Otwórz menu</span>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Akcje</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={() => handleEdit(user)}>
+                                                        <Edit className="mr-2 h-4 w-4" /> Edytuj
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleDelete(user.id)} className="text-red-900 focus:text-red-900 focus:bg-red-50 dark:text-red-400 dark:focus:text-red-400 dark:focus:bg-red-900/20">
+                                                        <Trash2 className="mr-2 h-4 w-4" /> Usuń
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))
                         )}
