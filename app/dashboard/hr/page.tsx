@@ -21,8 +21,21 @@ export default async function HRPage() {
     const whereClause: any = { role: { not: 'ADMIN' } };
 
     // Managers can only see their own department's members in the HR panel
-    if (role === 'MANAGER' && departmentId) {
-        whereClause.departmentId = parseInt(departmentId.toString());
+    if (role === 'MANAGER') {
+        const secondaryDepartmentId = (session.user as any).secondaryDepartmentId;
+        const deptIds = [];
+        
+        if (departmentId) deptIds.push(parseInt(departmentId.toString()));
+        if (secondaryDepartmentId) deptIds.push(parseInt(secondaryDepartmentId.toString()));
+        
+        if (deptIds.length > 0) {
+            whereClause.OR = [
+                { departmentId: { in: deptIds } },
+                { secondaryDepartmentId: { in: deptIds } }
+            ];
+        } else {
+            whereClause.id = parseInt(session.user.id);
+        }
     }
 
     const users = await prisma.user.findMany({
