@@ -1,0 +1,86 @@
+Login,Hasło,Rola,Dział
+admin,password123,ADMIN,-
+roland.piatkowski,password123,USER,IT
+reginald.tkaczyk,password123,USER,IT
+marek.majcher,password123,USER,IT
+maryna.kapusta,password123,USER,IT
+katarzyna.skibinski,password123,USER,IT
+marcin.tomczak,password123,USER,IT
+maja.buczkowski,password123,USER,IT
+ksenofont.pawlak,password123,USER,IT
+gwido.rosinski,password123,USER,IT
+helena.jedrzejczyk,password123,USER,IT
+feliks.nawrot,password123,MANAGER,BOK
+porfiry.kurowski,password123,USER,BOK
+marcin.duda,password123,USER,BOK
+florian.plonka,password123,USER,BOK
+agata.lisiecki,password123,USER,BOK
+alwar.grzywacz,password123,HR,Przedstawiciele Handlowi
+nazary.borek,password123,USER,Przedstawiciele Handlowi
+hilary.markowski,password123,USER,Przedstawiciele Handlowi
+gloria.pawelec,password123,USER,Przedstawiciele Handlowi
+pczuba,password123,USER,IT
+mbarc,password123,MANAGER,IT
+lukasz.socha,password123,MANAGER,IT
+nazary.debski,password123,USER,IT
+erwin.lewandowski,password123,USER,IT
+bazyli.bednarczyk,password123,USER,IT
+joanna.grzyb,password123,USER,IT
+bruno.baran,password123,USER,IT
+larysa.orlowski,password123,USER,IT
+wiktor.kisiel,password123,USER,IT
+borys.cybulski,password123,USER,IT
+efrem.pilch,password123,USER,IT
+izajasz.sokolowski,password123,USER,IT
+pelagia.brzezinski,password123,MANAGER,BOK
+sebastian.galka,password123,USER,BOK
+rozalia.zietek,password123,USER,BOK
+ireneusz.kulinski,password123,USER,BOK
+wanda.walkowiak,password123,USER,BOK
+gloria.karas,password123,USER,BOK
+stefania.michalski,password123,MANAGER,Przedstawiciele Handlowi
+osmund.wasilewski,password123,USER,Przedstawiciele Handlowi
+eleazar.baranowski,password123,USER,Przedstawiciele Handlowi
+porfiry.majewski,password123,USER,Przedstawiciele Handlowi
+sebastian.rzepka,password123,MANAGER,IT
+jakubina.walkowiak,password123,USER,IT
+chloe.kaczmarczyk,password123,USER,IT
+stefan.antczak,password123,USER,IT
+tamara.chmiel,password123,USER,IT
+eliasz.slowik,password123,USER,IT
+sybilla.szczygiel,password123,USER,IT
+ada.wysocki,password123,USER,IT
+elwira.stachowicz,password123,USER,IT
+randolf.wolny,password123,USER,IT
+wiara.majchrzak,password123,USER,IT
+arkadiusz.janusz,password123,MANAGER,BOK
+penelopa.szwed,password123,USER,BOK
+karolina.kopec,password123,USER,BOK
+walter.rutkowski,password123,USER,BOK
+lilianna.kuczynski,password123,USER,BOK
+szczepan.kmiec,password123,USER,BOK
+arkadiusz.jarosz,password123,MANAGER,Przedstawiciele Handlowi
+stefan.wiecek,password123,USER,Przedstawiciele Handlowi
+benedykt.karwowski,password123,USER,Przedstawiciele Handlowi
+paula.kulik,password123,USER,Przedstawiciele Handlowi
+maciej.barc,password123,MANAGER,IT
+dawid.borowiec,password123,USER,IT
+piotr.czuba,password123,USER,IT
+brunon.socha,password123,USER,IT
+krystian.adamski,password123,USER,IT
+lukasz.rakowski,password123,USER,IT
+adrian.para,password123,USER,IT
+andrzej.lech,password123,USER,IT
+mateusz.mierucki,password123,USER,IT
+sebastian.rataj,password123,USER,IT
+dominika.hus,password123,USER,BOK
+joanna.paciorek,password123,USER,BOK
+izabela.kiszka,password123,USER,BOK
+magdalena.kwasek,password123,USER,BOK
+ewelina.tomczyk,password123,USER,HR
+zofia.kraska,password123,USER,HR
+stanislaw.swider,password123,USER,Przedstawiciele
+radoslaw.kij,password123,USER,Przedstawiciele
+lukasz.dorosz,password123,USER,Przedstawiciele
+lukasz.rodzen,password123,ADMIN,Zarząd
+piotr.gwizdala,password123,ADMIN,Zarząd
