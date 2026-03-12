@@ -25,10 +25,22 @@ export async function getSchedule(year: number, month: number) {
     if (role === 'USER' && session?.user?.id) {
         // Regular users only see their own schedule
         where.userId = parseInt(session.user.id.toString());
-    } else if (role === 'MANAGER' && departmentId) {
-        // Managers see their whole department
-        where.user = {
-            departmentId: parseInt(departmentId.toString())
+    } else if (role === 'MANAGER') {
+        if (session?.user?.username === 'etomczyk') {
+            const hrDept = await prisma.department.findFirst({ where: { name: 'HR' } })
+            const bokDept = await prisma.department.findFirst({ where: { name: 'BOK' } })
+            const allowedDepts = []
+            if (hrDept) allowedDepts.push(hrDept.id)
+            if (bokDept) allowedDepts.push(bokDept.id)
+
+            where.user = {
+                departmentId: { in: allowedDepts }
+            }
+        } else if (departmentId) {
+            // Managers see their whole department
+            where.user = {
+                departmentId: parseInt(departmentId.toString())
+            }
         }
     }
 

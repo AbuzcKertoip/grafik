@@ -25,11 +25,26 @@ export async function getUsers(requestedDepartmentId?: string | null) {
             where.departmentId = parseInt(requestedDepartmentId);
         }
     } else if (role === ROLES.MANAGER) {
-        // Managers can see their own department's members
-        if (currentDeptId) {
-            where.departmentId = currentDeptId;
+        // Specjalny wyjątek dla Eweliny Tomczyk (Manager HR i BOK)
+        if (session.user.username === 'etomczyk') {
+            const hrDept = await prisma.department.findFirst({ where: { name: 'HR' } })
+            const bokDept = await prisma.department.findFirst({ where: { name: 'BOK' } })
+            const allowedDepts = []
+            if (hrDept) allowedDepts.push(hrDept.id)
+            if (bokDept) allowedDepts.push(bokDept.id)
+            
+            if (requestedDepartmentId && requestedDepartmentId !== "ALL") {
+                where.departmentId = parseInt(requestedDepartmentId)
+            } else {
+                where.departmentId = { in: allowedDepts }
+            }
         } else {
-            where.id = parseInt(session.user.id.toString());
+            // Managers can see their own department's members
+            if (currentDeptId) {
+                where.departmentId = currentDeptId;
+            } else {
+                where.id = parseInt(session.user.id.toString());
+            }
         }
     } else {
         // Regular users can ONLY see themselves
