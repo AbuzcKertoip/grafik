@@ -7,7 +7,22 @@ import { CarList } from "@/components/fleet/car-list"
 
 export default async function FleetPage() {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "HR")) {
+    if (!session) {
+        redirect("/dashboard")
+    }
+
+    const { role, departmentId } = session.user as any;
+    let isManagerInHR = false;
+    if (role === 'MANAGER' && departmentId) {
+        const userDept = await prisma.department.findUnique({
+            where: { id: parseInt(departmentId.toString()) }
+        });
+        if (userDept && userDept.name.toUpperCase() === 'HR') {
+            isManagerInHR = true;
+        }
+    }
+
+    if (role !== "ADMIN" && role !== "HR" && !isManagerInHR) {
         redirect("/dashboard")
     }
 
