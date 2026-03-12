@@ -103,7 +103,7 @@ export async function getAllUsers() {
     return { success: true, users }
 }
 
-export async function updateUserRoleAndDepartment(userId: number, data: { role: string; departmentId?: number | null; skipDuties?: boolean; fixedShift?: string | null }) {
+export async function updateUserRoleAndDepartment(userId: number, data: { role: string; departmentId?: number | null; secondaryDepartmentId?: number | null; skipDuties?: boolean; fixedShift?: string | null }) {
     const session = await getServerSession(authOptions)
     if (!session || !hasPermission(session.user as any, "manage_users")) {
         return { error: "Brak uprawnień" }
@@ -115,6 +115,7 @@ export async function updateUserRoleAndDepartment(userId: number, data: { role: 
             data: {
                 role: data.role,
                 departmentId: data.departmentId ? parseInt(data.departmentId.toString()) : null,
+                secondaryDepartmentId: data.secondaryDepartmentId ? parseInt(data.secondaryDepartmentId.toString()) : null,
                 skipDuties: data.skipDuties ?? false,
                 fixedShift: data.fixedShift === "NONE" ? null : (data.fixedShift || null),
             }

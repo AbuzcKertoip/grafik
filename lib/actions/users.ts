@@ -15,6 +15,7 @@ export async function getUsers(requestedDepartmentId?: string | null) {
 
     const { role, departmentId } = session.user
     const currentDeptId = departmentId ? parseInt(departmentId.toString()) : null
+    const secondaryDeptId = (session.user as any).secondaryDepartmentId ? parseInt((session.user as any).secondaryDepartmentId.toString()) : null
 
     const where: any = {}
 
@@ -22,7 +23,10 @@ export async function getUsers(requestedDepartmentId?: string | null) {
     if (role === ROLES.ADMIN || role === ROLES.HR || hasPermission(session.user as any, "manage_users") || hasPermission(session.user as any, "view_users")) {
         // Admins and HR can see all, but can also filter by a specific department
         if (requestedDepartmentId && requestedDepartmentId !== "ALL") {
-            where.departmentId = parseInt(requestedDepartmentId);
+            where.OR = [
+                { departmentId: parseInt(requestedDepartmentId) },
+                { secondaryDepartmentId: parseInt(requestedDepartmentId) }
+            ];
         }
     } else if (role === ROLES.MANAGER) {
         // Specjalny wyjątek dla Eweliny Tomczyk (Manager HR i BOK)
@@ -34,14 +38,27 @@ export async function getUsers(requestedDepartmentId?: string | null) {
             if (bokDept) allowedDepts.push(bokDept.id)
             
             if (requestedDepartmentId && requestedDepartmentId !== "ALL") {
-                where.departmentId = parseInt(requestedDepartmentId)
+                where.OR = [
+                    { departmentId: parseInt(requestedDepartmentId) },
+                    { secondaryDepartmentId: parseInt(requestedDepartmentId) }
+                ]
             } else {
-                where.departmentId = { in: allowedDepts }
+                where.OR = [
+                    { departmentId: { in: allowedDepts } },
+                    { secondaryDepartmentId: { in: allowedDepts } }
+                ]
             }
         } else {
             // Managers can see their own department's members
-            if (currentDeptId) {
-                where.departmentId = currentDeptId;
+            if (currentDeptId || secondaryDeptId) {
+                const managerDepts = [];
+                if (currentDeptId) managerDepts.push(currentDeptId);
+                if (secondaryDeptId) managerDepts.push(secondaryDeptId);
+                
+                where.OR = [
+                    { departmentId: { in: managerDepts } },
+                    { secondaryDepartmentId: { in: managerDepts } }
+                ]
             } else {
                 where.id = parseInt(session.user.id.toString());
             }
@@ -65,7 +82,7 @@ export async function getUsers(requestedDepartmentId?: string | null) {
     return await prisma.user.findMany({
         where,
         orderBy: { sortOrder: "asc" },
-        include: { department: true }
+        include: { department: true, secondaryDepartment: true }
     })
 }
 
@@ -75,7 +92,7 @@ export async function createUser(data: any) {
         return { error: "Brak uprawnień" }
     }
 
-    const { username, password, name, role, hourlyRate, sortOrder, fixedShift, skipDuties } = data
+    const { username, password, name, role, hourlyRate, sortOrder, fixedShift, skipDuties, secondaryDepartmentId } = data
 
     const existingUser = await prisma.user.findUnique({
         where: { username },
@@ -97,6 +114,7 @@ export async function createUser(data: any) {
             sortOrder: parseInt(sortOrder) || 999,
             fixedShift: fixedShift || null,
             skipDuties: skipDuties === "on" || skipDuties === true,
+            secondaryDepartmentId: secondaryDepartmentId ? parseInt(secondaryDepartmentId) : null,
         },
     })
 
@@ -118,7 +136,7 @@ export async function updateUser(id: number, data: any) {
         return { error: "Brak uprawnień" }
     }
 
-    const { username, password, name, role, hourlyRate, sortOrder, fixedShift, skipDuties } = data
+    const { username, password, name, role, hourlyRate, sortOrder, fixedShift, skipDuties, secondaryDepartmentId } = data
 
     const updateData: any = {
         username,
@@ -128,6 +146,7 @@ export async function updateUser(id: number, data: any) {
         sortOrder: parseInt(sortOrder) || 999,
         fixedShift: fixedShift || null,
         skipDuties: skipDuties === "on" || skipDuties === true,
+        secondaryDepartmentId: secondaryDepartmentId ? parseInt(secondaryDepartmentId) : null,
     }
 
     if (password && password.trim() !== "") {

@@ -9,7 +9,9 @@ import { hasPermission } from "@/lib/auth/permissions"
 
 export async function getSchedule(year: number, month: number) {
     const session = await getServerSession(authOptions)
-    const { role, departmentId } = session?.user || {}
+    const { role, departmentId, secondaryDepartmentId } = session?.user as any || {}
+    const finalDeptId = departmentId ? parseInt(departmentId.toString()) : null
+    const finalSecDeptId = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null
 
     // Calculate start and end date of the month
     const startDate = new Date(year, month - 1, 1)
@@ -36,10 +38,17 @@ export async function getSchedule(year: number, month: number) {
             where.user = {
                 departmentId: { in: allowedDepts }
             }
-        } else if (departmentId) {
-            // Managers see their whole department
+        } else if (finalDeptId || finalSecDeptId) {
+            // Managers see their whole department and secondary department
+            const managerDepts = [];
+            if (finalDeptId) managerDepts.push(finalDeptId);
+            if (finalSecDeptId) managerDepts.push(finalSecDeptId);
+
             where.user = {
-                departmentId: parseInt(departmentId.toString())
+                OR: [
+                    { departmentId: { in: managerDepts } },
+                    { secondaryDepartmentId: { in: managerDepts } }
+                ]
             }
         }
     }
@@ -73,10 +82,22 @@ export async function generateSchedule(year: number, month: number, targetDepart
     }
 
     const { role, departmentId } = session.user;
+    const secondaryDepartmentId = (session.user as any).secondaryDepartmentId;
 
-    const finalDepartmentId = role === 'MANAGER' && departmentId
-        ? parseInt(departmentId.toString())
-        : targetDepartmentId;
+    let finalDepartmentId = targetDepartmentId;
+    if (role === 'MANAGER') {
+        // Obliczamy do jakiego działu manager ma dostęp na podstawie requestu i swoich uprawnień
+        const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
+        const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
+
+        if (targetDepartmentId && (targetDepartmentId === deptIdInt || targetDepartmentId === secDeptIdInt)) {
+            finalDepartmentId = targetDepartmentId;
+        } else if (!targetDepartmentId) {
+           finalDepartmentId = deptIdInt || undefined; 
+        } else {
+             finalDepartmentId = undefined; // Manager próbujący wygenerować dla obcego działu bez uprawnień zarządzania globalnego
+        }
+    }
 
     if (!finalDepartmentId) {
         return { error: "Proszę wybrać dział, dla którego chcesz wygenerować grafik." }
@@ -88,7 +109,12 @@ export async function generateSchedule(year: number, month: number, targetDepart
     const hasDuties = targetDept?.hasDuties ?? false
 
     // 1. Get users based on role
-    const usersWhere: any = { departmentId: finalDepartmentId };
+    const usersWhere: any = { 
+        OR: [
+             { departmentId: finalDepartmentId },
+             { secondaryDepartmentId: finalDepartmentId }
+        ]
+    };
 
     const usersRaw = await (prisma as any).user.findMany({
         where: usersWhere,
@@ -381,6 +407,9 @@ export async function upsertShift(userId: number, year: number, month: number, d
         }
 
         const { role, departmentId } = session.user
+        const secondaryDepartmentId = (session.user as any).secondaryDepartmentId;
+        const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
+        const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
 
         if (role !== 'ADMIN' && role !== 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
             return { error: "Brak uprawnień do edycji grafiku" }
@@ -388,12 +417,12 @@ export async function upsertShift(userId: number, year: number, month: number, d
 
         if (role !== 'ADMIN' && hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
             const targetUser = await prisma.user.findUnique({ where: { id: userId } })
-            if (!targetUser || targetUser.departmentId !== Number(departmentId)) {
+            if (!targetUser || (targetUser.departmentId !== deptIdInt && targetUser.secondaryDepartmentId !== secDeptIdInt && targetUser.departmentId !== secDeptIdInt && targetUser.secondaryDepartmentId !== deptIdInt)) {
                 return { error: "Możesz edytować tylko pracowników swojego działu" }
             }
         } else if (role === 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_all")) {
             const targetUser = await prisma.user.findUnique({ where: { id: userId } })
-            if (!targetUser || targetUser.departmentId !== Number(departmentId)) {
+            if (!targetUser || (targetUser.departmentId !== deptIdInt && targetUser.secondaryDepartmentId !== secDeptIdInt && targetUser.departmentId !== secDeptIdInt && targetUser.secondaryDepartmentId !== deptIdInt)) {
                 return { error: "Możesz edytować tylko pracowników swojego działu" }
             }
         }
@@ -446,10 +475,21 @@ export async function clearSchedule(year: number, month: number, targetDepartmen
     }
 
     const { role, departmentId } = session.user;
+    const secondaryDepartmentId = (session.user as any).secondaryDepartmentId;
 
-    const finalDepartmentId = role === 'MANAGER' && departmentId
-        ? parseInt(departmentId.toString())
-        : targetDepartmentId;
+    let finalDepartmentId = targetDepartmentId;
+    if (role === 'MANAGER') {
+        const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
+        const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
+
+        if (targetDepartmentId && (targetDepartmentId === deptIdInt || targetDepartmentId === secDeptIdInt)) {
+            finalDepartmentId = targetDepartmentId;
+        } else if (!targetDepartmentId) {
+           finalDepartmentId = deptIdInt || undefined; 
+        } else {
+             finalDepartmentId = undefined; // Deny access
+        }
+    }
 
     if (!finalDepartmentId) {
         return { error: "Proszę wybrać dział, dla którego chcesz usunąć grafik." }
@@ -460,7 +500,12 @@ export async function clearSchedule(year: number, month: number, targetDepartmen
     const endDate = new Date(year, month, 0) // last day of month
 
     const deptUsers = await prisma.user.findMany({
-        where: { departmentId: finalDepartmentId },
+        where: { 
+            OR: [
+                { departmentId: finalDepartmentId },
+                { secondaryDepartmentId: finalDepartmentId }
+            ]
+        },
         select: { id: true }
     })
 

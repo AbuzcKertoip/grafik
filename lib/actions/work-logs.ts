@@ -256,15 +256,20 @@ export async function submitWorkLogToManager(userId: number | string, year: numb
             return { success: false, error: "Nie znaleziono użytkownika." }
         }
 
-        if (!user.departmentId) {
+        if (!user.departmentId && !user.secondaryDepartmentId) {
             return { success: false, error: "Użytkownik nie jest przypisany do żadnego działu. Karty pracy nie można wysłać." }
         }
 
         // Szukaj menadżera dla tego departamentu
         const manager = await prisma.user.findFirst({
             where: {
-                departmentId: user.departmentId,
-                role: 'MANAGER'
+                role: 'MANAGER',
+                OR: [
+                    { departmentId: user.departmentId || undefined },
+                    { secondaryDepartmentId: user.departmentId || undefined },
+                    { departmentId: user.secondaryDepartmentId || undefined },
+                    { secondaryDepartmentId: user.secondaryDepartmentId || undefined }
+                ]
             }
         })
 

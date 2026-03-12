@@ -68,7 +68,8 @@ export const authOptions: NextAuthOptions = {
                     username: user.username,
                     name: user.name,
                     role: user.role,
-                    departmentId: user.departmentId,
+                    departmentId: user.departmentId || undefined, // Types compatibility
+                    secondaryDepartmentId: user.secondaryDepartmentId || undefined,
                     permissions: user.permissions.map(p => p.permission.slug),
                 }
             },
@@ -83,6 +84,7 @@ export const authOptions: NextAuthOptions = {
                     id: token.id,
                     role: token.role,
                     departmentId: token.departmentId as number | undefined,
+                    secondaryDepartmentId: token.secondaryDepartmentId as number | undefined,
                     permissions: token.permissions as string[] | undefined,
                 },
             }
@@ -95,6 +97,7 @@ export const authOptions: NextAuthOptions = {
                     id: u.id,
                     role: u.role,
                     departmentId: u.departmentId,
+                    secondaryDepartmentId: u.secondaryDepartmentId,
                     permissions: u.permissions,
                 }
             }

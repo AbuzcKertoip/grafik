@@ -54,6 +54,8 @@ model User {
   // New RBAC & Department fields
   departmentId      Int?
   department        Department?   @relation(fields: [departmentId], references: [id])
+  secondaryDepartmentId Int?
+  secondaryDepartment   Department? @relation("SecondaryDepartment", fields: [secondaryDepartmentId], references: [id])
   permissions       UserPermission[]
 
   // System Logs
@@ -69,6 +71,7 @@ model Department {
   updatedAt   DateTime @updatedAt
 
   users       User[]
+  secondaryUsers User[] @relation("SecondaryDepartment")
 }
 
 model Permission {

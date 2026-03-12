@@ -55,6 +55,7 @@ const INHERENT_PERMISSIONS: Record<string, string[]> = {
 export function UserEditDialog({ user, open, onOpenChange, departments, allPermissions, onUpdate }: UserEditDialogProps) {
     const [role, setRole] = useState(user?.role || ROLES.USER)
     const [departmentId, setDepartmentId] = useState<string>(user?.departmentId?.toString() || "null")
+    const [secondaryDepartmentId, setSecondaryDepartmentId] = useState<string>(user?.secondaryDepartmentId?.toString() || "null")
     const [skipDuties, setSkipDuties] = useState<boolean>(user?.skipDuties || false)
     const [fixedShift, setFixedShift] = useState<string>(user?.fixedShift || "NONE")
     const [isLoading, setIsLoading] = useState(false)
@@ -68,6 +69,7 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
         if (user) {
             setRole(user.role || ROLES.USER)
             setDepartmentId(user.departmentId?.toString() || "null")
+            setSecondaryDepartmentId(user.secondaryDepartmentId?.toString() || "null")
             setSkipDuties(user.skipDuties || false)
             setFixedShift(user.fixedShift || "NONE")
             setLocalPermissions(new Set(user.permissions?.map((p: any) => p.permissionId)))
@@ -79,6 +81,7 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
         const res = await updateUserRoleAndDepartment(user.id, {
             role,
             departmentId: departmentId === "null" ? null : parseInt(departmentId),
+            secondaryDepartmentId: secondaryDepartmentId === "null" ? null : parseInt(secondaryDepartmentId),
             skipDuties,
             fixedShift: fixedShift === "NONE" ? null : fixedShift
         })
@@ -148,6 +151,20 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
                             <Select value={departmentId} onValueChange={setDepartmentId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Wybierz dział" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="null">Brak</SelectItem>
+                                    {departments.map((d) => (
+                                        <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Drugi dział (Zarządzanie)</Label>
+                            <Select value={secondaryDepartmentId} onValueChange={setSecondaryDepartmentId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Wybierz drugi dział" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="null">Brak</SelectItem>

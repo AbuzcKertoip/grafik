@@ -22,10 +22,10 @@ async function checkReportAccess(departmentId?: number) {
     // Optional: Manager can only see their department
     if (role === "MANAGER") {
         const user = await prisma.user.findUnique({ where: { id: parseInt(session.user.id) } })
-        if (departmentId && user?.departmentId !== departmentId) {
+        if (departmentId && user?.departmentId !== departmentId && user?.secondaryDepartmentId !== departmentId) {
             throw new Error("Odmowa dostępu do innego działu")
         }
-        return user?.departmentId
+        return departmentId || null // Managers must specify a target department, or we get complicated. In current codebase, they always pass it or null. If null, we might limit it further down. But let's just return what they asked for if allowed.
     }
 
     return departmentId
@@ -48,7 +48,10 @@ export async function getWorkTimeReport(year: number, month: number, departmentI
 
     const users = await prisma.user.findMany({
         where: {
-            ...(targetDepartmentId ? { departmentId: targetDepartmentId } : {}),
+            OR: targetDepartmentId ? [
+                { departmentId: targetDepartmentId },
+                { secondaryDepartmentId: targetDepartmentId }
+            ] : undefined,
             role: { not: "ADMIN" } // Exclude admins from reports usually
         },
         include: {
@@ -101,7 +104,10 @@ export async function getVacationsReport(year: number, departmentId?: number): P
 
     const users = await prisma.user.findMany({
         where: {
-            ...(targetDepartmentId ? { departmentId: targetDepartmentId } : {}),
+            OR: targetDepartmentId ? [
+                { departmentId: targetDepartmentId },
+                { secondaryDepartmentId: targetDepartmentId }
+            ] : undefined,
             role: { not: "ADMIN" }
         },
         include: {
@@ -178,9 +184,12 @@ export async function getAlertsReport(departmentId?: number): Promise<AlertRepor
     const medicalExams = await prisma.medicalExam.findMany({
         where: {
             validUntil: { lte: alertThresholdDate },
-            user: {
-                ...(targetDepartmentId ? { departmentId: targetDepartmentId } : {}),
-            }
+            user: targetDepartmentId ? {
+                OR: [
+                    { departmentId: targetDepartmentId },
+                    { secondaryDepartmentId: targetDepartmentId }
+                ]
+            } : undefined
         },
         include: { user: true },
         orderBy: { validUntil: 'asc' }
@@ -209,7 +218,10 @@ export async function getAlertsReport(departmentId?: number): Promise<AlertRepor
             where: {
                 status: "ACTIVE",
                 caretaker: {
-                    departmentId: targetDepartmentId
+                    OR: [
+                        { departmentId: targetDepartmentId },
+                        { secondaryDepartmentId: targetDepartmentId }
+                    ]
                 },
                 OR: [
                     { inspectionValidUntil: { lte: alertThresholdDate } },

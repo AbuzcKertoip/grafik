@@ -40,6 +40,7 @@ export function UserCreateDialog({ open, onOpenChange, departments, onUpdate }: 
         name: "",
         role: ROLES.USER as string,
         departmentId: "null",
+        secondaryDepartmentId: "null",
         skipDuties: false,
         fixedShift: "NONE"
     })
@@ -64,7 +65,8 @@ export function UserCreateDialog({ open, onOpenChange, departments, onUpdate }: 
         setIsLoading(true)
         const res = await createUser({
             ...formData,
-            departmentId: formData.departmentId === "null" ? null : parseInt(formData.departmentId)
+            departmentId: formData.departmentId === "null" ? null : parseInt(formData.departmentId),
+            secondaryDepartmentId: formData.secondaryDepartmentId === "null" ? null : parseInt(formData.secondaryDepartmentId)
         })
         setIsLoading(false)
 
@@ -79,6 +81,7 @@ export function UserCreateDialog({ open, onOpenChange, departments, onUpdate }: 
                 name: "",
                 role: ROLES.USER as string,
                 departmentId: "null",
+                secondaryDepartmentId: "null",
                 skipDuties: false,
                 fixedShift: "NONE"
             })
@@ -140,6 +143,20 @@ export function UserCreateDialog({ open, onOpenChange, departments, onUpdate }: 
                             <Select value={formData.departmentId} onValueChange={(val) => setFormData({ ...formData, departmentId: val })}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Wybierz dział" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="null">Brak</SelectItem>
+                                    {departments.map((d) => (
+                                        <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Drugi dział (Zarządzanie)</Label>
+                            <Select value={formData.secondaryDepartmentId} onValueChange={(val) => setFormData({ ...formData, secondaryDepartmentId: val })}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Wybierz drugi dział" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="null">Brak</SelectItem>

@@ -146,11 +146,16 @@ export async function createVacation(data: any) {
                 include: { department: true }
             })
 
-            if (user && user.departmentId) {
+            if (user && (user.departmentId || user.secondaryDepartmentId)) {
                 const manager = await prisma.user.findFirst({
                     where: {
                         role: "MANAGER",
-                        departmentId: user.departmentId
+                        OR: [
+                            { departmentId: user.departmentId || undefined },
+                            { secondaryDepartmentId: user.departmentId || undefined },
+                            { departmentId: user.secondaryDepartmentId || undefined },
+                            { secondaryDepartmentId: user.secondaryDepartmentId || undefined }
+                        ]
                     }
                 })
 
@@ -196,9 +201,18 @@ export async function approveVacation(id: number) {
         })
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
-        // Manger restriction
         if (session.user.role === 'MANAGER' && !hasPermission(session.user as any, "manage_vacations")) {
-            if (vacation.user.departmentId !== session.user.departmentId) {
+            const sessionDeptId = session.user.departmentId;
+            const sessionSecDeptId = (session.user as any).secondaryDepartmentId;
+            const vacDeptId = vacation.user.departmentId;
+            const vacSecDeptId = vacation.user.secondaryDepartmentId;
+
+            if (
+                vacDeptId !== sessionDeptId &&
+                vacDeptId !== sessionSecDeptId &&
+                vacSecDeptId !== sessionDeptId &&
+                vacSecDeptId !== sessionSecDeptId
+            ) {
                 return { error: "Możesz akceptować urlopy tylko we własnym dziale." }
             }
         }
@@ -282,8 +296,20 @@ export async function rejectVacation(id: number, reason: string) {
 
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
-        if (session.user.role === 'MANAGER' && vacation.user.departmentId !== session.user.departmentId && !hasPermission(session.user as any, "manage_vacations")) {
-            return { error: "Brak dostępu do pracownika z innego działu" }
+        const sessionDeptId = session.user.departmentId;
+        const sessionSecDeptId = (session.user as any).secondaryDepartmentId;
+        const vacDeptId = vacation.user.departmentId;
+        const vacSecDeptId = vacation.user.secondaryDepartmentId;
+
+        if (session.user.role === 'MANAGER' && !hasPermission(session.user as any, "manage_vacations")) {
+            if (
+                vacDeptId !== sessionDeptId &&
+                vacDeptId !== sessionSecDeptId &&
+                vacSecDeptId !== sessionDeptId &&
+                vacSecDeptId !== sessionSecDeptId
+            ) {
+                return { error: "Brak dostępu do pracownika z innego działu" }
+            }
         }
 
         await prisma.vacation.update({
@@ -338,7 +364,16 @@ export async function deleteVacation(id: number) {
         const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
         const isManager = session.user.role === 'MANAGER'
         const isSelf = parseInt(session.user.id) === vacation.userId
-        const isManagersEmployee = isManager && (vacation.user.departmentId === session.user.departmentId)
+        const sessionDeptId = session.user.departmentId;
+        const sessionSecDeptId = (session.user as any).secondaryDepartmentId;
+        const vacDeptId = vacation.user.departmentId;
+        const vacSecDeptId = vacation.user.secondaryDepartmentId;
+        
+        const isManagersEmployee = isManager && (
+            vacDeptId === sessionDeptId ||
+            vacDeptId === sessionSecDeptId ||
+            (vacSecDeptId != null && (vacSecDeptId === sessionDeptId || vacSecDeptId === sessionSecDeptId))
+        )
 
         if (!isAdmin && !isSelf && !isManagersEmployee) {
             return { error: "Brak uprawnień" }
