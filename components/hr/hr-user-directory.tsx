@@ -26,11 +26,14 @@ interface HRUserDirectoryProps {
     departments: Department[];
     currentUserRole?: string;
     currentUserDeptId?: number | null;
+    isManagerInHR?: boolean;
 }
 
-export function HRUserDirectory({ initialUsers, departments, currentUserRole, currentUserDeptId }: HRUserDirectoryProps) {
+export function HRUserDirectory({ initialUsers, departments, currentUserRole, currentUserDeptId, isManagerInHR }: HRUserDirectoryProps) {
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedDepartment, setSelectedDepartment] = useState<string>(currentUserRole === 'MANAGER' ? (currentUserDeptId?.toString() || "ALL") : "ALL");
+    const [selectedDepartment, setSelectedDepartment] = useState<string>(
+        (currentUserRole === 'MANAGER' && !isManagerInHR) ? (currentUserDeptId?.toString() || "ALL") : "ALL"
+    );
     const [sortBy, setSortBy] = useState<string>("name-asc");
 
     const now = new Date();
@@ -95,7 +98,7 @@ export function HRUserDirectory({ initialUsers, departments, currentUserRole, cu
                         />
                     </div>
 
-                    {currentUserRole !== 'MANAGER' && (
+                    {(currentUserRole !== 'MANAGER' || isManagerInHR) && (
                         <div className="w-full md:w-[200px] space-y-2">
                             <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2">
                                 <Filter className="w-4 h-4 text-muted-foreground" />
@@ -151,7 +154,7 @@ export function HRUserDirectory({ initialUsers, departments, currentUserRole, cu
                             className="mt-4"
                             onClick={() => {
                                 setSearchQuery("");
-                                if (currentUserRole !== 'MANAGER') {
+                                if (currentUserRole !== 'MANAGER' || isManagerInHR) {
                                     setSelectedDepartment("ALL");
                                 }
                                 setSortBy("name-asc");

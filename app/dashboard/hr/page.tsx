@@ -20,8 +20,20 @@ export default async function HRPage() {
 
     const whereClause: any = { role: { not: 'ADMIN' } };
 
+    // Krok 1: Sprawdź czy Manager należy do działu "HR"
+    let isManagerInHR = false;
+    if (role === 'MANAGER' && departmentId) {
+        const userDept = await prisma.department.findUnique({
+            where: { id: parseInt(departmentId.toString()) }
+        });
+        if (userDept && userDept.name.toUpperCase() === 'HR') {
+            isManagerInHR = true;
+        }
+    }
+
     // Managers can only see their own department's members in the HR panel
-    if (role === 'MANAGER') {
+    // WYJĄTEK: Jeśli Manager należy do działu HR, widzi wszystko (tak jak admin/hr rola)
+    if (role === 'MANAGER' && !isManagerInHR) {
         const secondaryDepartmentId = (session.user as any).secondaryDepartmentId;
         const deptIds = [];
         
@@ -61,6 +73,7 @@ export default async function HRPage() {
                 departments={departments}
                 currentUserRole={role}
                 currentUserDeptId={departmentId ? parseInt(departmentId.toString()) : null}
+                isManagerInHR={isManagerInHR}
             />
         </div>
     );
