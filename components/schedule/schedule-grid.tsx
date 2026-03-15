@@ -33,14 +33,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { getPolishHolidays, isHoliday } from "@/lib/holidays"
 
-const SHIFT_TYPES = ["", "SHIFT_1", "SHIFT_2", "DUTY", "VACATION", "SICK", "OFF"]
+const SHIFT_TYPES = ["", "SHIFT_1", "SHIFT_2", "DUTY", "VACATION", "SPECIAL_LEAVE", "CHILDCARE", "ADDITIONAL", "OVERTIME", "SICK", "HOLIDAY", "OFF"]
 const SHIFT_LABELS: Record<string, string> = {
     "": "",
     "SHIFT_1": "1",
     "SHIFT_2": "2",
     "DUTY": "D",
     "VACATION": "U",
+    "SPECIAL_LEAVE": "UO",
+    "CHILDCARE": "OD",
+    "ADDITIONAL": "UD",
+    "OVERTIME": "UN",
     "SICK": "L4",
+    "HOLIDAY": "ŚW",
     "OFF": "DW",
 }
 const SHIFT_COLORS: Record<string, string> = {
@@ -49,7 +54,12 @@ const SHIFT_COLORS: Record<string, string> = {
     "SHIFT_2": "bg-orange-400 text-white hover:bg-orange-500",
     "DUTY": "bg-red-500 text-white hover:bg-red-600",
     "VACATION": "bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-slate-600",
+    "SPECIAL_LEAVE": "bg-purple-200 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 hover:bg-purple-300 dark:hover:bg-purple-800/40",
+    "CHILDCARE": "bg-rose-200 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 hover:bg-rose-300 dark:hover:bg-rose-800/40",
+    "ADDITIONAL": "bg-indigo-200 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 hover:bg-indigo-300 dark:hover:bg-indigo-800/40",
+    "OVERTIME": "bg-amber-200 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 hover:bg-amber-300 dark:hover:bg-amber-800/40",
     "SICK": "bg-gray-300 dark:bg-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-400 dark:hover:bg-slate-500",
+    "HOLIDAY": "bg-pink-500 dark:bg-pink-600 text-white hover:bg-pink-600 dark:hover:bg-pink-700",
     "OFF": "bg-gray-400 dark:bg-slate-500 text-white hover:bg-gray-500 dark:hover:bg-slate-400",
 }
 
@@ -157,22 +167,29 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                                                                 {SHIFT_LABELS[type]}
                                                             </div>
                                                         </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="center" className="min-w-[120px]">
+                                                        <DropdownMenuContent align="center" className="min-w-[170px]">
                                                             {SHIFT_TYPES.map(shiftType => (
                                                                 <DropdownMenuItem
                                                                     key={shiftType}
                                                                     onSelect={() => handleCellClick(user.id, day, shiftType)}
                                                                     className="cursor-pointer font-medium flex items-center gap-2"
                                                                 >
-                                                                    <div className={cn("w-3 h-3 rounded-full border", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
+                                                                    <div className={cn("w-3 h-3 rounded-full border shrink-0", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
+                                                                    <span className="truncate">
                                                                     {shiftType === "" ? "Wyczyść" : SHIFT_LABELS[shiftType] + " - " + (
                                                                         shiftType === "SHIFT_1" ? "1 Zmiana" :
                                                                             shiftType === "SHIFT_2" ? "2 Zmiana" :
                                                                                 shiftType === "DUTY" ? "Dyżur" :
-                                                                                    shiftType === "VACATION" ? "Urlop" :
+                                                                                    shiftType === "VACATION" ? "Urlop Wypoczynkowy" :
+                                                                                        shiftType === "SPECIAL_LEAVE" ? "Urlop Okolicznościowy" :
+                                                                                            shiftType === "CHILDCARE" ? "Opieka nad dzieckiem" :
+                                                                                                shiftType === "ADDITIONAL" ? "Dodatkowy Urlop" :
+                                                                                                    shiftType === "OVERTIME" ? "Odbiór nadgodzin" :
                                                                                         shiftType === "SICK" ? "Chorobowe" :
-                                                                                            shiftType === "OFF" ? "Odbiór" : ""
+                                                                                            shiftType === "HOLIDAY" ? "Święto Państwowe" :
+                                                                                                shiftType === "OFF" ? "Odbiór dnia" : ""
                                                                     )}
+                                                                    </span>
                                                                 </DropdownMenuItem>
                                                             ))}
                                                         </DropdownMenuContent>
@@ -196,7 +213,11 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-500 rounded"></div> 1 - Pierwsza zmiana</div>
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-orange-400 rounded"></div> 2 - Druga zmiana</div>
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-500 rounded"></div> D - Dyżur</div>
-                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-200 dark:bg-slate-700 rounded"></div> U - Urlop</div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-200 dark:bg-slate-700 rounded border border-gray-300"></div> U - Urlop</div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-purple-200 dark:bg-purple-900/40 rounded border border-purple-300"></div> UO - Okolicznościowy</div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-rose-200 dark:bg-rose-900/40 rounded border border-rose-300"></div> OD - Opieka</div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-indigo-200 dark:bg-indigo-900/40 rounded border border-indigo-300"></div> UD - Dodatkowy</div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-amber-200 dark:bg-amber-900/40 rounded border border-amber-300"></div> UN - Nadgodziny</div>
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-300 dark:bg-slate-600 rounded"></div> L4 - Chorobowe</div>
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-400 dark:bg-slate-500 rounded"></div> DW - Odbiór dnia</div>
             </div>

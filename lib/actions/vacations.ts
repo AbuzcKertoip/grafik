@@ -33,7 +33,7 @@ export async function getVacations(year: number) {
 import { getVacationStats } from "./hr"
 import { getBusinessDaysCount } from "../holidays"
 
-async function validateVacationLimit(userId: number, startDate: Date, endDate: Date, excludeVacationId?: number) {
+async function validateVacationLimit(userId: number, startDate: Date, endDate: Date, type: string, excludeVacationId?: number) {
     const start = new Date(startDate)
     const end = new Date(endDate)
     const year = start.getFullYear()
@@ -42,19 +42,19 @@ async function validateVacationLimit(userId: number, startDate: Date, endDate: D
         return { valid: false, error: "Wniosek nie może przekraczać roku kalendarzowego. Złóż dwa osobne wnioski." }
     }
 
-    // Oblicz liczbę dni wniosku (uproszczone: wszystkie dni, wliczając weekendy jeśli tak liczy system, 
-    // lub tylko robocze. Biorąc pod uwagę obecny model, ScheduleDay generuje się dla każdego dnia.
-    // Skoro limit jest w dniach "roboczych", powinniśmy liczyć realnie dni robocze, 
-    // ale zachowajmy konsekwencję. Najprościej policzyć po prostu dni różnicy, jeśli tak robiliśmy.
-    // Assuming 1 day = 1 unit of limit for simplicity here, or you can implement a business days logic.
-    const daysRequested = getBusinessDaysCount(start, end)
+    // "Okolicznościowy" - bez limitu
+    if (type === 'SPECIAL_LEAVE') {
+        return { valid: true }
+    }
 
+    const daysRequested = getBusinessDaysCount(start, end)
     const stats = await getVacationStats(userId, year)
 
     // Policz oczekujące wnioski z tego roku (z wyłączeniem obecnego jeśli to edycja/akceptacja)
     const pendingVacations = await prisma.vacation.findMany({
         where: {
             userId: userId,
+            type: type, // only sum pending of the same type
             status: "PENDING",
             startDate: { gte: new Date(year, 0, 1) },
             endDate: { lte: new Date(year, 11, 31) },
@@ -66,12 +66,49 @@ async function validateVacationLimit(userId: number, startDate: Date, endDate: D
         return acc + getBusinessDaysCount(new Date(vac.startDate), new Date(vac.endDate))
     }, 0)
 
-    const totalNeeded = stats.used + pendingDays + daysRequested
+    if (type === 'CHILDCARE') {
+        if (stats.childcareLimit === 0) {
+            return { valid: false, error: "Nie przysługuje Ci prawo do zwolnienia z tytułu opieki nad dzieckiem." }
+        }
+        const totalNeeded = stats.childcareUsed + pendingDays + daysRequested
+        if (totalNeeded > stats.childcareLimit) {
+            return { valid: false, error: `Przekroczono limit opieki nad dzieckiem. Dostępne dni: ${Math.max(0, stats.childcareLimit - stats.childcareUsed - pendingDays)}, Wnioskowane: ${daysRequested}.` }
+        }
+    } else if (type === 'ON_DEMAND') {
+        const onDemandUsed = stats.details.onDemandUsed || 0
+        const totalOnDemand = onDemandUsed + pendingDays + daysRequested
+        if (totalOnDemand > 4) {
+            return { valid: false, error: `Możesz wziąć maksymalnie 4 dni urlopu na żądanie w roku. Dotychczas wykorzystano: ${onDemandUsed}, Wnioskowane: ${daysRequested}.` }
+        }
+        // Still needs to check if they have enough regular vacation days left
+        const totalVacationNeeded = stats.used + pendingDays + daysRequested
+        if (totalVacationNeeded > stats.limit) {
+            return {
+                valid: false,
+                error: `Wykorzystano limit urlopowy. Przewidywane użycie (w tym na żądanie): ${totalVacationNeeded} dni, Limit: ${stats.limit} dni.`
+            }
+        }
+    } else if (type === 'ADDITIONAL') {
+        const additionalUsed = stats.details.additionalUsed || 0
+        const totalNeeded = additionalUsed + pendingDays + daysRequested
+        if (totalNeeded > stats.details.additional) {
+            return { valid: false, error: `Przekroczono limit dodatkowego urlopu. Dostępne dni: ${Math.max(0, stats.details.additional - additionalUsed - pendingDays)}, Wnioskowane: ${daysRequested}.` }
+        }
+    } else if (type === 'OVERTIME') {
+        const requestedHours = daysRequested * 8
+        const pendingHours = pendingDays * 8
+        const totalNeededHours = requestedHours + pendingHours
 
-    if (totalNeeded > stats.limit) {
-        return {
-            valid: false,
-            error: `Wykorzystano limit. Przewidywane użycie: ${totalNeeded} dni, Limit: ${stats.limit} dni.`
+        if (totalNeededHours > stats.overtimeHours) {
+            return { valid: false, error: `Niewystarczająca liczba nadgodzin do odbioru. Dostępne godziny: ${Math.max(0, stats.overtimeHours - pendingHours)}, Wnioskowane dni wymagają: ${requestedHours}h.` }
+        }
+    } else if (type === 'VACATION') {
+        const totalNeeded = stats.used + pendingDays + daysRequested
+        if (totalNeeded > stats.limit) {
+            return {
+                valid: false,
+                error: `Wykorzystano limit urlopowy. Przewidywane użycie: ${totalNeeded} dni, Limit: ${stats.limit} dni.`
+            }
         }
     }
 
@@ -88,10 +125,14 @@ export async function createVacation(data: any) {
 
     if (!isAdmin && !isSelf) return { error: "Możesz składać wnioski tylko za siebie." }
 
-    // If Admin -> Approved immediately. If User -> Pending
-    const approved = isAdmin
+    if (type === 'SICK' && !isAdmin && session.user.role !== 'MANAGER') {
+        return { error: "Zwolnienie lekarskie może zostać wprowadzone tylko przez dział HR lub kierownika." }
+    }
 
-    const validation = await validateVacationLimit(parseInt(userId), new Date(startDate), new Date(endDate))
+    // Jeśli type="SICK", to z automatu od razu wbijamy jako "APPROVED" bez względu na to czy wbija to Admin czy Kierownik
+    const approved = isAdmin || type === 'SICK'
+
+    const validation = await validateVacationLimit(parseInt(userId), new Date(startDate), new Date(endDate), type || "VACATION")
     if (!validation.valid) {
         return { error: validation.error }
     }
@@ -139,27 +180,44 @@ export async function createVacation(data: any) {
             }
         })
 
-        // Wysyłka emaila do kierownika
+        // Wysyłka emaila akceptacyjnego
         if (!isAdmin) {
             const user = await prisma.user.findUnique({
                 where: { id: parseInt(userId) },
                 include: { department: true }
             })
 
-            if (user && (user.departmentId || user.secondaryDepartmentId)) {
-                const manager = await prisma.user.findFirst({
-                    where: {
-                        role: "MANAGER",
-                        OR: [
-                            { departmentId: user.departmentId || undefined },
-                            { secondaryDepartmentId: user.departmentId || undefined },
-                            { departmentId: user.secondaryDepartmentId || undefined },
-                            { secondaryDepartmentId: user.secondaryDepartmentId || undefined }
-                        ]
-                    }
-                })
+            if (user) {
+                const isStandardLeave = type === "VACATION" || type === "ON_DEMAND"
+                let targetRecipient: any = null
 
-                if (manager && manager.email) {
+                if (isStandardLeave && (user.departmentId || user.secondaryDepartmentId)) {
+                    // Route to Dept Manager
+                    targetRecipient = await prisma.user.findFirst({
+                        where: {
+                            role: "MANAGER",
+                            OR: [
+                                { departmentId: user.departmentId || undefined },
+                                { secondaryDepartmentId: user.departmentId || undefined },
+                                { departmentId: user.secondaryDepartmentId || undefined },
+                                { secondaryDepartmentId: user.secondaryDepartmentId || undefined }
+                            ]
+                        }
+                    })
+                } else if (!isStandardLeave) {
+                    // Route to HR Manager
+                    targetRecipient = await prisma.user.findFirst({
+                        where: {
+                            permissions: {
+                                some: {
+                                    permission: { slug: "manage_hr_data" }
+                                }
+                            }
+                        }
+                    })
+                }
+
+                if (targetRecipient && targetRecipient.email) {
                     const mailHtml = `
                     <div style="font-family: sans-serif; color: #333;">
                         <h2>Nowy wniosek urlopowy oczekuje!</h2>
@@ -168,7 +226,7 @@ export async function createVacation(data: any) {
                         <p>Zaloguj się do systemu HR4YOU, by zatwierdzić lub odrzucić.</p>
                     </div>
                     `
-                    await sendEmail(manager.email, "Nowy wniosek urlopowy do akceptacji", mailHtml).catch(e => console.error("Email failed", e))
+                    await sendEmail(targetRecipient.email, "Nowy wniosek urlopowy do akceptacji", mailHtml).catch(e => console.error("Email failed", e))
                 }
             }
         }
@@ -202,6 +260,12 @@ export async function approveVacation(id: number) {
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
         if (session.user.role === 'MANAGER' && !hasPermission(session.user as any, "manage_vacations")) {
+            // managers can approve standard leaves for their dept 
+            // backend isolating this to prevent them approving HR stuff
+            if (vacation.type !== 'VACATION' && vacation.type !== 'ON_DEMAND') {
+                return { error: 'Tylko dział HR może akceptować tego typu wnioski.' }
+            }
+
             const sessionDeptId = session.user.departmentId;
             const sessionSecDeptId = (session.user as any).secondaryDepartmentId;
             const vacDeptId = vacation.user.departmentId;
@@ -217,7 +281,7 @@ export async function approveVacation(id: number) {
             }
         }
 
-        const validation = await validateVacationLimit(vacation.userId, new Date(vacation.startDate), new Date(vacation.endDate), vacation.id)
+        const validation = await validateVacationLimit(vacation.userId, new Date(vacation.startDate), new Date(vacation.endDate), vacation.type, vacation.id)
         if (!validation.valid) {
             return { error: "Zatwierdzenie zablokowane: " + validation.error }
         }
@@ -265,6 +329,35 @@ export async function approveVacation(id: number) {
             `
             await sendEmail(vacation.user.email, "Wniosek urlopowy zaakceptowany", mailHtml).catch(e => console.error(e))
         }
+
+        // Jeśli to nietypowy urlop akceptowany przez HR, zawiadom managera dzialu
+        if (vacation.type !== 'VACATION' && vacation.type !== 'ON_DEMAND' && (vacation.user.departmentId || vacation.user.secondaryDepartmentId)) {
+            const manager = await prisma.user.findFirst({
+                where: {
+                    role: "MANAGER",
+                    OR: [
+                        { departmentId: vacation.user.departmentId || undefined },
+                        { secondaryDepartmentId: vacation.user.departmentId || undefined },
+                        { departmentId: vacation.user.secondaryDepartmentId || undefined },
+                        { secondaryDepartmentId: vacation.user.secondaryDepartmentId || undefined }
+                    ]
+                }
+            })
+
+            if (manager && manager.email) {
+                const managerHtml = `
+                <div style="font-family: sans-serif; color: #333;">
+                    <h2>Informacja z Działu HR</h2>
+                    <p>Zatwierdzono systemowo wniosek urlopowy dla pracownika <b>${vacation.user.name || vacation.user.username}</b>.</p>
+                    <p>Typ: <b>${vacation.type}</b></p>
+                    <p>Termin: od ${format(new Date(vacation.startDate), "d-MM-yyyy")} do ${format(new Date(vacation.endDate), "d-MM-yyyy")}</p>
+                    <p>Dni zostały już oznaczone w grafiku.</p>
+                </div>
+                `
+                await sendEmail(manager.email, "Zatwierdzono urlop pozastandardowy pracownika", managerHtml).catch(e => console.error(e))
+            }
+        }
+
         await createLog({
             action: "VACATION_APPROVED",
             description: `Zatwierdzono urlop (ID: ${vacation.id}) dla pracownika ${vacation.user.username}`,

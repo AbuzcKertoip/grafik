@@ -103,14 +103,14 @@ export async function getAllUsers() {
     return { success: true, users }
 }
 
-export async function updateUserRoleAndDepartment(userId: number, data: { role: string; departmentId?: number | null; secondaryDepartmentId?: number | null; skipDuties?: boolean; fixedShift?: string | null }) {
+export async function updateUserRoleAndDepartment(userId: number, data: { role: string; departmentId?: number | null; secondaryDepartmentId?: number | null; skipDuties?: boolean; fixedShift?: string | null; contractType?: string; has10YearsSeniority?: boolean; hasChildren?: boolean }) {
     const session = await getServerSession(authOptions)
     if (!session || !hasPermission(session.user as any, "manage_users")) {
         return { error: "Brak uprawnień" }
     }
 
     try {
-        await prisma.user.update({
+        await (prisma.user as any).update({
             where: { id: userId },
             data: {
                 role: data.role,
@@ -118,6 +118,9 @@ export async function updateUserRoleAndDepartment(userId: number, data: { role: 
                 secondaryDepartmentId: data.secondaryDepartmentId ? parseInt(data.secondaryDepartmentId.toString()) : null,
                 skipDuties: data.skipDuties ?? false,
                 fixedShift: data.fixedShift === "NONE" ? null : (data.fixedShift || null),
+                contractType: data.contractType || "UOP",
+                has10YearsSeniority: data.has10YearsSeniority ?? false,
+                hasChildren: data.hasChildren ?? false
             }
         })
         revalidatePath("/dashboard/admin")
@@ -206,7 +209,7 @@ export async function createUser(data: any) {
 
         const hashedPassword = await hashPassword(data.password || "Start123!")
 
-        await prisma.user.create({
+        await (prisma.user as any).create({
             data: {
                 username: data.username,
                 email: data.email || null,
@@ -216,6 +219,9 @@ export async function createUser(data: any) {
                 departmentId: data.departmentId ? parseInt(data.departmentId.toString()) : null,
                 skipDuties: data.skipDuties ?? false,
                 fixedShift: data.fixedShift === "NONE" ? null : (data.fixedShift || null),
+                contractType: data.contractType || "UOP",
+                has10YearsSeniority: data.has10YearsSeniority ?? false,
+                hasChildren: data.hasChildren ?? false
             }
         })
         revalidatePath("/dashboard/admin")

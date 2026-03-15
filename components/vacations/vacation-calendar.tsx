@@ -149,7 +149,14 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="VACATION">🏖️ Urlop wypoczynkowy</SelectItem>
-                                        <SelectItem value="SICK">🤒 L4 / Chorobowe</SelectItem>
+                                        <SelectItem value="ON_DEMAND">🔥 Urlop na żądanie</SelectItem>
+                                        <SelectItem value="SPECIAL_LEAVE">🎉 Urlop okolicznościowy</SelectItem>
+                                        <SelectItem value="CHILDCARE">👶 Opieka nad dzieckiem</SelectItem>
+                                        <SelectItem value="ADDITIONAL">🎁 Dodatkowy urlop</SelectItem>
+                                        <SelectItem value="OVERTIME">⏳ Odbiór nadgodzin</SelectItem>
+                                        {canManage && (
+                                            <SelectItem value="SICK">🤒 L4 / Chorobowe</SelectItem>
+                                        )}
                                         <SelectItem value="OTHER">❓ Inne</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -208,12 +215,21 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                         <div className="text-sm text-muted-foreground mt-1">
                                                             {format(new Date(v.startDate), "d MMM", { locale: pl })} - {format(new Date(v.endDate), "d MMM yyyy", { locale: pl })}
                                                         </div>
-                                                        <div className="text-xs text-muted-foreground/80 mt-1">
-                                                            Typ: {v.type === 'VACATION' ? 'Urlop' : v.type}
+                                                        <div className="text-xs text-muted-foreground/80 mt-1 font-medium">
+                                                                <div className="text-sm font-medium">
+                                                                    {v.type === 'VACATION' && '🏖️ Urlop'}
+                                                                    {v.type === 'ON_DEMAND' && '🔥 Na żądanie'}
+                                                                    {v.type === 'SPECIAL_LEAVE' && '🎉 Okolicznościowy'}
+                                                            {v.type === 'CHILDCARE' && '👶 Opieka nad dzieckiem'}
+                                                            {v.type === 'ADDITIONAL' && '🎁 Dodatkowy urlop'}
+                                                            {v.type === 'OVERTIME' && '⏳ Odbiór nadgodzin'}
+                                                            {v.type === 'SICK' && '🤒 Chorobowe'}
+                                                            {v.type === 'OTHER' && '❓ Inne'}
+                                                                </div>
                                                         </div>
                                                     </div>
                                                     {canManage ? (
-                                                        <div className="flex gap-2">
+                                                        <div className="flex flex-col gap-2">
                                                             <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-900" onClick={() => handleApprove(v.id)}>
                                                                 <CheckCircle className="w-4 h-4 mr-1" /> Akceptuj
                                                             </Button>
@@ -237,11 +253,21 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                 <div className="space-y-3">
                                     {approvedVacations.length === 0 ? (
                                         <div className="text-center py-8 text-muted-foreground text-sm">Brak zatwierdzonych urlopów.</div>
-                                    ) : approvedVacations.map(v => (
+                                    ) : approvedVacations.map(v => {
+                                        let icon = '❓'
+                                        let bgClass = 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400'
+                                        if (v.type === 'VACATION') { icon = '🏖️'; bgClass = 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' }
+                                        if (v.type === 'SPECIAL_LEAVE') { icon = '🎉'; bgClass = 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' }
+                                        if (v.type === 'CHILDCARE') { icon = '👶'; bgClass = 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' }
+                                        if (v.type === 'ADDITIONAL') { icon = '🎁'; bgClass = 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' }
+                                        if (v.type === 'OVERTIME') { icon = '⏳'; bgClass = 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' }
+                                        if (v.type === 'SICK') { icon = '🤒'; bgClass = 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' }
+
+                                        return (
                                         <div key={v.id} className="group flex items-center justify-between p-4 bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-all">
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${v.type === 'VACATION' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'}`}>
-                                                    {v.type === 'VACATION' ? '🏖️' : '🤒'}
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${bgClass}`}>
+                                                    {icon}
                                                 </div>
                                                 <div>
                                                     <div className="font-semibold text-foreground flex items-center gap-2">
@@ -263,7 +289,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                 </Button>
                                             )}
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                             </TabsContent>
                         </Tabs>

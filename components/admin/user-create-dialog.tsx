@@ -42,7 +42,10 @@ export function UserCreateDialog({ open, onOpenChange, departments, onUpdate }: 
         departmentId: "null",
         secondaryDepartmentId: "null",
         skipDuties: false,
-        fixedShift: "NONE"
+        fixedShift: "NONE",
+        contractType: "UOP",
+        has10YearsSeniority: false,
+        hasChildren: false
     })
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,7 +86,10 @@ export function UserCreateDialog({ open, onOpenChange, departments, onUpdate }: 
                 departmentId: "null",
                 secondaryDepartmentId: "null",
                 skipDuties: false,
-                fixedShift: "NONE"
+                fixedShift: "NONE",
+                contractType: "UOP",
+                has10YearsSeniority: false,
+                hasChildren: false
             })
             onUpdate()
             onOpenChange(false)
@@ -166,6 +172,48 @@ export function UserCreateDialog({ open, onOpenChange, departments, onUpdate }: 
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="space-y-2">
+                            <Label>Rodzaj umowy</Label>
+                            <Select value={formData.contractType} onValueChange={(val) => setFormData({ ...formData, contractType: val })}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="UOP">Umowa o pracę (UOP)</SelectItem>
+                                    <SelectItem value="B2B">Samozatrudnienie (B2B)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {formData.contractType === 'UOP' && (
+                        <div className="space-y-4">
+                            <Label>Staż pracy (Urlop)</Label>
+                            <div className="flex items-center space-x-2 border rounded-md p-4 bg-muted/20">
+                                <Checkbox
+                                    id="createHas10YearsSeniority"
+                                    checked={formData.has10YearsSeniority}
+                                    onCheckedChange={(val) => setFormData({ ...formData, has10YearsSeniority: val as boolean })}
+                                />
+                                <Label htmlFor="createHas10YearsSeniority" className="font-normal cursor-pointer">
+                                    Pracownik posiada staż pracy równy lub dłuższy niż 10 lat (przysługuje 26 dni urlopu)
+                                </Label>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                         <Label>Opieka nad dzieckiem</Label>
+                         <div className="flex items-center space-x-2 border rounded-md p-4 bg-muted/20">
+                             <Checkbox
+                                 id="createHasChildren"
+                                 checked={formData.hasChildren}
+                                 onCheckedChange={(val) => setFormData({ ...formData, hasChildren: val as boolean })}
+                             />
+                             <Label htmlFor="createHasChildren" className="font-normal cursor-pointer">
+                                 Pracownik posiada dzieci (przysługują 2 dni zwolnienia na opiekę)
+                             </Label>
+                         </div>
                     </div>
 
                     <div className="space-y-4">

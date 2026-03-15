@@ -143,7 +143,7 @@ export async function generateSchedule(year: number, month: number, targetDepart
     // Get holidays for the year (and simulation years if needed, assuming current year mostly)
     const holidays = getPolishHolidays(year) // This might change if simulation spans years
 
-    const scheduleData = []
+    const scheduleData: {userId: number, date: Date, type: string}[] = []
 
     // Helper to check if user is on vacation
     const isOnVacation = (userId: number, date: Date) => {
@@ -324,34 +324,35 @@ export async function generateSchedule(year: number, month: number, targetDepart
     for (let day = 1; day <= daysInMonth; day++) {
         const currentDate = new Date(year, month - 1, day)
         const dateStr = currentDate.toISOString().split('T')[0]
-
-        // A. Check Duty
-        if (dutyAssignments.has(dateStr)) {
-            scheduleData.push({
-                userId: dutyAssignments.get(dateStr)!,
-                date: currentDate,
-                type: "DUTY"
-            })
-            continue
-        }
-
-        // B. Weekday Logic (Mon-Fri)
-        const dayOfWeek = currentDate.getDay()
-        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
         const currentYearHolidays = getPolishHolidays(currentDate.getFullYear())
         const isHol = isHoliday(currentDate, currentYearHolidays)
+        const dayOfWeek = currentDate.getDay()
+        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
+        const weekKey = getWeekKey(currentDate)
+        const shift2UserIds = weeklyShiftAssignments.get(weekKey) || []
 
-        if (isWeekday && !isHol) {
-            const weekKey = getWeekKey(currentDate)
-            const shift2UserIds = weeklyShiftAssignments.get(weekKey) || []
+        // Assign for each user
+        users.forEach(user => {
+            // Priority 1: Vacation
+            if (isOnVacation(user.id, currentDate)) {
+                scheduleData.push({ userId: user.id, date: currentDate, type: "VACATION" })
+                return
+            }
 
-            // Assign for each user
-            users.forEach(user => {
-                if (isOnVacation(user.id, currentDate)) {
-                    scheduleData.push({ userId: user.id, date: currentDate, type: "VACATION" })
-                    return
-                }
+            // Priority 2: Duty Assignment
+            if (dutyAssignments.get(dateStr) === user.id) {
+                scheduleData.push({ userId: user.id, date: currentDate, type: "DUTY" })
+                return
+            }
 
+            // Priority 3: Holiday
+            if (isHol && isWeekday) {
+                scheduleData.push({ userId: user.id, date: currentDate, type: "HOLIDAY" })
+                return
+            }
+
+            // Priority 4: Regular Workday
+            if (isWeekday && !isHol) {
                 if (user.fixedShift) {
                     scheduleData.push({ userId: user.id, date: currentDate, type: user.fixedShift })
                     return
@@ -363,13 +364,8 @@ export async function generateSchedule(year: number, month: number, targetDepart
                 } else {
                     scheduleData.push({ userId: user.id, date: currentDate, type: "SHIFT_1" })
                 }
-            })
-        }
-        else {
-            // Should be covered by Duty/Holiday logic, but if simulation didn't catch it (e.g. past history), handle gracefully
-            // or if it's a weekend/holiday that wasn't assigned (e.g. no users available?)
-            // Just skip or fallback.
-        }
+            }
+        })
     }
 
     // 5. Save: Delete ONLY the days matching the generated users instead of whole company

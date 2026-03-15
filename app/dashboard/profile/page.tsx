@@ -121,6 +121,18 @@ export default async function ProfilePage({
                                 used={vacationStats.used}
                                 baseLimit={vacationStats.details.base}
                                 carriedOver={vacationStats.details.carriedOver}
+                                additional={vacationStats.details.additional || 0}
+                                baseAdditional={vacationStats.details.baseAdditional || 0}
+                                additionalUsed={vacationStats.details.additionalUsed || 0}
+                                childcareUsed={vacationStats.childcareUsed ?? 0}
+                                onDemandUsed={vacationStats.details.onDemandUsed ?? 0}
+                                specialLeaveUsed={vacationStats.details.specialLeaveUsed ?? 0}
+                                childcareLimit={vacationStats.childcareLimit ?? 0}
+                                overtimeHours={vacationStats.overtimeHours || 0}
+                                contractType={vacationStats.contractType}
+                                has10YearsSeniority={vacationStats.has10YearsSeniority}
+                                hasChildren={vacationStats.hasChildren}
+                                saturdayHolidays={vacationStats.saturdayHolidays}
                             />
                         </CardContent>
                     </Card>

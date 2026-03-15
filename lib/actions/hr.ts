@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { hasPermission } from "@/lib/auth/permissions"
+import { getSaturdayHolidaysCount, getSaturdayHolidaysDetails } from "@/lib/holidays"
 
 export async function getMedicalExams(userId: number) {
     return await prisma.medicalExam.findMany({
@@ -12,6 +13,7 @@ export async function getMedicalExams(userId: number) {
         orderBy: { validUntil: 'asc' }
     })
 }
+
 
 export async function addMedicalExam(userId: number, type: string, validUntil: Date) {
     const session = await getServerSession(authOptions)
@@ -50,19 +52,34 @@ export async function getVacationStats(userId: number, year: number) {
         where: { id: userId },
         select: {
             vacationDaysLimit: true,
-            carriedOverVacationDays: true
+            carriedOverVacationDays: true,
+            additionalVacationDays: true,
+            contractType: true,
+            has10YearsSeniority: true,
+            hasChildren: true
         }
     })
 
-    if (!user) return { limit: 0, used: 0, details: { base: 26, carriedOver: 0 } }
+    if (!user) return { limit: 0, used: 0, details: { base: 26, carriedOver: 0, additional: 0 }, childcareUsed: 0, childcareLimit: 0, overtimeHours: 0, overtimeDaysUsed: 0, contractType: 'UOP', has10YearsSeniority: false, hasChildren: false }
+    
+    let baseLimit = user.vacationDaysLimit
+    let carriedOver = user.carriedOverVacationDays || 0
 
-    const totalLimit = (user.vacationDaysLimit || 0) + (user.carriedOverVacationDays || 0)
+    if (user.contractType === 'B2B') {
+        baseLimit = user.vacationDaysLimit // Allow admin to change this, dont hardcode 26 anymore
+        carriedOver = 0 // B2B does not carry over unused days
+    } else {
+        // UOP: limit depends on seniority
+        baseLimit = user.has10YearsSeniority ? 26 : 20
+    }
 
-    // Count *work days* used for vacation in the given year
+    const totalLimit = baseLimit + carriedOver
+
+    // Count *work days* used for standard vacation + on demand in the given year
     const usedDays = await prisma.scheduleDay.count({
         where: {
             userId,
-            type: 'VACATION',
+            type: { in: ['VACATION', 'ON_DEMAND'] },
             date: {
                 gte: new Date(year, 0, 1),
                 lte: new Date(year, 11, 31)
@@ -70,13 +87,100 @@ export async function getVacationStats(userId: number, year: number) {
         }
     })
 
+    // Track on-demand specifically (it's already included in usedDays)
+    const onDemandUsedDays = await prisma.scheduleDay.count({
+        where: {
+            userId,
+            type: 'ON_DEMAND',
+            date: {
+                gte: new Date(year, 0, 1),
+                lte: new Date(year, 11, 31)
+            }
+        }
+    })
+
+    // Track special leave specifically (does not subtract from base limit)
+    const specialLeaveUsedDays = await prisma.scheduleDay.count({
+        where: {
+            userId,
+            type: 'SPECIAL_LEAVE',
+            date: {
+                gte: new Date(year, 0, 1),
+                lte: new Date(year, 11, 31)
+            }
+        }
+    })
+
+    // Count *work days* used for childcare in the given year
+    const childcareUsedDays = await prisma.scheduleDay.count({
+        where: {
+            userId,
+            type: 'CHILDCARE',
+            date: {
+                gte: new Date(year, 0, 1),
+                lte: new Date(year, 11, 31)
+            }
+        }
+    })
+
+    // Count *work days* used for additional vacation in the given year
+    const additionalUsedDays = await prisma.scheduleDay.count({
+        where: {
+            userId,
+            type: 'ADDITIONAL',
+            date: {
+                gte: new Date(year, 0, 1),
+                lte: new Date(year, 11, 31)
+            }
+        }
+    })
+
+    // Calculate total overtime hours from WorkLogEntry for ALL time up to this year? Or just lifetime. 
+    // Overtime is usually accrued continuously, but let's just get total for now.
+    const overtimeLogs = await prisma.workLogEntry.aggregate({
+        where: { userId },
+        _sum: { overtime: true }
+    })
+    const accruedOvertimeHours = overtimeLogs._sum.overtime || 0
+
+    // Overtime days used
+    const overtimeUsedDays = await prisma.scheduleDay.count({
+        where: {
+            userId,
+            type: 'OVERTIME'
+            // overtime can be used across years, if accrued continuously
+            // or just year? Usually overtime is rolling
+        }
+    })
+
+    const availableOvertimeHours = Math.max(0, accruedOvertimeHours - (overtimeUsedDays * 8))
+
+    const saturdayBonus = getSaturdayHolidaysCount(year)
+    const saturdayHolidays = getSaturdayHolidaysDetails(year)
+    const baseAdditional = user.additionalVacationDays || 0
+    const totalAdditional = baseAdditional + saturdayBonus
+
     return {
         limit: totalLimit,
         used: usedDays,
         details: {
-            base: user.vacationDaysLimit,
-            carriedOver: user.carriedOverVacationDays
-        }
+            base: baseLimit,
+            carriedOver: carriedOver,
+            additional: totalAdditional,
+            baseAdditional: baseAdditional,
+            additionalUsed: additionalUsedDays,
+            onDemandUsed: onDemandUsedDays,
+            specialLeaveUsed: specialLeaveUsedDays
+        },
+        childcareUsed: childcareUsedDays,
+        childcareLimit: user.hasChildren ? 2 : 0,
+        overtimeHours: availableOvertimeHours,
+        overtimeDaysUsed: overtimeUsedDays,
+        overtimeTotalAccrued: accruedOvertimeHours,
+        contractType: user.contractType,
+        has10YearsSeniority: user.has10YearsSeniority,
+        hasChildren: user.hasChildren,
+        saturdayHolidays: saturdayHolidays // Added for UI details
     }
 }
 
@@ -87,7 +191,7 @@ export async function getUserVacations(userId: number) {
     });
 }
 
-export async function updateVacationBalance(userId: number, limit: number, carriedOver: number) {
+export async function updateVacationBalance(userId: number, limit: number, carriedOver: number, additionalVacationDays: number = 0, contractType: string = "UOP", has10YearsSeniority: boolean = false, hasChildren: boolean = false) {
     const session = await getServerSession(authOptions)
     if (!session || !hasPermission(session.user as any, "manage_hr_data")) {
         return { error: "Brak uprawnień" }
@@ -98,7 +202,11 @@ export async function updateVacationBalance(userId: number, limit: number, carri
             where: { id: userId },
             data: {
                 vacationDaysLimit: limit,
-                carriedOverVacationDays: carriedOver
+                carriedOverVacationDays: carriedOver,
+                additionalVacationDays: additionalVacationDays,
+                contractType: contractType,
+                has10YearsSeniority: has10YearsSeniority,
+                hasChildren: hasChildren
             }
         })
         revalidatePath("/dashboard/profile")

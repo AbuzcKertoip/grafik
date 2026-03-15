@@ -164,13 +164,20 @@ export async function syncScheduleToWorkLogs(userId: number | string, year: numb
                     project = "L4"
                     break;
                 case "DUTY":
-                    description = "Dyżur domowy"
+                    description = "Dyżur"
                     // Duty might be different hours, let's assume weekend standard or user specific.
                     // For now, leave empty times or set standard.
                     startTime = "08:00"
                     endTime = "16:00" // Placeholder
                     duration = 8
                     project = "Dyżur"
+                    break;
+                case "HOLIDAY":
+                    description = "Święto Państwowe"
+                    startTime = ""
+                    endTime = ""
+                    duration = 0
+                    project = "Święto"
                     break;
                 default:
                     continue; // Skip OFF or unknown

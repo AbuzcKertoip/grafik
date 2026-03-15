@@ -29,8 +29,12 @@ model User {
   updatedAt    DateTime       @updatedAt
   
   // HR Fields
+  contractType      String         @default("UOP") // 'UOP', 'B2B'
+  has10YearsSeniority Boolean      @default(false)
+  hasChildren       Boolean      @default(false)
   vacationDaysLimit Int           @default(26) // 20 or 26 typically
   carriedOverVacationDays Int     @default(0)
+  additionalVacationDays Int      @default(0)
   medicalExams      MedicalExam[]
   equipment         Equipment[]
   tools             Tool[]

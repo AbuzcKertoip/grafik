@@ -58,6 +58,9 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
     const [secondaryDepartmentId, setSecondaryDepartmentId] = useState<string>(user?.secondaryDepartmentId?.toString() || "null")
     const [skipDuties, setSkipDuties] = useState<boolean>(user?.skipDuties || false)
     const [fixedShift, setFixedShift] = useState<string>(user?.fixedShift || "NONE")
+    const [contractType, setContractType] = useState<string>(user?.contractType || "UOP")
+    const [has10YearsSeniority, setHas10YearsSeniority] = useState<boolean>(user?.has10YearsSeniority || false)
+    const [hasChildren, setHasChildren] = useState<boolean>(user?.hasChildren || false)
     const [isLoading, setIsLoading] = useState(false)
     const [localPermissions, setLocalPermissions] = useState<Set<number>>(new Set())
 
@@ -72,6 +75,9 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
             setSecondaryDepartmentId(user.secondaryDepartmentId?.toString() || "null")
             setSkipDuties(user.skipDuties || false)
             setFixedShift(user.fixedShift || "NONE")
+            setContractType(user.contractType || "UOP")
+            setHas10YearsSeniority(user.has10YearsSeniority || false)
+            setHasChildren(user.hasChildren || false)
             setLocalPermissions(new Set(user.permissions?.map((p: any) => p.permissionId)))
         }
     }, [user])
@@ -83,7 +89,10 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
             departmentId: departmentId === "null" ? null : parseInt(departmentId),
             secondaryDepartmentId: secondaryDepartmentId === "null" ? null : parseInt(secondaryDepartmentId),
             skipDuties,
-            fixedShift: fixedShift === "NONE" ? null : fixedShift
+            fixedShift: fixedShift === "NONE" ? null : fixedShift,
+            contractType,
+            has10YearsSeniority,
+            hasChildren
         })
         setIsLoading(false)
 
@@ -174,6 +183,48 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="space-y-2">
+                            <Label>Rodzaj umowy</Label>
+                            <Select value={contractType} onValueChange={setContractType}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="UOP">Umowa o pracę (UOP)</SelectItem>
+                                    <SelectItem value="B2B">Samozatrudnienie (B2B)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {contractType === 'UOP' && (
+                        <div className="space-y-4">
+                            <Label>Staż pracy (Urlop)</Label>
+                            <div className="flex items-center space-x-2 border rounded-md p-4 bg-muted/20">
+                                <Checkbox
+                                    id="has10YearsSeniority"
+                                    checked={has10YearsSeniority}
+                                    onCheckedChange={(val) => setHas10YearsSeniority(val as boolean)}
+                                />
+                                <Label htmlFor="has10YearsSeniority" className="font-normal cursor-pointer">
+                                    Pracownik posiada staż pracy równy lub dłuższy niż 10 lat (przysługuje 26 dni urlopu)
+                                </Label>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                         <Label>Opieka nad dzieckiem</Label>
+                         <div className="flex items-center space-x-2 border rounded-md p-4 bg-muted/20">
+                             <Checkbox
+                                 id="editHasChildren"
+                                 checked={hasChildren}
+                                 onCheckedChange={(val) => setHasChildren(val as boolean)}
+                             />
+                             <Label htmlFor="editHasChildren" className="font-normal cursor-pointer">
+                                 Pracownik posiada dzieci (przysługują 2 dni zwolnienia na opiekę)
+                             </Label>
+                         </div>
                     </div>
 
                     <div className="space-y-4">
