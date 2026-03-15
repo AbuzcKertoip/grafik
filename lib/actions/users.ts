@@ -64,8 +64,20 @@ export async function getUsers(requestedDepartmentId?: string | null) {
             }
         }
     } else {
-        // Regular users can ONLY see themselves
-        where.id = parseInt(session.user.id.toString());
+        // Regular users can see members of their own primary/secondary departments
+        if (currentDeptId || secondaryDeptId) {
+            const userDepts = [];
+            if (currentDeptId) userDepts.push(currentDeptId);
+            if (secondaryDeptId) userDepts.push(secondaryDeptId);
+            
+            where.OR = [
+                { departmentId: { in: userDepts } },
+                { secondaryDepartmentId: { in: userDepts } }
+            ]
+        } else {
+            // Fallback: if user has no department, they only see themselves
+            where.id = parseInt(session.user.id.toString());
+        }
     }
 
     // Always exclude ADMIN role from employee lists
