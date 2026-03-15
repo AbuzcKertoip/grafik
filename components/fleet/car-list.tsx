@@ -33,6 +33,8 @@ import { Plus, Pencil, Trash2, UserPlus, AlertTriangle, CheckCircle, Car as CarI
 import { createCar, updateCar, deleteCar, assignCaretaker } from "@/lib/actions/fleet"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { CarRepairsDialog } from "./car-repairs-dialog"
+import { Wrench } from "lucide-react"
 
 interface Car {
     id: number
@@ -61,12 +63,14 @@ interface User {
 interface CarListProps {
     initialCars: Car[]
     users: User[]
+    isAdmin: boolean
 }
 
-export function CarList({ initialCars, users }: CarListProps) {
+export function CarList({ initialCars, users, isAdmin }: CarListProps) {
     const [cars, setCars] = useState<Car[]>(initialCars)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
+    const [isRepairsDialogOpen, setIsRepairsDialogOpen] = useState(false)
     const [selectedCar, setSelectedCar] = useState<Car | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
@@ -190,6 +194,11 @@ export function CarList({ initialCars, users }: CarListProps) {
         }
     }
 
+    const handleRepairsOpen = (car: Car) => {
+        setSelectedCar(car)
+        setIsRepairsDialogOpen(true)
+    }
+
     const isExpired = (date: Date) => {
         const now = new Date()
         return new Date(date) < now
@@ -265,15 +274,22 @@ export function CarList({ initialCars, users }: CarListProps) {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
+                                        <Button variant="outline" size="icon" onClick={() => handleRepairsOpen(car)} title="Naprawy" className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
+                                            <Wrench className="h-4 w-4" />
+                                        </Button>
                                         <Button variant="outline" size="icon" onClick={() => handleAssignOpen(car)} title="Przypisz opiekuna">
                                             <UserPlus className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="outline" size="icon" onClick={() => handleOpenDialog(car)} title="Edytuj">
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="destructive" size="icon" onClick={() => handleDelete(car.id)} title="Usuń">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        {isAdmin && (
+                                            <>
+                                                <Button variant="outline" size="icon" onClick={() => handleOpenDialog(car)} title="Edytuj">
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="destructive" size="icon" onClick={() => handleDelete(car.id)} title="Usuń">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </>
+                                        )}
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -363,6 +379,17 @@ export function CarList({ initialCars, users }: CarListProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Repairs Dialog */}
+            {selectedCar && (
+                <CarRepairsDialog
+                    carId={selectedCar.id}
+                    carName={`${selectedCar.make} ${selectedCar.model} (${selectedCar.plate})`}
+                    isOpen={isRepairsDialogOpen}
+                    onOpenChange={setIsRepairsDialogOpen}
+                    isAdmin={isAdmin}
+                />
+            )}
         </div>
     )
 }

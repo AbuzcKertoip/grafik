@@ -150,3 +150,66 @@ export async function assignCaretaker(carId: number, caretakerId: number | null)
         return { success: false, error: "Failed to assign caretaker" }
     }
 }
+
+export async function getCarRepairs(carId: number) {
+    const session = await getServerSession(authOptions)
+    if (!session || (!hasPermission(session.user as any, "manage_fleet") && session.user.role !== "ADMIN")) {
+        return []
+    }
+
+    const repairs = await prisma.carRepair.findMany({
+        where: { carId },
+        orderBy: { date: 'desc' }
+    })
+
+    return repairs
+}
+
+export async function addCarRepair(carId: number, data: {
+    date: Date,
+    cost: number,
+    description: string,
+    notes?: string,
+    invoiceUrl?: string
+}) {
+    const session = await getServerSession(authOptions)
+    if (!session || (!hasPermission(session.user as any, "manage_fleet") && session.user.role !== "ADMIN")) {
+        return { success: false, error: "Brak uprawnień" }
+    }
+
+    try {
+        const repair = await prisma.carRepair.create({
+            data: {
+                carId,
+                date: data.date,
+                cost: data.cost,
+                description: data.description,
+                notes: data.notes || null,
+                invoiceUrl: data.invoiceUrl || null
+            }
+        })
+
+        revalidatePath("/dashboard/fleet")
+        return { success: true, repair }
+    } catch (e) {
+        console.error("Failed to add repair", e)
+        return { success: false, error: "Wystąpił błąd zapisu naprawy" }
+    }
+}
+
+export async function deleteCarRepair(repairId: number) {
+    const session = await getServerSession(authOptions)
+    if (!session || (!hasPermission(session.user as any, "manage_fleet") && session.user.role !== "ADMIN")) {
+        return { success: false, error: "Brak uprawnień" }
+    }
+
+    try {
+        await prisma.carRepair.delete({
+            where: { id: repairId }
+        })
+        revalidatePath("/dashboard/fleet")
+        return { success: true }
+    } catch (e) {
+        return { success: false, error: "Błąd podczas usuwania" }
+    }
+}

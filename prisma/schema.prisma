@@ -196,6 +196,20 @@ model Car {
 
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+  repairs             CarRepair[]
+}
+
+model CarRepair {
+  id          Int      @id @default(autoincrement())
+  carId       Int
+  date        DateTime
+  cost        Float    @default(0.0)
+  description String
+  notes       String?  // Szerszy opis problemu/robocizny/części
+  invoiceUrl  String?  // Skan faktury, relacja lokalna
+  createdAt   DateTime @default(now())
+  
+  car         Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
 }
 
 model SystemSettings {

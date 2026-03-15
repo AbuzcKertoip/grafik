@@ -43,7 +43,7 @@ export default async function FleetPage() {
                 <p className="text-muted-foreground mt-2">Zarządzaj flotą samochodową i przypisuj opiekunów.</p>
             </div>
 
-            <CarList initialCars={cars} users={users} />
+            <CarList initialCars={cars} users={users} isAdmin={true} />
         </div>
     )
 }
