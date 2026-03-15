@@ -6,6 +6,27 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { revalidatePath } from "next/cache"
 import { hasPermission } from "@/lib/auth/permissions"
 
+// Pomocnicza funkcja sprawdzająca czy user ma dostęp do floty
+export async function isFleetAdmin(session: any) {
+    if (!session) return false;
+    const { role, departmentId } = session.user as any;
+    
+    if (role === "ADMIN" || role === "HR" || hasPermission(session.user as any, "manage_fleet")) {
+        return true;
+    }
+
+    if (role === 'MANAGER' && departmentId) {
+        const userDept = await prisma.department.findUnique({
+            where: { id: parseInt(departmentId.toString()) }
+        });
+        if (userDept && userDept.name.toUpperCase() === 'HR') {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 export async function getCars() {
     const session = await getServerSession(authOptions)
     if (!session) return []
@@ -63,7 +84,7 @@ export async function createCar(data: {
     status: string
 }) {
     const session = await getServerSession(authOptions)
-    if (!session || !hasPermission(session.user as any, "manage_fleet")) {
+    if (!await isFleetAdmin(session)) {
         return { success: false, error: "Unauthorized" }
     }
 
@@ -95,7 +116,7 @@ export async function updateCar(id: number, data: {
     caretakerId?: number | null
 }) {
     const session = await getServerSession(authOptions)
-    if (!session || !hasPermission(session.user as any, "manage_fleet")) {
+    if (!await isFleetAdmin(session)) {
         return { success: false, error: "Unauthorized" }
     }
 
@@ -115,7 +136,7 @@ export async function updateCar(id: number, data: {
 
 export async function deleteCar(id: number) {
     const session = await getServerSession(authOptions)
-    if (!session || !hasPermission(session.user as any, "manage_fleet")) {
+    if (!await isFleetAdmin(session)) {
         return { success: false, error: "Unauthorized" }
     }
 
@@ -133,7 +154,7 @@ export async function deleteCar(id: number) {
 
 export async function assignCaretaker(carId: number, caretakerId: number | null) {
     const session = await getServerSession(authOptions)
-    if (!session || !hasPermission(session.user as any, "manage_fleet")) {
+    if (!await isFleetAdmin(session)) {
         return { success: false, error: "Unauthorized" }
     }
 
@@ -153,7 +174,7 @@ export async function assignCaretaker(carId: number, caretakerId: number | null)
 
 export async function getCarRepairs(carId: number) {
     const session = await getServerSession(authOptions)
-    if (!session || (!hasPermission(session.user as any, "manage_fleet") && session.user.role !== "ADMIN")) {
+    if (!await isFleetAdmin(session)) {
         return []
     }
 
@@ -173,7 +194,7 @@ export async function addCarRepair(carId: number, data: {
     invoiceUrl?: string
 }) {
     const session = await getServerSession(authOptions)
-    if (!session || (!hasPermission(session.user as any, "manage_fleet") && session.user.role !== "ADMIN")) {
+    if (!await isFleetAdmin(session)) {
         return { success: false, error: "Brak uprawnień" }
     }
 
@@ -199,7 +220,7 @@ export async function addCarRepair(carId: number, data: {
 
 export async function deleteCarRepair(repairId: number) {
     const session = await getServerSession(authOptions)
-    if (!session || (!hasPermission(session.user as any, "manage_fleet") && session.user.role !== "ADMIN")) {
+    if (!await isFleetAdmin(session)) {
         return { success: false, error: "Brak uprawnień" }
     }
 

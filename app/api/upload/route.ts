@@ -5,10 +5,27 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { v4 as uuidv4 } from "uuid";
 import { hasPermission } from "@/lib/auth/permissions";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
-    if (!session || (!hasPermission(session.user as any, "manage_fleet") && session.user.role !== "ADMIN")) {
+    if (!session) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const { role, departmentId } = session.user as any;
+    let isAdmin = role === "ADMIN" || role === "HR" || hasPermission(session.user as any, "manage_fleet");
+
+    if (!isAdmin && role === 'MANAGER' && departmentId) {
+        const userDept = await prisma.department.findUnique({
+            where: { id: parseInt(departmentId.toString()) }
+        });
+        if (userDept && userDept.name.toUpperCase() === 'HR') {
+            isAdmin = true;
+        }
+    }
+
+    if (!isAdmin) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
