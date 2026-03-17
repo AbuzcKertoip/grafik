@@ -71,8 +71,8 @@ export default async function ProfilePage({
     const canEditAvatar = isOwner || isAdmin;
 
     return (
-        <div className="p-8 space-y-8 animate-in fade-in duration-500">
-            <div className="flex items-center gap-6">
+        <div className="max-w-5xl mx-auto w-full p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+            <div className="flex flex-col items-center text-center gap-4">
                 <AvatarUpload
                     userId={targetUserId}
                     currentImage={user.image}
@@ -80,9 +80,9 @@ export default async function ProfilePage({
                     editable={canEditAvatar}
                 />
 
-                <div>
+                <div className="flex flex-col items-center">
                     <h1 className="text-3xl font-bold text-foreground">{user.name || user.username}</h1>
-                    <p className="text-muted-foreground flex items-center gap-2 mt-1">
+                    <p className="text-muted-foreground flex items-center justify-center gap-2 mt-1">
                         {user.role === 'ADMIN' ? <Shield className="h-4 w-4 text-amber-600 dark:text-amber-500" /> : <UserIcon className="h-4 w-4" />}
                         {user.role}
                     </p>
@@ -90,7 +90,7 @@ export default async function ProfilePage({
             </div>
 
             <Tabs defaultValue="contact" className="w-full">
-                <TabsList className="flex flex-wrap h-auto w-full gap-2 mb-8 justify-start">
+                <TabsList className="flex flex-wrap h-auto w-full gap-2 mb-8 justify-center">
                     <TabsTrigger value="contact">Kontakt</TabsTrigger>
                     <TabsTrigger value="vacations">Urlopy</TabsTrigger>
                     <TabsTrigger value="medical">Badania</TabsTrigger>
@@ -100,7 +100,7 @@ export default async function ProfilePage({
                 </TabsList>
 
                 <TabsContent value="contact" className="space-y-6">
-                    <div className="max-w-4xl">
+                    <div className="max-w-3xl mx-auto w-full">
                         <ContactInfo
                             user={user}
                             isAdminOrOwner={isOwner || canManageHR}
@@ -141,7 +141,7 @@ export default async function ProfilePage({
                 </TabsContent>
 
                 <TabsContent value="medical" className="space-y-6">
-                    <div className="max-w-4xl">
+                    <div className="max-w-3xl mx-auto w-full">
                         <MedicalExamList
                             exams={user.medicalExams}
                             userId={targetUserId}
@@ -166,7 +166,7 @@ export default async function ProfilePage({
                 </TabsContent>
 
                 <TabsContent value="benefits" className="space-y-6">
-                    <div className="max-w-4xl">
+                    <div className="max-w-3xl mx-auto w-full">
                         <BenefitsCard
                             userId={targetUserId}
                             initialInternet={user.hasInternetPackage}
@@ -177,7 +177,7 @@ export default async function ProfilePage({
                 </TabsContent>
 
                 <TabsContent value="clothing" className="space-y-6">
-                    <div className="max-w-4xl">
+                    <div className="max-w-3xl mx-auto w-full">
                         <ClothingSizes
                             sizes={sizes}
                             userId={targetUserId}
