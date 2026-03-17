@@ -12,6 +12,7 @@ import { BenefitsCard } from "@/components/hr/benefits-card";
 import { ClothingSizes } from "@/components/hr/clothing-sizes";
 import { ContactInfo } from "@/components/user-profile/contact-info";
 import { AvatarUpload } from "@/components/user-profile/avatar-upload";
+import { DirectLeaveEntry } from "@/components/hr/direct-leave-entry";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -110,8 +111,11 @@ export default async function ProfilePage({
 
                 <TabsContent value="vacations" className="space-y-6">
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Podsumowanie Urlopowe</CardTitle>
+                            {(canManageHR || isManager) && !isOwner && (
+                                <DirectLeaveEntry userId={targetUserId} />
+                            )}
                         </CardHeader>
                         <CardContent>
                             <VacationStats
