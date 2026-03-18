@@ -327,7 +327,7 @@ export async function deleteTool(id: number) {
 }
 
 // Benefit Actions
-export async function updateBenefits(userId: number, hasInternetPackage: boolean, hasMultisportCard: boolean) {
+export async function updateBenefits(userId: number, hasInternetPackage: boolean, hasMultisportCard: boolean, internetDescription: string | null = null, multisportDescription: string | null = null) {
     const session = await getServerSession(authOptions)
     if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
 
@@ -336,7 +336,9 @@ export async function updateBenefits(userId: number, hasInternetPackage: boolean
             where: { id: userId },
             data: {
                 hasInternetPackage,
-                hasMultisportCard
+                hasMultisportCard,
+                internetDescription,
+                multisportDescription
             }
         })
         revalidatePath("/dashboard/profile")

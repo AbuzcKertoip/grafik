@@ -42,6 +42,8 @@ model User {
   // Benefits
   hasInternetPackage Boolean @default(false)
   hasMultisportCard  Boolean @default(false)
+  internetDescription String?
+  multisportDescription String?
   
   // Clothing Sizes
   shirtSize         String?       // XS, S, M, L, XL, XXL

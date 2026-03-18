@@ -175,6 +175,8 @@ export default async function ProfilePage({
                             userId={targetUserId}
                             initialInternet={user.hasInternetPackage}
                             initialMultisport={user.hasMultisportCard}
+                            initialInternetDescription={user.internetDescription}
+                            initialMultisportDescription={user.multisportDescription}
                             isAdmin={canManageHR}
                         />
                     </div>
