@@ -89,14 +89,15 @@ async function main() {
         const dateInfo = colMap[col];
         const rawVal = String(row[col] || '').trim().toUpperCase();
         
-        let type = 'OFF';
+        let type = '';
         if (rawVal === '1') type = 'SHIFT_1';
         else if (rawVal === '2') type = 'SHIFT_2';
         else if (rawVal === 'D') type = 'DUTY';
         else if (rawVal === 'U') type = 'VACATION';
         else if (rawVal === 'L4') type = 'SICK';
-        else if (rawVal === '') type = 'OFF';
-        else type = 'OFF';
+        else if (rawVal === 'DW') type = 'OFF';
+        
+        if (!type) continue;
         
         const date = new Date(Date.UTC(dateInfo.year, dateInfo.month, dateInfo.day, 12, 0, 0));
         schedules.push({ name: firstCol, date, type });
