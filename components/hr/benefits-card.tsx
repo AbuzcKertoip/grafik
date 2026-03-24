@@ -1,4 +1,4 @@
-"use client"
+fvxy"use client"
 
 import { useState, useTransition } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -78,7 +78,7 @@ export function BenefitsCard({
                         />
                     </div>
                     <div className="pl-16 pr-4">
-                        <Textarea 
+                        <Textarea
                             placeholder="Uwagi do karty (np. rodzaj powiązanej firmy, numer pracownika, dopłaty)..."
                             value={multisportDescription}
                             onChange={(e) => {
@@ -113,7 +113,7 @@ export function BenefitsCard({
                         />
                     </div>
                     <div className="pl-16 pr-4">
-                        <Textarea 
+                        <Textarea
                             placeholder="Uwagi do Internetu (np. numer telefonu do karty SIM, router, wielkość pakietu)..."
                             value={internetDescription}
                             onChange={(e) => {
