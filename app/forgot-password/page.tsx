@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
-import { requestPasswordReset } from "@/lib/actions/auth-actions"
+import { requestPasswordReset, generateMathCaptcha } from "@/lib/actions/auth-actions"
 import Link from "next/link"
+import { useEffect } from "react"
 import { ArrowLeft } from "lucide-react"
 import { AnimatedBackground } from "@/components/ui/animated-background"
 import { ModernClock } from "@/components/ui/modern-clock"
@@ -15,8 +16,20 @@ import { AuthBanner } from "@/components/ui/auth-banner"
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState("")
+    const [captchaAnswer, setCaptchaAnswer] = useState("")
+    const [captchaData, setCaptchaData] = useState<{question: string, hash: string} | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
+
+    const loadCaptcha = async () => {
+        const data = await generateMathCaptcha()
+        setCaptchaData(data)
+        setCaptchaAnswer("")
+    }
+
+    useEffect(() => {
+        loadCaptcha()
+    }, [])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -24,13 +37,18 @@ export default function ForgotPasswordPage() {
             toast.error("Wprowadź adres e-mail")
             return
         }
+        if (!captchaData || !captchaAnswer) {
+            toast.error("Wprowadź odpowiedź zabezpieczającą (Captcha)")
+            return
+        }
 
         setIsLoading(true)
-        const res = await requestPasswordReset(email)
+        const res = await requestPasswordReset(email, captchaAnswer, captchaData.hash)
         setIsLoading(false)
 
         if (res.error) {
             toast.error(res.error)
+            loadCaptcha() // Odśwież zagadkę przy błędzie
         } else {
             setIsSuccess(true)
             toast.success(res.message || "Wysłano link resetujący")
@@ -60,16 +78,31 @@ export default function ForgotPasswordPage() {
                                 Sprawdź swoją skrzynkę odbiorczą. Jeśli Twoje konto istnieje, otrzymasz wkrótce e-mail z instrukcją ustawienia nowego hasła.
                             </div>
                         ) : (
-                            <div className="space-y-2">
-                                <Label htmlFor="email">E-mail</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="jkowalski@firma.pl"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">E-mail</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        placeholder="jkowalski@firma.pl"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                {captchaData && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="captcha" className="font-semibold text-primary">{captchaData.question}</Label>
+                                        <Input
+                                            id="captcha"
+                                            type="number"
+                                            placeholder="Wynik"
+                                            value={captchaAnswer}
+                                            onChange={(e) => setCaptchaAnswer(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
                     </CardContent>

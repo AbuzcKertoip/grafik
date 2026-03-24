@@ -5,8 +5,64 @@ import { sendEmail } from "@/lib/actions/mailer"
 import { hashPassword } from "@/lib/password"
 import crypto from "crypto"
 
-export async function requestPasswordReset(email: string) {
+export async function generateMathCaptcha() {
+    const a = Math.floor(Math.random() * 10) + 1;
+    const b = Math.floor(Math.random() * 10) + 1;
+    const expected = a + b;
+    const timestamp = Date.now();
+    const secret = process.env.NEXTAUTH_SECRET || "fallback_secret_for_captcha";
+    
+    const token = crypto.createHmac('sha256', secret)
+        .update(`${expected}:${timestamp}`)
+        .digest('hex');
+    
+    return {
+        question: `Udowodnij, że nie jesteś robotem: Ile to jest ${a} + ${b}?`,
+        hash: `${timestamp}:${token}`
+    };
+}
+
+export async function requestPasswordReset(email: string, captchaAnswer?: string, captchaHash?: string) {
     if (!email) return { error: "Wprowadź adres e-mail" }
+    if (!captchaAnswer || !captchaHash) return { error: "Wprowadź odpowiedź zabezpieczającą (Captcha)." }
+    
+    const split = captchaHash.split(':');
+    if (split.length !== 2) return { error: "Nieprawidłowy token zabezpieczający." }
+    const [timestampStr, captchaToken] = split;
+    
+    if (Date.now() - Number(timestampStr) > 10 * 60 * 1000) {
+        return { error: "Czas na rozwiązanie Captchy minął. Odśwież stronę." }
+    }
+    
+    const secret = process.env.NEXTAUTH_SECRET || "fallback_secret_for_captcha";
+    const expectedToken = crypto.createHmac('sha256', secret).update(`${captchaAnswer.trim()}:${timestampStr}`).digest('hex');
+    
+    if (expectedToken !== captchaToken) {
+        return { error: "Nieprawidłowa odpowiedź zabezpieczająca (Captcha)." }
+    }
+
+    const recentTokens = await prisma.passwordResetToken.findMany({
+        where: { 
+            email: email.toLowerCase(),
+            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+        },
+        orderBy: { createdAt: 'desc' }
+    });
+
+    const attempts = recentTokens.length;
+    if (attempts > 0) {
+        const lastAttempt = recentTokens[0].createdAt.getTime();
+        let cooldownMinutes = 0;
+        if (attempts === 1) cooldownMinutes = 1;
+        else if (attempts === 2) cooldownMinutes = 10;
+        else cooldownMinutes = 60;
+        
+        const nextAllowed = lastAttempt + cooldownMinutes * 60 * 1000;
+        if (Date.now() < nextAllowed) {
+            const remaining = Math.ceil((nextAllowed - Date.now()) / 60000);
+            return { error: `Przekroczono limit prób. Odczekaj ${remaining} min. przed kolejną próbą.` }
+        }
+    }
 
     const user = await prisma.user.findFirst({
         where: { email: email.toLowerCase() }
