@@ -8,6 +8,15 @@ import { sendEmail } from "@/lib/actions/mailer"
 import { createLog } from "@/lib/actions/log-actions"
 import { hasPermission } from "@/lib/auth/permissions"
 
+function formatDatePL(date: Date | string) {
+    return new Intl.DateTimeFormat('pl-PL', {
+        timeZone: 'Europe/Warsaw',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(new Date(date));
+}
+
 export async function getVacations(year: number) {
     const startDate = new Date(year, 0, 1)
     const endDate = new Date(year, 11, 31)
@@ -222,7 +231,7 @@ export async function createVacation(data: any) {
                     <div style="font-family: sans-serif; color: #333;">
                         <h2>Nowy wniosek urlopowy oczekuje!</h2>
                         <p>Pracownik <b>${user.name || user.username}</b> złożył nowy wniosek (typ: ${type || 'VACATION'}).</p>
-                        <p>Termin: od ${startDate.toISOString().split('T')[0]} do ${endDate.toISOString().split('T')[0]}</p>
+                        <p>Termin: od ${formatDatePL(startDate)} do ${formatDatePL(endDate)}</p>
                         <p>Zaloguj się do systemu HR4YOU, by zatwierdzić lub odrzucić.</p>
                     </div>
                     `
@@ -323,7 +332,7 @@ export async function approveVacation(id: number) {
             const mailHtml = `
             <div style="font-family: sans-serif; color: #333;">
                 <h2 style="color: #10b981;">Twój wniosek urlopowy został zatwierdzony!</h2>
-                <p>Termin: od ${format(new Date(vacation.startDate), "d-MM-yyyy")} do ${format(new Date(vacation.endDate), "d-MM-yyyy")}</p>
+                <p>Termin: od ${formatDatePL(vacation.startDate)} do ${formatDatePL(vacation.endDate)}</p>
                 <p>Możesz już zobaczyć zmiany w grafiku systemu.</p>
             </div>
             `
@@ -350,7 +359,7 @@ export async function approveVacation(id: number) {
                     <h2>Informacja z Działu HR</h2>
                     <p>Zatwierdzono systemowo wniosek urlopowy dla pracownika <b>${vacation.user.name || vacation.user.username}</b>.</p>
                     <p>Typ: <b>${vacation.type}</b></p>
-                    <p>Termin: od ${format(new Date(vacation.startDate), "d-MM-yyyy")} do ${format(new Date(vacation.endDate), "d-MM-yyyy")}</p>
+                    <p>Termin: od ${formatDatePL(vacation.startDate)} do ${formatDatePL(vacation.endDate)}</p>
                     <p>Dni zostały już oznaczone w grafiku.</p>
                 </div>
                 `
@@ -417,7 +426,7 @@ export async function rejectVacation(id: number, reason: string) {
             const mailHtml = `
             <div style="font-family: sans-serif; color: #333;">
                 <h2 style="color: #ef4444;">Twój wniosek urlopowy został odrzucony</h2>
-                <p>Termin: od ${format(new Date(vacation.startDate), "d-MM-yyyy")} do ${format(new Date(vacation.endDate), "d-MM-yyyy")}</p>
+                <p>Termin: od ${formatDatePL(vacation.startDate)} do ${formatDatePL(vacation.endDate)}</p>
                 <p><b>Powód odrzucenia:</b></p>
                 <blockquote style="border-left: 4px solid #ef4444; padding-left: 10px; font-style: italic;">
                     ${reason}
