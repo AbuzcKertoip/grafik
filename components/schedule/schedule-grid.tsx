@@ -14,8 +14,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { upsertShift } from "@/lib/actions/schedule"
+import { upsertShifts } from "@/lib/actions/schedule"
 import { cn } from "@/lib/utils"
+import { useEffect, useRef } from "react"
 
 interface ScheduleGridProps {
     users: any[]
@@ -26,11 +27,12 @@ interface ScheduleGridProps {
 }
 
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog"
 import { getPolishHolidays, isHoliday } from "@/lib/holidays"
 
 const SHIFT_TYPES = ["", "SHIFT_1", "SHIFT_2", "DUTY", "VACATION", "SPECIAL_LEAVE", "CHILDCARE", "ADDITIONAL", "OVERTIME", "SICK", "HOLIDAY", "OFF"]
@@ -66,6 +68,23 @@ const SHIFT_COLORS: Record<string, string> = {
 export function ScheduleGrid({ users, schedule, year, month, currentUser }: ScheduleGridProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
+    const [isDragging, setIsDragging] = useState(false)
+    const [selectedCells, setSelectedCells] = useState<{userId: number, day: number}[]>([])
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const gridRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const handleMouseUp = () => {
+            if (isDragging) {
+                setIsDragging(false)
+                if (selectedCells.length > 0) {
+                    setIsModalOpen(true)
+                }
+            }
+        }
+        window.addEventListener('mouseup', handleMouseUp)
+        return () => window.removeEventListener('mouseup', handleMouseUp)
+    }, [isDragging, selectedCells])
 
     // Determine if the current user has permission to edit the schedule
     const isEditable = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
@@ -83,9 +102,32 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
         })
     }
 
-    const handleCellClick = (userId: number, day: number, selectedType: string) => {
+    const handleMouseDown = (userId: number, day: number) => {
+        if (!isEditable) return
+        setIsDragging(true)
+        setSelectedCells([{ userId, day }])
+    }
+
+    const handleMouseEnter = (userId: number, day: number) => {
+        if (!isDragging || !isEditable) return
+        // Sprawdź czy już jest by nie dublować
+        if (!selectedCells.find(c => c.userId === userId && c.day === day)) {
+            setSelectedCells(prev => [...prev, { userId, day }])
+        }
+    }
+
+    const handleApplyBulk = (selectedType: string) => {
+        setIsModalOpen(false)
         startTransition(async () => {
-            await upsertShift(userId, year, month, day, selectedType)
+            const shifts = selectedCells.map(c => ({
+                userId: c.userId,
+                year,
+                month,
+                day: c.day,
+                type: selectedType
+            }))
+            await upsertShifts(shifts)
+            setSelectedCells([])
         })
     }
 
@@ -151,54 +193,23 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                                         const isHolidayDate = isHoliday(date, holidays)
                                         const isOff = isWeekend || isHolidayDate
 
+                                        const isSelected = selectedCells.some(c => c.userId === user.id && c.day === day)
                                         return (
                                             <TableCell
                                                 key={day}
                                                 className={cn(
                                                     "p-0 border-r text-center select-none transition-colors min-w-[40px] w-10 h-10 overflow-hidden dark:border-slate-800",
-                                                    SHIFT_COLORS[type],
-                                                    !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
+                                                    isSelected ? "ring-2 ring-primary ring-inset opacity-80" : "",
+                                                    !isSelected && SHIFT_COLORS[type],
+                                                    !isSelected && !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
                                                 )}
+                                                onMouseDown={() => handleMouseDown(user.id, day)}
+                                                onMouseEnter={() => handleMouseEnter(user.id, day)}
                                             >
-                                                {isEditable ? (
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none cursor-pointer">
-                                                                {SHIFT_LABELS[type]}
-                                                            </div>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="center" className="min-w-[170px]">
-                                                            {SHIFT_TYPES.map(shiftType => (
-                                                                <DropdownMenuItem
-                                                                    key={shiftType}
-                                                                    onSelect={() => handleCellClick(user.id, day, shiftType)}
-                                                                    className="cursor-pointer font-medium flex items-center gap-2"
-                                                                >
-                                                                    <div className={cn("w-3 h-3 rounded-full border shrink-0", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
-                                                                    <span className="truncate">
-                                                                    {shiftType === "" ? "Wyczyść" : SHIFT_LABELS[shiftType] + " - " + (
-                                                                        shiftType === "SHIFT_1" ? "1 Zmiana" :
-                                                                            shiftType === "SHIFT_2" ? "2 Zmiana" :
-                                                                                shiftType === "DUTY" ? "Dyżur" :
-                                                                                    shiftType === "VACATION" ? "Urlop Wypoczynkowy" :
-                                                                                        shiftType === "SPECIAL_LEAVE" ? "Urlop Okolicznościowy" :
-                                                                                            shiftType === "CHILDCARE" ? "Opieka nad dzieckiem" :
-                                                                                                shiftType === "ADDITIONAL" ? "Dodatkowy Urlop" :
-                                                                                                    shiftType === "OVERTIME" ? "Odbiór nadgodzin" :
-                                                                                        shiftType === "SICK" ? "Chorobowe" :
-                                                                                            shiftType === "HOLIDAY" ? "Święto Państwowe" :
-                                                                                                shiftType === "OFF" ? "Odbiór dnia" : ""
-                                                                    )}
-                                                                    </span>
-                                                                </DropdownMenuItem>
-                                                            ))}
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                ) : (
-                                                    <div className="flex items-center justify-center h-full w-full text-xs font-bold leading-none">
-                                                        {SHIFT_LABELS[type]}
-                                                    </div>
-                                                )}
+                                                <div className={cn("flex items-center justify-center h-full w-full text-xs font-bold leading-none", isEditable && "cursor-crosshair")}>
+                                                    {!isSelected && SHIFT_LABELS[type]}
+                                                    {isSelected && <span className="opacity-50 blur-[2px]">{SHIFT_LABELS[type]}</span>}
+                                                </div>
                                             </TableCell>
                                         )
                                     })}
@@ -209,6 +220,46 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                 </div>
             </div>
 
+            <Dialog open={isModalOpen} onOpenChange={(open) => { if (!open) { setIsModalOpen(false); setSelectedCells([]); } }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Zmień przydział ({selectedCells.length} dni)</DialogTitle>
+                        <DialogDescription>Wybierz status grafiku, który ma zostać zastosowany do wszystkich zaznaczonych komórek.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-2 gap-2 mt-4 max-h-[350px] overflow-y-auto px-2">
+                        {SHIFT_TYPES.map(shiftType => (
+                            <Button
+                                key={shiftType}
+                                variant="outline"
+                                onClick={() => handleApplyBulk(shiftType)}
+                                className="justify-start h-auto py-3 px-3"
+                            >
+                                <div className={cn("w-4 h-4 rounded border shrink-0 mr-3", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
+                                <div className="flex flex-col items-start overflow-hidden">
+                                    <span className="text-xs font-bold text-wrap text-left break-words">
+                                        {shiftType === "" ? "Wyczyść" : SHIFT_LABELS[shiftType]}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground truncate w-full text-left">
+                                        {shiftType === "" ? "Zostaw puste" : (
+                                            shiftType === "SHIFT_1" ? "1 Zmiana" :
+                                            shiftType === "SHIFT_2" ? "2 Zmiana" :
+                                            shiftType === "DUTY" ? "Dyżur" :
+                                            shiftType === "VACATION" ? "Urlop Wypoczynkowy" :
+                                            shiftType === "SPECIAL_LEAVE" ? "Urlop Okolicznościowy" :
+                                            shiftType === "CHILDCARE" ? "Opieka nad dzieckiem" :
+                                            shiftType === "ADDITIONAL" ? "Dodatkowy Urlop" :
+                                            shiftType === "OVERTIME" ? "Odbiór nadgodzin" :
+                                            shiftType === "SICK" ? "Chorobowe" :
+                                            shiftType === "HOLIDAY" ? "Święto Państwowe" :
+                                            shiftType === "OFF" ? "Odbiór dnia" : ""
+                                        )}
+                                    </span>
+                                </div>
+                            </Button>
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
             <div className="flex flex-wrap gap-4 text-sm mt-4 p-4 bg-muted/40 rounded-lg border dark:border-slate-800">
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-500 rounded"></div> 1 - Pierwsza zmiana</div>
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-orange-400 rounded"></div> 2 - Druga zmiana</div>

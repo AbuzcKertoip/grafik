@@ -477,6 +477,61 @@ export async function upsertShift(userId: number, year: number, month: number, d
     }
 }
 
+export async function upsertShifts(shifts: { userId: number, year: number, month: number, day: number, type: string }[]) {
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session || !session.user) return { error: "Brak autoryzacji" }
+
+        const { role, departmentId } = session.user
+        const secondaryDepartmentId = (session.user as any).secondaryDepartmentId;
+        const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
+        const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
+
+        if (role !== 'ADMIN' && role !== 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
+            return { error: "Brak uprawnień do edycji grafiku" }
+        }
+
+        // Simplify permission check for batch by checking all involved users upfront.
+        const reqUserIds = Array.from(new Set(shifts.map(s => s.userId)))
+        if (role !== 'ADMIN' && !hasPermission(session.user as any, "edit_schedule_all")) {
+            const targetUsers = await prisma.user.findMany({ where: { id: { in: reqUserIds } } })
+            for (const tu of targetUsers) {
+                if (tu.departmentId !== deptIdInt && tu.secondaryDepartmentId !== secDeptIdInt && tu.departmentId !== secDeptIdInt && tu.secondaryDepartmentId !== deptIdInt) {
+                    return { error: "Możesz edytować tylko pracowników swojego działu" }
+                }
+            }
+        }
+
+        await prisma.$transaction(async (tx) => {
+            for (const s of shifts) {
+                const startOfDay = new Date(s.year, s.month - 1, s.day, 0, 0, 0)
+                const endOfDay = new Date(s.year, s.month - 1, s.day, 23, 59, 59, 999)
+                await tx.scheduleDay.deleteMany({
+                    where: { userId: s.userId, date: { gte: startOfDay, lte: endOfDay } }
+                })
+                if (s.type !== 'OFF' && s.type !== '') {
+                    await tx.scheduleDay.create({
+                        data: { userId: s.userId, date: new Date(s.year, s.month - 1, s.day), type: s.type }
+                    })
+                }
+            }
+            await createLog({
+                action: "UPSERT_SHIFTS_BULK",
+                description: `Zaktualizowano hurtowo ${shifts.length} zmian w grafiku`,
+                userId: session.user.id ? parseInt(session.user.id) : undefined,
+                errorCodeKey: "SHIFT_ADDED",
+                details: { modifiedCount: shifts.length }
+            })
+        })
+        
+        revalidatePath("/dashboard/schedule")
+        return { success: true }
+    } catch (error) {
+        console.error(error)
+        return { error: "Failed to bulk save shifts" }
+    }
+}
+
 export async function clearSchedule(year: number, month: number, targetDepartmentId?: number) {
     const session = await getServerSession(authOptions)
     if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "clear_schedule"))) {
