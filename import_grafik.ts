@@ -58,6 +58,13 @@ async function main() {
       const m = parseMonth(firstCol);
       if (m !== null) {
         currentMonth = m;
+        const yearMatch = firstCol.match(/20\d{2}/);
+        if (yearMatch) {
+            currentYear = parseInt(yearMatch[0]);
+        } else {
+            currentYear = 2024; // Domyslny dla starych wpisow bez roku (np Grafik - Luty jako row 1)
+        }
+
         i++;
         const headerRow = data[i];
         colMap = {};
