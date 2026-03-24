@@ -146,7 +146,9 @@ async function main() {
   console.log('Inserting new records...');
   
   // Przekształcamy na unikanie duplikatów ze względu na nachodzące dni w arkuszach
-  const uniqueSchedules = Array.from(new Map(matchedSchedules.map(s => [`${s.userId}_${s.date.getTime()}`, s])).values());
+  const uniqueSchedules = Array.from(
+      new Map(matchedSchedules.filter(s => s.date.getFullYear() === 2026).map(s => [`${s.userId}_${s.date.getTime()}`, s]))
+  .values());
   
   let insertedCount = 0;
   const chunkSize = 200;
