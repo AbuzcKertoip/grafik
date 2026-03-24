@@ -46,6 +46,9 @@ interface Car {
     inspectionValidUntil: Date
     insuranceValidUntil: Date
     policyNumber: string
+    acValidUntil?: Date | null
+    acPolicyNumber?: string | null
+    ownershipType: string
     status: string
     caretaker?: {
         id: number
@@ -85,6 +88,9 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
         inspectionValidUntil: "",
         insuranceValidUntil: "",
         policyNumber: "",
+        acValidUntil: "",
+        acPolicyNumber: "",
+        ownershipType: "COMPANY",
         status: "ACTIVE"
     })
 
@@ -102,6 +108,9 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                 inspectionValidUntil: new Date(car.inspectionValidUntil).toISOString().split('T')[0],
                 insuranceValidUntil: new Date(car.insuranceValidUntil).toISOString().split('T')[0],
                 policyNumber: car.policyNumber,
+                acValidUntil: car.acValidUntil ? new Date(car.acValidUntil).toISOString().split('T')[0] : "",
+                acPolicyNumber: car.acPolicyNumber || "",
+                ownershipType: car.ownershipType || "COMPANY",
                 status: car.status
             })
         } else {
@@ -115,6 +124,9 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                 inspectionValidUntil: "",
                 insuranceValidUntil: "",
                 policyNumber: "",
+                acValidUntil: "",
+                acPolicyNumber: "",
+                ownershipType: "COMPANY",
                 status: "ACTIVE"
             })
         }
@@ -128,7 +140,10 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                 ...formData,
                 productionYear: Number(formData.productionYear),
                 inspectionValidUntil: new Date(formData.inspectionValidUntil),
-                insuranceValidUntil: new Date(formData.insuranceValidUntil)
+                insuranceValidUntil: new Date(formData.insuranceValidUntil),
+                acValidUntil: formData.acValidUntil ? new Date(formData.acValidUntil) : null,
+                acPolicyNumber: formData.acPolicyNumber || "",
+                ownershipType: formData.ownershipType
             }
 
             if (selectedCar) {
@@ -227,8 +242,10 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                         <TableRow>
                             <TableHead>Pojazd</TableHead>
                             <TableHead>Rejestracja</TableHead>
+                            <TableHead>Własność</TableHead>
                             <TableHead>Przegląd</TableHead>
-                            <TableHead>Ubezpieczenie</TableHead>
+                            <TableHead>OC</TableHead>
+                            <TableHead>AC</TableHead>
                             <TableHead>Opiekun</TableHead>
                             <TableHead className="text-right">Akcje</TableHead>
                         </TableRow>
@@ -245,6 +262,15 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                                 </TableCell>
                                 <TableCell>{car.plate}</TableCell>
                                 <TableCell>
+                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                        car.ownershipType === 'LEASING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                        car.ownershipType === 'BORROWED' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                                        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                    }`}>
+                                        {car.ownershipType === 'LEASING' ? 'Leasing' : car.ownershipType === 'BORROWED' ? 'Wypożyczony' : 'Własność firmy'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
                                     <div className={`flex items-center gap-1 ${isExpired(car.inspectionValidUntil) ? "text-red-600 font-bold" :
                                         isExpiringSoon(car.inspectionValidUntil) ? "text-amber-600 font-semibold" : ""
                                         }`}>
@@ -260,6 +286,19 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                                         {isExpired(car.insuranceValidUntil) && <AlertTriangle className="h-4 w-4" />}
                                     </div>
                                     <div className="text-xs text-muted-foreground">Polisa: {car.policyNumber}</div>
+                                </TableCell>
+                                <TableCell>
+                                    {car.acValidUntil ? (
+                                        <div className={`flex items-center gap-1 ${isExpired(car.acValidUntil) ? "text-red-600 font-bold" :
+                                            isExpiringSoon(car.acValidUntil) ? "text-amber-600 font-semibold" : ""
+                                        }`}>
+                                            {format(new Date(car.acValidUntil), "d MMM yyyy", { locale: pl })}
+                                            {isExpired(car.acValidUntil) && <AlertTriangle className="h-4 w-4" />}
+                                        </div>
+                                    ) : (
+                                        <span className="text-muted-foreground text-xs italic">Brak AC</span>
+                                    )}
+                                    {car.acPolicyNumber && <div className="text-xs text-muted-foreground">Polisa: {car.acPolicyNumber}</div>}
                                 </TableCell>
                                 <TableCell>
                                     {car.caretaker ? (
@@ -340,8 +379,31 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="policy">Numer Polisy</Label>
+                            <Label htmlFor="policy">Numer Polisy OC</Label>
                             <Input id="policy" value={formData.policyNumber} onChange={(e) => setFormData({ ...formData, policyNumber: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="acDate">Data ważności AC</Label>
+                                <Input id="acDate" type="date" value={formData.acValidUntil} onChange={(e) => setFormData({ ...formData, acValidUntil: e.target.value })} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="acPolicy">Numer Polisy AC</Label>
+                                <Input id="acPolicy" value={formData.acPolicyNumber} onChange={(e) => setFormData({ ...formData, acPolicyNumber: e.target.value })} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="ownership">Typ własności</Label>
+                            <Select value={formData.ownershipType} onValueChange={(v) => setFormData({ ...formData, ownershipType: v })}>
+                                <SelectTrigger id="ownership">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="COMPANY">Własność firmy</SelectItem>
+                                    <SelectItem value="LEASING">Leasing</SelectItem>
+                                    <SelectItem value="BORROWED">Wypożyczony</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <DialogFooter>

@@ -246,15 +246,7 @@ export async function createVacation(data: any) {
                     })
                     if (hrManager) targetRecipients = [hrManager]
                 }
-                        where: {
-                            permissions: {
-                                some: {
-                                    permission: { slug: "manage_hr_data" }
-                                }
-                            }
-                        }
-                    })
-                }
+
 
                 const mailHtml = `
                 <div style="font-family: sans-serif; color: #333;">

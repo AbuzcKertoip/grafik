@@ -81,6 +81,9 @@ export async function createCar(data: {
     inspectionValidUntil: Date
     insuranceValidUntil: Date
     policyNumber: string
+    acValidUntil?: Date | null
+    acPolicyNumber?: string
+    ownershipType: string
     status: string
 }) {
     const session = await getServerSession(authOptions)
@@ -112,6 +115,9 @@ export async function updateCar(id: number, data: {
     inspectionValidUntil: Date
     insuranceValidUntil: Date
     policyNumber: string
+    acValidUntil?: Date | null
+    acPolicyNumber?: string
+    ownershipType: string
     status: string
     caretakerId?: number | null
 }) {

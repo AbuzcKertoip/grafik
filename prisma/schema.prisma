@@ -191,6 +191,9 @@ model Car {
   inspectionValidUntil DateTime
   insuranceValidUntil  DateTime
   policyNumber        String
+  acValidUntil        DateTime?
+  acPolicyNumber      String?   @default("")
+  ownershipType       String    @default("COMPANY") // COMPANY, LEASING, BORROWED
   status              String    @default("ACTIVE") // ACTIVE, SERVICE, INACTIVE
 
   caretakerId         Int?
