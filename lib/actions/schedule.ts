@@ -515,13 +515,14 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
                     })
                 }
             }
-            await createLog({
-                action: "UPSERT_SHIFTS_BULK",
-                description: `Zaktualizowano hurtowo ${shifts.length} zmian w grafiku`,
-                userId: session.user.id ? parseInt(session.user.id) : undefined,
-                errorCodeKey: "SHIFT_ADDED",
-                details: { modifiedCount: shifts.length }
-            })
+        })
+
+        await createLog({
+            action: "UPSERT_SHIFTS_BULK",
+            description: `Zaktualizowano hurtowo ${shifts.length} zmian w grafiku`,
+            userId: session.user.id ? parseInt(session.user.id) : undefined,
+            errorCodeKey: "SHIFT_ADDED",
+            details: { modifiedCount: shifts.length }
         })
         
         revalidatePath("/dashboard/schedule")

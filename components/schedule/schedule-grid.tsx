@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation"
 import { upsertShifts } from "@/lib/actions/schedule"
 import { cn } from "@/lib/utils"
 import { useEffect, useRef } from "react"
+import { toast } from "sonner"
 
 interface ScheduleGridProps {
     users: any[]
@@ -73,18 +74,26 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
     const [isModalOpen, setIsModalOpen] = useState(false)
     const gridRef = useRef<HTMLDivElement>(null)
 
+    const isDraggingRef = useRef(isDragging)
+    const selectedCellsRef = useRef(selectedCells)
+
+    useEffect(() => {
+        isDraggingRef.current = isDragging
+        selectedCellsRef.current = selectedCells
+    }, [isDragging, selectedCells])
+
     useEffect(() => {
         const handleMouseUp = () => {
-            if (isDragging) {
+            if (isDraggingRef.current) {
                 setIsDragging(false)
-                if (selectedCells.length > 0) {
+                if (selectedCellsRef.current.length > 0) {
                     setIsModalOpen(true)
                 }
             }
         }
         window.addEventListener('mouseup', handleMouseUp)
         return () => window.removeEventListener('mouseup', handleMouseUp)
-    }, [isDragging, selectedCells])
+    }, [])
 
     // Determine if the current user has permission to edit the schedule
     const isEditable = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
@@ -126,8 +135,13 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                 day: c.day,
                 type: selectedType
             }))
-            await upsertShifts(shifts)
+            const res = await upsertShifts(shifts)
             setSelectedCells([])
+            if (res?.error) {
+                toast.error(res.error)
+            } else {
+                toast.success("Zapisano zmiany")
+            }
         })
     }
 
