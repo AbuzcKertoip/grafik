@@ -18,24 +18,42 @@ function formatDatePL(date: Date | string) {
 }
 
 export async function getVacations(year: number) {
+    const session = await getServerSession(authOptions)
+    if (!session) return []
+
+    const user = session.user as any
+    const role = user.role
+    const deptId = user.departmentId ? parseInt(user.departmentId.toString()) : null
+    const secDeptId = user.secondaryDepartmentId ? parseInt(user.secondaryDepartmentId.toString()) : null
+
     const startDate = new Date(year, 0, 1)
     const endDate = new Date(year, 11, 31)
 
+    const where: any = {
+        startDate: { gte: startDate },
+        endDate: { lte: endDate }
+    }
+
+    if (role === 'USER') {
+        where.userId = parseInt(user.id)
+    } else if (role === 'MANAGER') {
+        if (!hasPermission(user, "manage_vacations")) {
+            const allowedDepts = []
+            if (deptId) allowedDepts.push(deptId)
+            if (secDeptId) allowedDepts.push(secDeptId)
+            
+            where.OR = [
+                { userId: parseInt(user.id) },
+                { user: { departmentId: { in: allowedDepts } } },
+                { user: { secondaryDepartmentId: { in: allowedDepts } } }
+            ]
+        }
+    }
+
     return await prisma.vacation.findMany({
-        where: {
-            startDate: {
-                gte: startDate,
-            },
-            endDate: {
-                lte: endDate,
-            },
-        },
-        include: {
-            user: true,
-        },
-        orderBy: {
-            startDate: "asc",
-        },
+        where,
+        include: { user: true },
+        orderBy: { startDate: "asc" }
     })
 }
 
@@ -200,22 +218,34 @@ export async function createVacation(data: any) {
                 const isStandardLeave = type === "VACATION" || type === "ON_DEMAND"
                 let targetRecipient: any = null
 
+                let targetRecipients: any[] = []
                 if (isStandardLeave && (user.departmentId || user.secondaryDepartmentId)) {
                     // Route to Dept Manager
-                    targetRecipient = await prisma.user.findFirst({
-                        where: {
-                            role: "MANAGER",
-                            OR: [
-                                { departmentId: user.departmentId || undefined },
-                                { secondaryDepartmentId: user.departmentId || undefined },
-                                { departmentId: user.secondaryDepartmentId || undefined },
-                                { secondaryDepartmentId: user.secondaryDepartmentId || undefined }
-                            ]
-                        }
-                    })
+                    const conditions = []
+                    if (user.departmentId) {
+                        conditions.push({ departmentId: user.departmentId })
+                        conditions.push({ secondaryDepartmentId: user.departmentId })
+                    }
+                    if (user.secondaryDepartmentId) {
+                        conditions.push({ departmentId: user.secondaryDepartmentId })
+                        conditions.push({ secondaryDepartmentId: user.secondaryDepartmentId })
+                    }
+                    if (conditions.length > 0) {
+                        targetRecipients = await prisma.user.findMany({
+                            where: { role: "MANAGER", OR: conditions }
+                        })
+                    }
                 } else if (!isStandardLeave) {
                     // Route to HR Manager
-                    targetRecipient = await prisma.user.findFirst({
+                    const hrManager = await prisma.user.findFirst({
+                        where: {
+                            permissions: {
+                                some: { permission: { slug: "manage_hr_data" } }
+                            }
+                        }
+                    })
+                    if (hrManager) targetRecipients = [hrManager]
+                }
                         where: {
                             permissions: {
                                 some: {
@@ -226,16 +256,18 @@ export async function createVacation(data: any) {
                     })
                 }
 
-                if (targetRecipient && targetRecipient.email) {
-                    const mailHtml = `
-                    <div style="font-family: sans-serif; color: #333;">
-                        <h2>Nowy wniosek urlopowy oczekuje!</h2>
-                        <p>Pracownik <b>${user.name || user.username}</b> złożył nowy wniosek (typ: ${type || 'VACATION'}).</p>
-                        <p>Termin: od ${formatDatePL(startDate)} do ${formatDatePL(endDate)}</p>
-                        <p>Zaloguj się do systemu HR4YOU, by zatwierdzić lub odrzucić.</p>
-                    </div>
-                    `
-                    await sendEmail(targetRecipient.email, "Nowy wniosek urlopowy do akceptacji", mailHtml).catch(e => console.error("Email failed", e))
+                const mailHtml = `
+                <div style="font-family: sans-serif; color: #333;">
+                    <h2>Nowy wniosek urlopowy oczekuje!</h2>
+                    <p>Pracownik <b>${user.name || user.username}</b> złożył nowy wniosek (typ: ${type || 'VACATION'}).</p>
+                    <p>Termin: od ${formatDatePL(startDate)} do ${formatDatePL(endDate)}</p>
+                    <p>Zaloguj się do systemu HR4YOU, by zatwierdzić lub odrzucić.</p>
+                </div>
+                `
+                for (const recipient of targetRecipients) {
+                    if (recipient.email) {
+                        await sendEmail(recipient.email, "Nowy wniosek urlopowy do akceptacji", mailHtml).catch(e => console.error("Email failed", e))
+                    }
                 }
             }
         }
@@ -341,19 +373,20 @@ export async function approveVacation(id: number) {
 
         // Jeśli to nietypowy urlop akceptowany przez HR, zawiadom managera dzialu
         if (vacation.type !== 'VACATION' && vacation.type !== 'ON_DEMAND' && (vacation.user.departmentId || vacation.user.secondaryDepartmentId)) {
-            const manager = await prisma.user.findFirst({
-                where: {
-                    role: "MANAGER",
-                    OR: [
-                        { departmentId: vacation.user.departmentId || undefined },
-                        { secondaryDepartmentId: vacation.user.departmentId || undefined },
-                        { departmentId: vacation.user.secondaryDepartmentId || undefined },
-                        { secondaryDepartmentId: vacation.user.secondaryDepartmentId || undefined }
-                    ]
-                }
-            })
-
-            if (manager && manager.email) {
+            const conditions = []
+            if (vacation.user.departmentId) {
+                conditions.push({ departmentId: vacation.user.departmentId })
+                conditions.push({ secondaryDepartmentId: vacation.user.departmentId })
+            }
+            if (vacation.user.secondaryDepartmentId) {
+                conditions.push({ departmentId: vacation.user.secondaryDepartmentId })
+                conditions.push({ secondaryDepartmentId: vacation.user.secondaryDepartmentId })
+            }
+            if (conditions.length > 0) {
+                const managers = await prisma.user.findMany({
+                    where: { role: "MANAGER", OR: conditions }
+                })
+                
                 const managerHtml = `
                 <div style="font-family: sans-serif; color: #333;">
                     <h2>Informacja z Działu HR</h2>
@@ -363,7 +396,11 @@ export async function approveVacation(id: number) {
                     <p>Dni zostały już oznaczone w grafiku.</p>
                 </div>
                 `
-                await sendEmail(manager.email, "Zatwierdzono urlop pozastandardowy pracownika", managerHtml).catch(e => console.error(e))
+                for (const manager of managers) {
+                    if (manager.email) {
+                        await sendEmail(manager.email, "Zatwierdzono urlop pozastandardowy pracownika", managerHtml).catch(e => console.error(e))
+                    }
+                }
             }
         }
 
