@@ -61,17 +61,19 @@ async function main() {
         i++;
         const headerRow = data[i];
         colMap = {};
-        let prevDay = 0;
-        let monthOffset = 0;
         for (let col = 1; col < headerRow.length; col++) {
           const val = Number(headerRow[col]);
           if (!isNaN(val) && val > 0) {
-            if (val < prevDay) monthOffset++; 
-            prevDay = val;
-            
-            let m = currentMonth + monthOffset;
+            let m = currentMonth;
             let y = currentYear;
-            if (m > 11) { m -= 12; y++; }
+            
+            if (col < 10 && val > 20) {
+                m = currentMonth - 1;
+                if (m < 0) { m = 11; y--; }
+            } else if (col >= 20 && val < 15) {
+                m = currentMonth + 1;
+                if (m > 11) { m = 0; y++; }
+            }
             colMap[col] = { year: y, month: m, day: val };
           }
         }
