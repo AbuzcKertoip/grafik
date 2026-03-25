@@ -288,7 +288,11 @@ export async function approveVacation(id: number) {
     try {
         const vacation = await prisma.vacation.findUnique({
             where: { id },
-            include: { user: true }
+            include: { 
+                user: {
+                    include: { department: true }
+                } 
+            }
         })
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
@@ -353,14 +357,19 @@ export async function approveVacation(id: number) {
         })
 
         if (vacation.user.email) {
+            const businessDaysCount = getBusinessDaysCount(new Date(vacation.startDate), new Date(vacation.endDate))
+            const docBuffer = await import("@/lib/docs/vacation-document").then(m => m.generateVacationDoc(vacation, vacation.user, businessDaysCount)).catch(e => { console.error("Doc generation failed", e); return null; })
+            const attachments = docBuffer ? [{ filename: 'wniosek-o-urlop.docx', content: docBuffer }] : []
+            
             const mailHtml = `
             <div style="font-family: sans-serif; color: #333;">
                 <h2 style="color: #10b981;">Twój wniosek urlopowy został zatwierdzony!</h2>
                 <p>Termin: od ${formatDatePL(vacation.startDate)} do ${formatDatePL(vacation.endDate)}</p>
+                <p>W załączniku znajduje się wygenerowany wniosek urlopowy gotowy do ewentualnego wydruku.</p>
                 <p>Możesz już zobaczyć zmiany w grafiku systemu.</p>
             </div>
             `
-            await sendEmail(vacation.user.email, "Wniosek urlopowy zaakceptowany", mailHtml).catch(e => console.error(e))
+            await sendEmail(vacation.user.email, "Wniosek urlopowy zaakceptowany", mailHtml, attachments).catch(e => console.error(e))
         }
 
         // Jeśli to nietypowy urlop akceptowany przez HR, zawiadom managera dzialu
