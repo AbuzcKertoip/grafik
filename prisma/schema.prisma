@@ -195,6 +195,8 @@ model Car {
   acPolicyNumber      String?   @default("")
   ownershipType       String    @default("COMPANY") // COMPANY, LEASING, BORROWED
   status              String    @default("ACTIVE") // ACTIVE, SERVICE, INACTIVE
+  policyUrl           String?   // Skan polisy OC (PDF)
+  acPolicyUrl         String?   // Skan polisy AC (PDF)
 
   caretakerId         Int?
   caretaker           User?     @relation(fields: [caretakerId], references: [id])

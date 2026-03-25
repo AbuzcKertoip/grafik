@@ -34,7 +34,8 @@ import { createCar, updateCar, deleteCar, assignCaretaker } from "@/lib/actions/
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { CarRepairsDialog } from "./car-repairs-dialog"
-import { Wrench } from "lucide-react"
+import { CarPolicyDialog } from "./car-policy-dialog"
+import { Wrench, FileText } from "lucide-react"
 
 interface Car {
     id: number
@@ -46,8 +47,10 @@ interface Car {
     inspectionValidUntil: Date
     insuranceValidUntil: Date
     policyNumber: string
+    policyUrl?: string | null
     acValidUntil?: Date | null
     acPolicyNumber?: string | null
+    acPolicyUrl?: string | null
     ownershipType: string
     status: string
     caretaker?: {
@@ -74,6 +77,7 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
     const [isRepairsDialogOpen, setIsRepairsDialogOpen] = useState(false)
+    const [isPolicyDialogOpen, setIsPolicyDialogOpen] = useState(false)
     const [selectedCar, setSelectedCar] = useState<Car | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
@@ -214,6 +218,11 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
         setIsRepairsDialogOpen(true)
     }
 
+    const handlePolicyOpen = (car: Car) => {
+        setSelectedCar(car)
+        setIsPolicyDialogOpen(true)
+    }
+
     const isExpired = (date: Date) => {
         const now = new Date()
         return new Date(date) < now
@@ -313,6 +322,9 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
+                                        <Button variant="outline" size="icon" onClick={() => handlePolicyOpen(car)} title="Skany polis" className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                                            <FileText className="h-4 w-4" />
+                                        </Button>
                                         <Button variant="outline" size="icon" onClick={() => handleRepairsOpen(car)} title="Naprawy" className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
                                             <Wrench className="h-4 w-4" />
                                         </Button>
@@ -450,6 +462,18 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                     isOpen={isRepairsDialogOpen}
                     onOpenChange={setIsRepairsDialogOpen}
                     isAdmin={isAdmin}
+                />
+            )}
+
+            {/* Policy Dialog */}
+            {selectedCar && (
+                <CarPolicyDialog
+                    carId={selectedCar.id}
+                    carName={`${selectedCar.make} ${selectedCar.model} (${selectedCar.plate})`}
+                    policyUrl={selectedCar.policyUrl || null}
+                    acPolicyUrl={selectedCar.acPolicyUrl || null}
+                    isOpen={isPolicyDialogOpen}
+                    onOpenChange={setIsPolicyDialogOpen}
                 />
             )}
         </div>
