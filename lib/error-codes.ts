@@ -24,7 +24,8 @@ export const ERROR_CODES = {
     // System Events
     SETTINGS_UPDATED: { code: "SYS-001", label: "Zmiana Ustawień", isError: false },
     MANUAL_ALERT_TRIGGERED: { code: "SYS-002", label: "Ręczny Alert Systemowy", isError: false },
-    EMAIL_SEND_FAILED: { code: "ERR-SYS-003", label: "Błąd Wysyłania Email", isError: true },
+    CRON_ALERT_TRIGGERED: { code: "SYS-003", label: "Automatyczny Alert Systemowy", isError: false },
+    EMAIL_SEND_FAILED: { code: "ERR-SYS-004", label: "Błąd Wysyłania Email", isError: true },
 
     // Generic
     UNKNOWN_ERROR: { code: "ERR-999", label: "Nieznany Błąd", isError: true },
