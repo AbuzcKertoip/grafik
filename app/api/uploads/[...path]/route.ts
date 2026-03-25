@@ -5,10 +5,11 @@ import { existsSync } from "fs"
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { path: string[] } }
+    { params }: { params: Promise<{ path: string[] }> }
 ) {
     try {
-        const filePath = join(process.cwd(), "public", "uploads", ...params.path)
+        const { path } = await params
+        const filePath = join(process.cwd(), "public", "uploads", ...path)
 
         // Security: prevent path traversal
         const uploadsDir = join(process.cwd(), "public", "uploads")
@@ -21,7 +22,7 @@ export async function GET(
         }
 
         const fileBuffer = await readFile(filePath)
-        const fileName = params.path[params.path.length - 1]
+        const fileName = path[path.length - 1]
         const ext = fileName.split(".").pop()?.toLowerCase()
 
         const mimeTypes: Record<string, string> = {
