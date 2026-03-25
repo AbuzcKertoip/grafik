@@ -140,7 +140,7 @@ export function CarRepairsDialog({ carId, carName, isOpen, onOpenChange, isAdmin
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden">
                 <DialogHeader className="p-6 pb-2 border-b shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <Wrench className="w-5 h-5 text-indigo-500" />

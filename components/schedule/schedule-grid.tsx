@@ -168,7 +168,7 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                     <Table className="w-max min-w-full border-collapse">
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[200px] min-w-[200px] max-w-[200px] border-r sticky left-0 bg-card z-10 text-card-foreground">Pracownik</TableHead>
+                                <TableHead className="w-[168px] min-w-[168px] max-w-[168px] border-r sticky left-0 bg-card z-10 text-card-foreground">Pracownik</TableHead>
                                 {days.map(day => {
                                     const date = new Date(year, month - 1, day)
                                     const isWeekend = date.getDay() === 0 || date.getDay() === 6
@@ -179,7 +179,7 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                                         <TableHead
                                             key={day}
                                             className={cn(
-                                                "text-center min-w-[40px] w-10 p-1 border-r text-xs dark:border-slate-800",
+                                                "text-center min-w-[34px] w-[34px] p-0.5 border-r text-xs dark:border-slate-800",
                                                 isOff ? "bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-300" : "bg-card text-card-foreground"
                                             )}
                                         >
@@ -195,7 +195,7 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                         <TableBody>
                             {users.map((user) => (
                                 <TableRow key={user.id} className="hover:bg-muted/50 dark:hover:bg-slate-900/50">
-                                    <TableCell className="w-[200px] min-w-[200px] max-w-[200px] font-medium border-r sticky left-0 bg-card z-10 dark:border-slate-800 truncate">
+                                    <TableCell className="w-[168px] min-w-[168px] max-w-[168px] font-medium border-r sticky left-0 bg-card z-10 dark:border-slate-800 truncate text-sm">
                                         {user.name}
                                     </TableCell>
                                     {days.map(day => {
@@ -212,7 +212,7 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                                             <TableCell
                                                 key={day}
                                                 className={cn(
-                                                    "p-0 border-r text-center select-none transition-colors min-w-[40px] w-10 h-10 overflow-hidden dark:border-slate-800",
+                                                    "p-0 border-r text-center select-none transition-colors min-w-[34px] w-[34px] h-9 overflow-hidden dark:border-slate-800",
                                                     isSelected ? "ring-2 ring-primary ring-inset opacity-80" : "",
                                                     !isSelected && SHIFT_COLORS[type],
                                                     !isSelected && !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
