@@ -94,14 +94,16 @@ export async function uploadCarPolicyScan(
 
         await writeFile(filepath, buffer)
 
-        const fileUrl = `${relativeUploadDir}/${filename}`
+        const fileUrl = `/api/uploads/policies/${filename}`
 
         const fieldName = type === "oc" ? "policyUrl" : "acPolicyUrl"
 
         // Remove old file if exists
         const existing = await (prisma as any).car.findUnique({ where: { id: carId }, select: { [fieldName]: true } })
         if (existing?.[fieldName]) {
-            const oldPath = join(process.cwd(), "public", existing[fieldName])
+            // Convert /api/uploads/... to actual filesystem path in public/uploads/...
+            const relPath = existing[fieldName].replace(/^\/api\/uploads/, "/uploads")
+            const oldPath = join(process.cwd(), "public", relPath)
             try { await unlink(oldPath) } catch { /* ignore if not found */ }
         }
 
@@ -129,7 +131,8 @@ export async function deleteCarPolicyScan(carId: number, type: "oc" | "ac") {
     try {
         const car = await (prisma as any).car.findUnique({ where: { id: carId }, select: { [fieldName]: true } })
         if (car?.[fieldName]) {
-            const oldPath = join(process.cwd(), "public", car[fieldName])
+            const relPath = car[fieldName].replace(/^\/api\/uploads/, "/uploads")
+            const oldPath = join(process.cwd(), "public", relPath)
             try { await unlink(oldPath) } catch { /* ignore */ }
         }
 
