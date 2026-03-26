@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
@@ -12,89 +9,75 @@ datasource db {
 }
 
 model User {
-  id           Int            @id @default(autoincrement())
-  username     String         @unique
-  password     String
-  name         String?
-  image        String?        // Base64 or URL
-  role         String         @default("USER") // 'ADMIN', 'USER'
-  hourlyRate   Float          @default(0.0)
-  sortOrder    Int            @default(999)
-  fixedShift   String?        // 'SHIFT_1', 'SHIFT_2' or null
-  skipDuties   Boolean        @default(false)
-  scheduleDays ScheduleDay[]
-  workLogs     WorkLogEntry[]
-  vacations    Vacation[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  
-  // HR Fields
-  contractType      String         @default("UOP") // 'UOP', 'B2B'
-  has10YearsSeniority Boolean      @default(false)
-  hasChildren       Boolean      @default(false)
-  vacationDaysLimit Int           @default(26) // 20 or 26 typically
-  carriedOverVacationDays Int     @default(0)
-  additionalVacationDays Int      @default(0)
-  medicalExams      MedicalExam[]
-  equipment         Equipment[]
-  tools             Tool[]
-  
-  // Benefits
-  hasInternetPackage Boolean @default(false)
-  hasMultisportCard  Boolean @default(false)
-  internetDescription String?
-  multisportDescription String?
-  
-  // Clothing Sizes
-  shirtSize         String?       // XS, S, M, L, XL, XXL
-  pantsSize         String?       // e.g. 32/32, L
-  shoeSize          String?       // e.g. 42, 43
-  jacketSize        String?       // M, L, XL
-  cars              Car[]
-  
-  // Contact Info
-  phone             String?
-  email             String?       @unique
-  emergencyContact  String?
-
-  // New RBAC & Department fields
-  departmentId      Int?
-  department        Department?   @relation(fields: [departmentId], references: [id])
-  secondaryDepartmentId Int?
-  secondaryDepartment   Department? @relation("SecondaryDepartment", fields: [secondaryDepartmentId], references: [id])
-  permissions       UserPermission[]
-
-  // System Logs
-  systemLogs        SystemLog[]
+  id                      Int              @id @default(autoincrement())
+  username                String           @unique
+  password                String
+  name                    String?
+  image                   String?
+  role                    String           @default("USER")
+  hourlyRate              Float            @default(0.0)
+  sortOrder               Int              @default(999)
+  fixedShift              String?
+  skipDuties              Boolean          @default(false)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  contractType            String           @default("UOP")
+  has10YearsSeniority     Boolean          @default(false)
+  hasChildren             Boolean          @default(false)
+  vacationDaysLimit       Int              @default(26)
+  carriedOverVacationDays Int              @default(0)
+  additionalVacationDays  Int              @default(0)
+  hasInternetPackage      Boolean          @default(false)
+  hasMultisportCard       Boolean          @default(false)
+  internetDescription     String?
+  multisportDescription   String?
+  shirtSize               String?
+  pantsSize               String?
+  shoeSize                String?
+  jacketSize              String?
+  phone                   String?
+  email                   String?          @unique
+  emergencyContact        String?
+  departmentId            Int?
+  secondaryDepartmentId   Int?
+  cars                    Car[]
+  equipment               Equipment[]
+  medicalExams            MedicalExam[]
+  scheduleDays            ScheduleDay[]
+  systemLogs              SystemLog[]
+  tools                   Tool[]
+  secondaryDepartment     Department?      @relation("SecondaryDepartment", fields: [secondaryDepartmentId], references: [id])
+  department              Department?      @relation(fields: [departmentId], references: [id])
+  permissions             UserPermission[]
+  vacations               Vacation[]
+  workLogs                WorkLogEntry[]
 }
 
 model Department {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  description String?
-  hasDuties   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  users       User[]
-  secondaryUsers User[] @relation("SecondaryDepartment")
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  description    String?
+  hasDuties      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  secondaryUsers User[]   @relation("SecondaryDepartment")
+  users          User[]
 }
 
 model Permission {
   id          Int              @id @default(autoincrement())
-  slug        String           @unique // e.g. 'manage_users', 'view_all_schedules'
-  name        String           // Readable name
+  slug        String           @unique
+  name        String
   description String?
-  
   users       UserPermission[]
 }
 
 model UserPermission {
   userId       Int
   permissionId Int
-  assignedAt   DateTime @default(now())
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt   DateTime   @default(now())
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, permissionId])
 }
@@ -102,26 +85,23 @@ model UserPermission {
 model MedicalExam {
   id             Int      @id @default(autoincrement())
   userId         Int
-  type           String // 'MEDICINE_WORK', 'SANITARY', 'SAFETY_TRAINING'
+  type           String
   validUntil     DateTime
   scanUrl        String?
   notifiedExpiry Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ScheduleDay {
-  id     Int      @id @default(autoincrement())
-  userId Int
-  date   DateTime
-  type   String // 'SHIFT_1', 'SHIFT_2', 'DUTY', 'VACATION', 'SICK', 'OFF'
-
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  date       DateTime
+  type       String
   vacationId Int?
-  vacation   Vacation? @relation(fields: [vacationId], references: [id], onDelete: SetNull)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vacation   Vacation? @relation(fields: [vacationId], references: [id])
 
   @@unique([userId, date])
 }
@@ -130,8 +110,8 @@ model WorkLogEntry {
   id          Int      @id @default(autoincrement())
   userId      Int
   date        DateTime
-  startTime   String? // HH:mm
-  endTime     String? // HH:mm
+  startTime   String?
+  endTime     String?
   description String
   project     String?
   duration    Float    @default(0.0)
@@ -139,76 +119,68 @@ model WorkLogEntry {
   isNightWork Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Vacation {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  startDate DateTime
-  endDate   DateTime
-  type         String   @default("VACATION") // 'VACATION', 'SICK', 'OTHER'
-  status       String   @default("PENDING")  // 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  startDate    DateTime
+  endDate      DateTime
+  type         String        @default("VACATION")
+  status       String        @default("PENDING")
   rejectReason String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   note         String?
-  createdAt    DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   scheduleDays ScheduleDay[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Equipment {
   id           Int      @id @default(autoincrement())
   userId       Int
-  name         String   // e.g. "Laptop Dell Latitude", "iPhone 13"
-  serialNumber String?  // e.g. "ABC123456"
+  name         String
+  serialNumber String?
   assignedDate DateTime @default(now())
   notes        String?
-  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Tool {
   id           Int      @id @default(autoincrement())
   userId       Int
-  name         String   // e.g. "Wkrętarka Makita", "Zestaw kluczy"
+  name         String
   assignedDate DateTime @default(now())
   notes        String?
-  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Car {
-  id                  Int       @id @default(autoincrement())
-  make                String
-  model               String
-  plate               String    @unique
-  vin                 String    @unique
-  productionYear      Int
+  id                   Int         @id @default(autoincrement())
+  make                 String
+  model                String
+  plate                String      @unique
+  vin                  String      @unique
+  productionYear       Int
   inspectionValidUntil DateTime
   insuranceValidUntil  DateTime
-  policyNumber        String
-  acValidUntil        DateTime?
-  acPolicyNumber      String?   @default("")
-  ownershipType       String    @default("COMPANY") // COMPANY, LEASING, BORROWED
-  status              String    @default("ACTIVE") // ACTIVE, SERVICE, INACTIVE
-  policyUrl           String?   // Skan polisy OC (PDF)
-  acPolicyUrl         String?   // Skan polisy AC (PDF)
-
-  caretakerId         Int?
-  caretaker           User?     @relation(fields: [caretakerId], references: [id])
-
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  repairs             CarRepair[]
+  policyNumber         String
+  acValidUntil         DateTime?
+  acPolicyNumber       String?     @default("")
+  ownershipType        String      @default("COMPANY")
+  status               String      @default("ACTIVE")
+  caretakerId          Int?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  acPolicyUrl          String?
+  policyUrl            String?
+  caretaker            User?       @relation(fields: [caretakerId], references: [id])
+  repairs              CarRepair[]
 }
 
 model CarRepair {
@@ -217,36 +189,33 @@ model CarRepair {
   date        DateTime
   cost        Float    @default(0.0)
   description String
-  notes       String?  // Szerszy opis problemu/robocizny/części
-  invoiceUrl  String?  // Skan faktury, relacja lokalna
+  notes       String?
+  invoiceUrl  String?
   createdAt   DateTime @default(now())
-  
   car         Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
 }
 
 model SystemSettings {
-  id              Int      @id @default(1)
+  id              Int       @id @default(autoincrement())
   smtpHost        String?
   smtpPort        Int?
   smtpUser        String?
   smtpPassword    String?
   smtpFromEmail   String?
-  smtpSecure      Boolean  @default(true) // SSL/TLS
-  
-  alertEmails     String?  // Odbiorcy alertów (oddzieleni przecinkami, domyślnie pusty = wszyscy admini?)
-  alertDaysBefore Int      @default(30) // Z ilu dniowym wyprzedzeniem wysyłać powiadomienia
-  lastAlertSent   DateTime? // Kiedy ostatnio sprawdzano i wysłano alerty (chroni przed spamowaniem)
-  
-  updatedAt       DateTime @updatedAt
+  smtpSecure      Boolean   @default(true)
+  alertEmails     String?
+  alertDaysBefore Int       @default(30)
+  lastAlertSent   DateTime?
+  updatedAt       DateTime  @updatedAt
 }
 
 model EmailLog {
-  id        Int      @id @default(autoincrement())
-  toEmail   String
-  subject   String
-  status    String   // 'SUCCESS', 'FAILED'
-  errorMsg  String?
-  sentAt    DateTime @default(now())
+  id       Int      @id @default(autoincrement())
+  toEmail  String
+  subject  String
+  status   String
+  errorMsg String?
+  sentAt   DateTime @default(now())
 }
 
 model PasswordResetToken {
@@ -265,7 +234,5 @@ model SystemLog {
   errorCode   String?
   details     String?
   createdAt   DateTime @default(now())
-
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user        User?    @relation(fields: [userId], references: [id])
 }
-

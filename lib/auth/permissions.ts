@@ -6,6 +6,7 @@ export const PERMISSIONS = {
     VIEW_ALL_SCHEDULES: "view_all_schedules",
     MANAGE_SCHEDULES: "manage_schedules",
     VIEW_REPORTS: "view_reports",
+    MANAGE_FLEET: "manage_fleet",
 } as const
 
 export const ROLES = {

@@ -5,13 +5,17 @@ import { prisma } from "@/lib/prisma"
 import { getCars } from "@/lib/actions/fleet"
 import { CarList } from "@/components/fleet/car-list"
 
+import { hasPermission } from "@/lib/auth/permissions"
+
 export default async function FleetPage() {
     const session = await getServerSession(authOptions)
     if (!session) {
         redirect("/dashboard")
     }
 
-    const { role, departmentId } = session.user as any;
+    const user = session.user as any;
+    const { role, departmentId } = user;
+    
     let isManagerInHR = false;
     if (role === 'MANAGER' && departmentId) {
         const userDept = await prisma.department.findUnique({
@@ -22,7 +26,10 @@ export default async function FleetPage() {
         }
     }
 
-    if (role !== "ADMIN" && role !== "HR" && !isManagerInHR) {
+    const canManageFleet = role === "ADMIN" || role === "HR" || isManagerInHR || hasPermission(user, "manage_fleet");
+    const canViewFleet = canManageFleet || hasPermission(user, "view_fleet");
+
+    if (!canViewFleet) {
         redirect("/dashboard")
     }
 
@@ -43,7 +50,7 @@ export default async function FleetPage() {
                 <p className="text-muted-foreground mt-2">Zarządzaj flotą samochodową i przypisuj opiekunów.</p>
             </div>
 
-            <CarList initialCars={cars} users={users} isAdmin={true} />
+            <CarList initialCars={cars} users={users} isAdmin={canManageFleet} />
         </div>
     )
 }
