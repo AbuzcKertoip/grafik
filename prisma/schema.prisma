@@ -118,6 +118,9 @@ model ScheduleDay {
   date   DateTime
   type   String // 'SHIFT_1', 'SHIFT_2', 'DUTY', 'VACATION', 'SICK', 'OFF'
 
+  vacationId Int?
+  vacation   Vacation? @relation(fields: [vacationId], references: [id], onDelete: SetNull)
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
@@ -146,12 +149,14 @@ model Vacation {
   startDate DateTime
   endDate   DateTime
   type         String   @default("VACATION") // 'VACATION', 'SICK', 'OTHER'
-  status       String   @default("PENDING")  // 'PENDING', 'APPROVED', 'REJECTED'
+  status       String   @default("PENDING")  // 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'
   rejectReason String?
+  note         String?
   createdAt    DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduleDays ScheduleDay[]
 }
 
 model Equipment {

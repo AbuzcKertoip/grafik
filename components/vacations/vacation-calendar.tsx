@@ -1,7 +1,4 @@
-// ... imports will need to be updated to include approve/reject
-// I will rewrite the whole component to be safe as logic changes significantly.
-
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -11,11 +8,11 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
-import { createVacation, deleteVacation, approveVacation, rejectVacation } from "@/lib/actions/vacations"
+import { createVacation, approveVacation, rejectVacation, cancelVacation } from "@/lib/actions/vacations"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { pl } from "date-fns/locale"
-import { Trash2, CheckCircle, XCircle, Clock } from "lucide-react"
+import { CheckCircle, XCircle, Clock } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -32,9 +29,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
     const [isOpen, setIsOpen] = useState(false)
     const [type, setType] = useState("VACATION")
 
-    // Both Admin and Manager can manage vacations (backend isolates Manager to own dept)
     const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
-    const isAdmin = currentUser?.role === 'ADMIN'
 
     const handleAdd = async () => {
         if (!dateRange?.from || !dateRange?.to || !selectedUser) return
@@ -53,14 +48,6 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
             alert(canManage ? "Urlop dodany." : "Wniosek został wysłany do akceptacji.")
         } else {
             alert(result?.error || "Błąd dodawania wniosku")
-        }
-    }
-
-    const handleDelete = async (id: number) => {
-        if (confirm("Usunąć wniosek/urlop?")) {
-            const result = await deleteVacation(id)
-            if (result?.success) router.refresh()
-            else alert("Błąd usuwania")
         }
     }
 
@@ -83,9 +70,14 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
         else alert("Błąd odrzucania")
     }
 
-    // Filter vacations based on role
-    // Admin sees all. Manager sees all from their own department (filtered by backend/passed to props). 
-    // User sees only their own.
+    const handleCancel = async (id: number) => {
+        if (confirm("Czy na pewno chcesz anulować ten urlop? Dni zostaną zwrócone do puli.")) {
+            const result = await cancelVacation(id)
+            if (result?.success) router.refresh()
+            else alert(result?.error || "Błąd anulowania")
+        }
+    }
+
     const visibleVacations = canManage
         ? vacations
         : vacations.filter(v => v.userId === currentUser?.id)
@@ -112,7 +104,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-4">
                     {/* Left Sidebar: Form */}
                     <div className="md:col-span-4 space-y-6">
                         <div className="space-y-1">
@@ -207,7 +199,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <div className="font-semibold text-foreground flex items-center gap-2">
-                                                            {v.user.name || v.user.username}
+                                                            {v.user?.name || v.user?.username || "Nieznany"}
                                                             <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full flex items-center gap-1">
                                                                 <Clock className="w-3 h-3" /> Oczekuje
                                                             </span>
@@ -216,19 +208,24 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                             {format(new Date(v.startDate), "d MMM", { locale: pl })} - {format(new Date(v.endDate), "d MMM yyyy", { locale: pl })}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground/80 mt-1 font-medium">
-                                                                <div className="text-sm font-medium">
-                                                                    {v.type === 'VACATION' && '🏖️ Urlop'}
-                                                                    {v.type === 'ON_DEMAND' && '🔥 Na żądanie'}
-                                                                    {v.type === 'SPECIAL_LEAVE' && '🎉 Okolicznościowy'}
-                                                            {v.type === 'CHILDCARE' && '👶 Opieka nad dzieckiem'}
-                                                            {v.type === 'ADDITIONAL' && '🎁 Dodatkowy urlop'}
-                                                            {v.type === 'OVERTIME' && '⏳ Odbiór nadgodzin'}
-                                                            {v.type === 'SICK' && '🤒 Chorobowe'}
-                                                            {v.type === 'OTHER' && '❓ Inne'}
+                                                            <div className="text-sm font-medium">
+                                                                {v.type === 'VACATION' && '🏖️ Urlop'}
+                                                                {v.type === 'ON_DEMAND' && '🔥 Na żądanie'}
+                                                                {v.type === 'SPECIAL_LEAVE' && '🎉 Okolicznościowy'}
+                                                                {v.type === 'CHILDCARE' && '👶 Opieka nad dzieckiem'}
+                                                                {v.type === 'ADDITIONAL' && '🎁 Dodatkowy urlop'}
+                                                                {v.type === 'OVERTIME' && '⏳ Odbiór nadgodzin'}
+                                                                {v.type === 'SICK' && '🤒 Chorobowe'}
+                                                                {v.type === 'OTHER' && '❓ Inne'}
+                                                            </div>
+                                                            {v.note && (
+                                                                <div className="text-[10px] italic text-muted-foreground mt-1 bg-amber-50 dark:bg-amber-900/10 p-1 rounded">
+                                                                    Notatka: {v.note}
                                                                 </div>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    {canManage ? (
+                                                    {canManage && (
                                                         <div className="flex flex-col gap-2">
                                                             <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-900" onClick={() => handleApprove(v.id)}>
                                                                 <CheckCircle className="w-4 h-4 mr-1" /> Akceptuj
@@ -237,10 +234,6 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                                 <XCircle className="w-4 h-4 mr-1" /> Odrzuć
                                                             </Button>
                                                         </div>
-                                                    ) : (
-                                                        <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)} className="text-muted-foreground hover:text-red-600">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
                                                     )}
                                                 </div>
                                             </div>
@@ -271,23 +264,35 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                 </div>
                                                 <div>
                                                     <div className="font-semibold text-foreground flex items-center gap-2">
-                                                        {v.user.name || v.user.username}
+                                                        {v.user?.name || v.user?.username || "Nieznany"}
                                                         {v.status === "REJECTED" && (
                                                             <span className="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800">
                                                                 Odrzucony
+                                                            </span>
+                                                        )}
+                                                        {v.status === "CANCELLED" && (
+                                                            <span className="text-xs bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-800">
+                                                                Anulowany
                                                             </span>
                                                         )}
                                                     </div>
                                                     <div className="text-sm text-muted-foreground">
                                                         {format(new Date(v.startDate), "d MMM", { locale: pl })} → {format(new Date(v.endDate), "d MMM yyyy", { locale: pl })}
                                                     </div>
+                                                    {v.note && (
+                                                        <div className="text-[10px] italic text-muted-foreground mt-1">
+                                                            {v.note}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-                                            {(canManage || v.status !== "APPROVED") && (
-                                                <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-600">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            )}
+                                            <div className="flex items-center gap-2">
+                                                {v.status === "APPROVED" && (
+                                                    <Button size="sm" variant="outline" className="text-amber-600 hover:bg-amber-50 border-amber-200" onClick={() => handleCancel(v.id)}>
+                                                        Anuluj
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
                                     )})}
                                 </div>

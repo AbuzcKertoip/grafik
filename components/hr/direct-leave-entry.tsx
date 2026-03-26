@@ -30,7 +30,8 @@ export function DirectLeaveEntry({ userId }: DirectLeaveEntryProps) {
     const [formData, setFormData] = useState({
         type: "VACATION",
         startDate: "",
-        endDate: ""
+        endDate: "",
+        note: ""
     });
 
     const handleSave = async (e: React.FormEvent) => {
@@ -56,13 +57,14 @@ export function DirectLeaveEntry({ userId }: DirectLeaveEntryProps) {
                 userId,
                 startDate: formData.startDate,
                 endDate: formData.endDate,
-                type: formData.type
+                type: formData.type,
+                note: formData.note
             });
 
             if (res.success) {
                 toast.success("Zatwierdzona nieobecność została dodana.");
                 setIsOpen(false);
-                setFormData({ type: "VACATION", startDate: "", endDate: "" });
+                setFormData({ type: "VACATION", startDate: "", endDate: "", note: "" });
                 router.refresh();
             } else {
                 toast.error(res.error || "Wystąpił błąd");
@@ -132,6 +134,16 @@ export function DirectLeaveEntry({ userId }: DirectLeaveEntryProps) {
                                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                             />
                         </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="note">Notatka / Adnotacja (opcjonalnie)</Label>
+                        <Input
+                            id="note"
+                            placeholder="Np. 'Lojalnościowy', 'Zatwierdzone ustnie'..."
+                            value={formData.note}
+                            onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                        />
                     </div>
 
                     <DialogFooter className="mt-4">

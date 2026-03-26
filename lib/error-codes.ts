@@ -20,6 +20,7 @@ export const ERROR_CODES = {
     VACATION_REQUESTED: { code: "HR-003", label: "Wniosek Urlopowy", isError: false },
     VACATION_APPROVED: { code: "HR-004", label: "Zatwierdzenie Urlopu", isError: false },
     VACATION_REJECTED: { code: "HR-005", label: "Odrzucenie Urlopu", isError: false },
+    VACATION_CANCELLED: { code: "HR-006", label: "Anulowanie Urlopu", isError: false },
 
     // System Events
     SETTINGS_UPDATED: { code: "SYS-001", label: "Zmiana Ustawień", isError: false },

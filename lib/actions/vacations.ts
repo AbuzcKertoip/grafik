@@ -77,38 +77,39 @@ async function validateVacationLimit(userId: number, startDate: Date, endDate: D
     const daysRequested = getBusinessDaysCount(start, end)
     const stats = await getVacationStats(userId, year)
 
-    // Policz oczekujące wnioski z tego roku (z wyłączeniem obecnego jeśli to edycja/akceptacja)
-    const pendingVacations = await prisma.vacation.findMany({
-        where: {
-            userId: userId,
-            type: type, // only sum pending of the same type
-            status: "PENDING",
-            startDate: { gte: new Date(year, 0, 1) },
-            endDate: { lte: new Date(year, 11, 31) },
-            ...(excludeVacationId ? { id: { not: excludeVacationId } } : {})
-        }
-    })
+    const getPendingDays = async (types: string[]) => {
+        const pended = await prisma.vacation.findMany({
+            where: {
+                userId: userId,
+                type: { in: types },
+                status: "PENDING",
+                startDate: { gte: new Date(year, 0, 1) },
+                endDate: { lte: new Date(year, 11, 31) },
+                ...(excludeVacationId ? { id: { not: excludeVacationId } } : {})
+            }
+        })
+        return pended.reduce((acc, vac) => acc + getBusinessDaysCount(new Date(vac.startDate), new Date(vac.endDate)), 0)
+    }
 
-    const pendingDays = pendingVacations.reduce((acc, vac) => {
-        return acc + getBusinessDaysCount(new Date(vac.startDate), new Date(vac.endDate))
-    }, 0)
+    const pendingSameType = await getPendingDays([type])
+    const pendingPoolType = await getPendingDays(['VACATION', 'ON_DEMAND'])
 
     if (type === 'CHILDCARE') {
         if (stats.childcareLimit === 0) {
             return { valid: false, error: "Nie przysługuje Ci prawo do zwolnienia z tytułu opieki nad dzieckiem." }
         }
-        const totalNeeded = stats.childcareUsed + pendingDays + daysRequested
+        const totalNeeded = stats.childcareUsed + pendingSameType + daysRequested
         if (totalNeeded > stats.childcareLimit) {
-            return { valid: false, error: `Przekroczono limit opieki nad dzieckiem. Dostępne dni: ${Math.max(0, stats.childcareLimit - stats.childcareUsed - pendingDays)}, Wnioskowane: ${daysRequested}.` }
+            return { valid: false, error: `Przekroczono limit opieki nad dzieckiem. Dostępne dni: ${Math.max(0, stats.childcareLimit - stats.childcareUsed - pendingSameType)}, Wnioskowane: ${daysRequested}.` }
         }
     } else if (type === 'ON_DEMAND') {
         const onDemandUsed = stats.details.onDemandUsed || 0
-        const totalOnDemand = onDemandUsed + pendingDays + daysRequested
+        const totalOnDemand = onDemandUsed + pendingSameType + daysRequested
         if (totalOnDemand > 4) {
             return { valid: false, error: `Możesz wziąć maksymalnie 4 dni urlopu na żądanie w roku. Dotychczas wykorzystano: ${onDemandUsed}, Wnioskowane: ${daysRequested}.` }
         }
         // Still needs to check if they have enough regular vacation days left
-        const totalVacationNeeded = stats.used + pendingDays + daysRequested
+        const totalVacationNeeded = stats.used + pendingPoolType + daysRequested
         if (totalVacationNeeded > stats.limit) {
             return {
                 valid: false,
@@ -117,20 +118,20 @@ async function validateVacationLimit(userId: number, startDate: Date, endDate: D
         }
     } else if (type === 'ADDITIONAL') {
         const additionalUsed = stats.details.additionalUsed || 0
-        const totalNeeded = additionalUsed + pendingDays + daysRequested
+        const totalNeeded = additionalUsed + pendingSameType + daysRequested
         if (totalNeeded > stats.details.additional) {
-            return { valid: false, error: `Przekroczono limit dodatkowego urlopu. Dostępne dni: ${Math.max(0, stats.details.additional - additionalUsed - pendingDays)}, Wnioskowane: ${daysRequested}.` }
+            return { valid: false, error: `Przekroczono limit dodatkowego urlopu. Dostępne dni: ${Math.max(0, stats.details.additional - additionalUsed - pendingSameType)}, Wnioskowane: ${daysRequested}.` }
         }
     } else if (type === 'OVERTIME') {
         const requestedHours = daysRequested * 8
-        const pendingHours = pendingDays * 8
+        const pendingHours = pendingSameType * 8
         const totalNeededHours = requestedHours + pendingHours
 
         if (totalNeededHours > stats.overtimeHours) {
             return { valid: false, error: `Niewystarczająca liczba nadgodzin do odbioru. Dostępne godziny: ${Math.max(0, stats.overtimeHours - pendingHours)}, Wnioskowane dni wymagają: ${requestedHours}h.` }
         }
     } else if (type === 'VACATION') {
-        const totalNeeded = stats.used + pendingDays + daysRequested
+        const totalNeeded = stats.used + pendingPoolType + daysRequested
         if (totalNeeded > stats.limit) {
             return {
                 valid: false,
@@ -146,7 +147,7 @@ export async function createVacation(data: any) {
     const session = await getServerSession(authOptions)
     if (!session) return { error: "Brak dostępu" }
 
-    const { userId, startDate, endDate, type } = data
+    const { userId, startDate, endDate, type, note } = data
     const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
     const isSelf = parseInt(session.user.id) === parseInt(userId)
 
@@ -158,6 +159,7 @@ export async function createVacation(data: any) {
 
     // Jeśli type="SICK", to z automatu od razu wbijamy jako "APPROVED" bez względu na to czy wbija to Admin czy Kierownik
     const approved = isAdmin || type === 'SICK'
+    const status = approved ? "APPROVED" : "PENDING"
 
     const validation = await validateVacationLimit(parseInt(userId), new Date(startDate), new Date(endDate), type || "VACATION")
     if (!validation.valid) {
@@ -167,13 +169,14 @@ export async function createVacation(data: any) {
     try {
         await prisma.$transaction(async (tx) => {
             // 1. Create Vacation Record
-            await tx.vacation.create({
+            const vacation = await tx.vacation.create({
                 data: {
                     userId: parseInt(userId),
                     startDate: new Date(startDate),
                     endDate: new Date(endDate),
                     type: type || "VACATION",
-                    status: isAdmin ? "APPROVED" : "PENDING"
+                    status: status,
+                    note: note || null
                 },
             })
 
@@ -195,12 +198,14 @@ export async function createVacation(data: any) {
                             }
                         },
                         update: {
-                            type: vacationType
+                            type: vacationType,
+                            vacationId: vacation.id
                         },
                         create: {
                             userId: parseInt(userId),
                             date: d,
-                            type: vacationType
+                            type: vacationType,
+                            vacationId: vacation.id
                         }
                     })
                 }
@@ -346,11 +351,12 @@ export async function approveVacation(id: number) {
                             date: d,
                         }
                     },
-                    update: { type: vacationType },
+                    update: { type: vacationType, vacationId: vacation.id },
                     create: {
                         userId: vacation.userId,
                         date: d,
-                        type: vacationType
+                        type: vacationType,
+                        vacationId: vacation.id
                     }
                 })
             }
@@ -422,6 +428,72 @@ export async function approveVacation(id: number) {
 
 import { format } from "date-fns" // Dodałem dla approve emaila
 
+export async function cancelVacation(id: number) {
+    const session = await getServerSession(authOptions)
+    if (!session) return { error: "Brak dostępu" }
+
+    try {
+        const vacation = await prisma.vacation.findUnique({
+            where: { id },
+            include: { user: true }
+        })
+
+        if (!vacation) return { error: "Wniosek nie istnieje" }
+
+        const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
+        const isSelf = parseInt(session.user.id) === vacation.userId
+        
+        // Users can cancel their own PENDING or APPROVED vacations.
+        // Managers/Admins can cancel any vacation from their department.
+        if (!isAdmin && !isSelf) {
+            // Check if it's manager's employee
+            const isManager = session.user.role === 'MANAGER'
+            const sessionDeptId = session.user.departmentId;
+            const sessionSecDeptId = (session.user as any).secondaryDepartmentId;
+            const vacDeptId = vacation.user.departmentId;
+            const vacSecDeptId = vacation.user.secondaryDepartmentId;
+            
+            const isManagersEmployee = isManager && (
+                vacDeptId === sessionDeptId ||
+                vacDeptId === sessionSecDeptId ||
+                (vacSecDeptId != null && (vacSecDeptId === sessionDeptId || vacSecDeptId === sessionSecDeptId))
+            )
+
+            if (!isManagersEmployee) return { error: "Brak uprawnień" }
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Update Status
+            await tx.vacation.update({
+                where: { id },
+                data: { status: "CANCELLED" }
+            })
+
+            // 2. Remove from Schedule
+            // We set type to OFF or we could try to restore original, but for now OFF is safer
+            // Better yet, just delete the link and set type back to default? 
+            // The user said "zwraca dni do puli", so we must remove VACATION type from ScheduleDay.
+            await tx.scheduleDay.updateMany({
+                where: { vacationId: id },
+                data: { type: "OFF", vacationId: null }
+            })
+        })
+
+        await createLog({
+            action: "VACATION_CANCELLED",
+            description: `Anulowano urlop (ID: ${vacation.id}) dla pracownika ${vacation.user.username}`,
+            userId: parseInt(session.user.id),
+            errorCodeKey: "VACATION_CANCELLED",
+            details: { vacationId: id, targetUserId: vacation.userId }
+        });
+
+        revalidatePath("/dashboard/schedule")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd podczas anulowania wniosku." }
+    }
+}
+
 export async function rejectVacation(id: number, reason: string) {
     const session = await getServerSession(authOptions)
     if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
@@ -490,44 +562,5 @@ export async function rejectVacation(id: number, reason: string) {
 }
 
 export async function deleteVacation(id: number) {
-    const session = await getServerSession(authOptions)
-    if (!session) return { error: "Brak dostępu" }
-
-    try {
-        // Optionally add permissions check: Admin or Own
-        const vacation = await prisma.vacation.findUnique({
-            where: { id },
-            include: { user: true }
-        })
-        if (!vacation) return { error: "Nie znaleziono" }
-
-        const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
-        const isManager = session.user.role === 'MANAGER'
-        const isSelf = parseInt(session.user.id) === vacation.userId
-        const sessionDeptId = session.user.departmentId;
-        const sessionSecDeptId = (session.user as any).secondaryDepartmentId;
-        const vacDeptId = vacation.user.departmentId;
-        const vacSecDeptId = vacation.user.secondaryDepartmentId;
-        
-        const isManagersEmployee = isManager && (
-            vacDeptId === sessionDeptId ||
-            vacDeptId === sessionSecDeptId ||
-            (vacSecDeptId != null && (vacSecDeptId === sessionDeptId || vacSecDeptId === sessionSecDeptId))
-        )
-
-        if (!isAdmin && !isSelf && !isManagersEmployee) {
-            return { error: "Brak uprawnień" }
-        }
-        // Users can only delete their own if PENDING (approved should be immutable for users?)
-        // Let's allow users to delete approved too for now or block it?
-        // Usually, if approved, they can't delete. But let's keep it simple for now as requested.
-
-        await prisma.vacation.delete({
-            where: { id },
-        })
-        revalidatePath("/dashboard/schedule")
-        return { success: true }
-    } catch (error) {
-        return { error: "Błąd podczas usuwania urlopu." }
-    }
+    return { error: "Usuwanie wniosków jest zablokowane. Proszę użyć opcji 'Anuluj' lub 'Odrzuć' w celu zachowania historii." }
 }

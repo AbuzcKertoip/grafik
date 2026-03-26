@@ -72,68 +72,32 @@ export async function getVacationStats(userId: number, year: number) {
         // UOP: limit depends on seniority
         baseLimit = user.has10YearsSeniority ? 26 : 20
     }
-
     const totalLimit = baseLimit + carriedOver
 
-    // Count *work days* used for standard vacation + on demand in the given year
-    const usedDays = await prisma.scheduleDay.count({
-        where: {
-            userId,
-            type: { in: ['VACATION', 'ON_DEMAND'] },
-            date: {
-                gte: new Date(year, 0, 1),
-                lte: new Date(year, 11, 31)
+    // --- REFINED: Calculate used days based on APPROVED Vacation records (History-driven) ---
+    // This prevents "9 used vs 2 requested" inconsistency.
+    const getUsedDaysFromHistory = async (types: string[]) => {
+        const approvedVacations = await prisma.vacation.findMany({
+            where: {
+                userId,
+                type: { in: types },
+                status: 'APPROVED',
+                startDate: { gte: new Date(year, 0, 1) },
+                endDate: { lte: new Date(year, 11, 31) }
             }
-        }
-    })
+        });
+        
+        const { getBusinessDaysCount } = await import("../holidays");
+        return approvedVacations.reduce((acc, vac) => {
+            return acc + getBusinessDaysCount(new Date(vac.startDate), new Date(vac.endDate));
+        }, 0);
+    }
 
-    // Track on-demand specifically (it's already included in usedDays)
-    const onDemandUsedDays = await prisma.scheduleDay.count({
-        where: {
-            userId,
-            type: 'ON_DEMAND',
-            date: {
-                gte: new Date(year, 0, 1),
-                lte: new Date(year, 11, 31)
-            }
-        }
-    })
-
-    // Track special leave specifically (does not subtract from base limit)
-    const specialLeaveUsedDays = await prisma.scheduleDay.count({
-        where: {
-            userId,
-            type: 'SPECIAL_LEAVE',
-            date: {
-                gte: new Date(year, 0, 1),
-                lte: new Date(year, 11, 31)
-            }
-        }
-    })
-
-    // Count *work days* used for childcare in the given year
-    const childcareUsedDays = await prisma.scheduleDay.count({
-        where: {
-            userId,
-            type: 'CHILDCARE',
-            date: {
-                gte: new Date(year, 0, 1),
-                lte: new Date(year, 11, 31)
-            }
-        }
-    })
-
-    // Count *work days* used for additional vacation in the given year
-    const additionalUsedDays = await prisma.scheduleDay.count({
-        where: {
-            userId,
-            type: 'ADDITIONAL',
-            date: {
-                gte: new Date(year, 0, 1),
-                lte: new Date(year, 11, 31)
-            }
-        }
-    })
+    const usedDays = await getUsedDaysFromHistory(['VACATION', 'ON_DEMAND']);
+    const onDemandUsedDays = await getUsedDaysFromHistory(['ON_DEMAND']);
+    const specialLeaveUsedDays = await getUsedDaysFromHistory(['SPECIAL_LEAVE']);
+    const childcareUsedDays = await getUsedDaysFromHistory(['CHILDCARE']);
+    const additionalUsedDays = await getUsedDaysFromHistory(['ADDITIONAL']);
 
     // Calculate total overtime hours from WorkLogEntry for ALL time up to this year? Or just lifetime. 
     // Overtime is usually accrued continuously, but let's just get total for now.
