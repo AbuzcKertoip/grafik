@@ -96,14 +96,26 @@ export function isHoliday(date: Date, holidays: Date[]): boolean {
     )
 }
 
-export function getBusinessDaysCount(startDate: Date, endDate: Date): number {
+export function getBusinessDaysCount(startDate: Date | string, endDate: Date | string): number {
     let count = 0
-    const current = new Date(startDate)
-    const end = new Date(endDate)
-    current.setHours(0, 0, 0, 0)
-    end.setHours(0, 0, 0, 0)
+    
+    // Normalize to Europe/Warsaw to avoid timezone shifts during processing
+    const normalizeDate = (d: Date | string) => {
+        const date = new Date(d);
+        const warsawDate = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/Warsaw',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(date);
+        const [y, m, day] = warsawDate.split('-').map(Number);
+        return new Date(y, m - 1, day, 0, 0, 0, 0);
+    };
 
-    // Wczytaj raz tablicę na obydwa obejmujące lata w pętli (dla bezpieczeństwa skrajnych urlopów 30.12 - 04.01)
+    const current = normalizeDate(startDate);
+    const end = normalizeDate(endDate);
+
+    // Wczytaj raz tablicę na obydwa obejmujące lata w pętli
     const holidays = [
         ...getPolishHolidays(current.getFullYear()),
         ...(current.getFullYear() !== end.getFullYear() ? getPolishHolidays(end.getFullYear()) : [])
@@ -113,7 +125,6 @@ export function getBusinessDaysCount(startDate: Date, endDate: Date): number {
         const dayOfWeek = current.getDay()
 
         if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(current, holidays)) {
-            // Sobota, Niedziela albo Polskie święto - Pomiń.
             current.setDate(current.getDate() + 1)
             continue
         }

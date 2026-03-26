@@ -3,7 +3,12 @@ import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 
 function formatDatePL(date: Date | string) {
-    return format(new Date(date), "dd.MM.yyyy", { locale: pl });
+    return new Intl.DateTimeFormat('pl-PL', {
+        timeZone: 'Europe/Warsaw',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(new Date(date)).replace(/\//g, ".");
 }
 
 function getVacationTypeName(type: string): string {
@@ -22,13 +27,15 @@ function getVacationTypeName(type: string): string {
 
 export async function generateVacationDoc(vacation: any, user: any, totalDays: number): Promise<Buffer> {
     const dzial = user.department?.name || "";
-    const currentDate = formatDatePL(new Date());
+    // Use createdAt if available, otherwise fallback to startDate or current date
+    const applicationDate = formatDatePL(vacation.createdAt || new Date());
     const imieNazwisko = user.name || user.username || "";
     const startDate = formatDatePL(vacation.startDate);
     const endDate = formatDatePL(vacation.endDate);
     const year = new Date(vacation.startDate).getFullYear().toString();
     const typeName = getVacationTypeName(vacation.type);
     const godziny = totalDays * 8;
+    const dniLabel = totalDays === 1 ? " dzień " : " dni ";
     
     // Wzór oryginalnego "wniosek-o-urlop.doc":
     // . . . . . . . . . . . . . . . . . . . . . . . . .        . . . . . . . . . . . . . . . . . . . . . . .
@@ -58,7 +65,7 @@ export async function generateVacationDoc(vacation: any, user: any, totalDays: n
                     children: [
                         new TextRun({ text: imieNazwisko.padEnd(50, " "), underline: { type: UnderlineType.SINGLE } }),
                         new TextRun({ text: "\t\t\t\t\t" }), // Tab spacing to push date to the right
-                        new TextRun({ text: currentDate.padEnd(30, " "), underline: { type: UnderlineType.SINGLE } }),
+                        new TextRun({ text: applicationDate.padEnd(30, " "), underline: { type: UnderlineType.SINGLE } }),
                     ],
                 }),
                 new Paragraph({
@@ -106,7 +113,7 @@ export async function generateVacationDoc(vacation: any, user: any, totalDays: n
                         new TextRun({ text: typeName, underline: { type: UnderlineType.SINGLE }, bold: true }),
                         new TextRun({ text: " (ogółem " }),
                         new TextRun({ text: totalDays.toString(), underline: { type: UnderlineType.SINGLE }, bold: true }),
-                        new TextRun({ text: " dni " }),
+                        new TextRun({ text: dniLabel }),
                         new TextRun({ text: godziny.toString(), underline: { type: UnderlineType.SINGLE }, bold: true }),
                         new TextRun({ text: " godzin)." }),
                     ]
@@ -120,7 +127,7 @@ export async function generateVacationDoc(vacation: any, user: any, totalDays: n
                     children: [
                         new TextRun({ text: "Zatwierdzono w Systemie HR".padEnd(50, " "), underline: { type: UnderlineType.SINGLE }, bold: true }),
                         new TextRun({ text: "\t\t\t\t\t" }),
-                        new TextRun({ text: `Złożono w Systemie HR: ${currentDate}`.padEnd(45, " "), underline: { type: UnderlineType.SINGLE }, bold: true }),
+                        new TextRun({ text: `Złożono w Systemie HR: ${applicationDate}`.padEnd(45, " "), underline: { type: UnderlineType.SINGLE }, bold: true }),
                     ],
                 }),
                 new Paragraph({
@@ -136,5 +143,5 @@ export async function generateVacationDoc(vacation: any, user: any, totalDays: n
     });
 
     const buffer = await Packer.toBuffer(doc);
-    return buffer as Buffer; // The typing sometimes differs but it returns a standard Buffer in Node
+    return buffer as Buffer;
 }
