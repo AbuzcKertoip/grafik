@@ -225,16 +225,23 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                             )}
                                                         </div>
                                                     </div>
-                                                    {canManage && (
-                                                        <div className="flex flex-col gap-2">
-                                                            <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-900" onClick={() => handleApprove(v.id)}>
-                                                                <CheckCircle className="w-4 h-4 mr-1" /> Akceptuj
+                                                    <div className="flex flex-col gap-2">
+                                                        {(canManage || parseInt(currentUser.id) === v.userId) && (
+                                                            <Button size="sm" variant="outline" className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 border-amber-200 dark:border-amber-900" onClick={() => handleCancel(v.id)}>
+                                                                Anuluj
                                                             </Button>
-                                                            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-900" onClick={() => handleReject(v.id)}>
-                                                                <XCircle className="w-4 h-4 mr-1" /> Odrzuć
-                                                            </Button>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                        {canManage && (
+                                                            <>
+                                                                <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-900" onClick={() => handleApprove(v.id)}>
+                                                                    <CheckCircle className="w-4 h-4 mr-1" /> Akceptuj
+                                                                </Button>
+                                                                <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-900" onClick={() => handleReject(v.id)}>
+                                                                    <XCircle className="w-4 h-4 mr-1" /> Odrzuć
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}

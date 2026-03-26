@@ -470,14 +470,67 @@ export async function cancelVacation(id: number) {
             })
 
             // 2. Remove from Schedule
-            // We set type to OFF or we could try to restore original, but for now OFF is safer
-            // Better yet, just delete the link and set type back to default? 
-            // The user said "zwraca dni do puli", so we must remove VACATION type from ScheduleDay.
             await tx.scheduleDay.updateMany({
                 where: { vacationId: id },
                 data: { type: "OFF", vacationId: null }
             })
         })
+
+        // 3. Notify Manager
+        try {
+            const user = await prisma.user.findUnique({
+                where: { id: vacation.userId },
+                include: { department: true }
+            })
+            
+            if (user) {
+                // Find managers to notify
+                const conditions = []
+                if (user.departmentId) {
+                    conditions.push({ departmentId: user.departmentId })
+                    conditions.push({ secondaryDepartmentId: user.departmentId })
+                }
+                if (user.secondaryDepartmentId) {
+                    conditions.push({ departmentId: user.secondaryDepartmentId })
+                    conditions.push({ secondaryDepartmentId: user.secondaryDepartmentId })
+                }
+                
+                const managers = await prisma.user.findMany({
+                    where: { role: "MANAGER", OR: conditions }
+                })
+
+                const adminEmail = process.env.ADMIN_EMAIL
+                const managerEmails = managers.map(m => m.email).filter(Boolean) as string[]
+                
+                const mailHtml = `
+                <div style="font-family: sans-serif; color: #333;">
+                    <h2 style="color: #f59e0b;">Zrezygnowano z urlopu / Anulowano wniosek</h2>
+                    <p>Pracownik: <b>${user.name || user.username}</b></p>
+                    <p>Termin: od ${formatDatePL(vacation.startDate)} do ${formatDatePL(vacation.endDate)}</p>
+                    <p>Typ: ${vacation.type}</p>
+                    <p>Status został zmieniony na <b>ANULOWANY</b>. Dni (jeśli były zatwierdzone) zostały zwrócone do puli i usunięte z grafiku.</p>
+                </div>
+                `
+                
+                for (const email of managerEmails) {
+                    await sendEmail(email, `Anulowano urlop: ${user.name || user.username}`, mailHtml)
+                }
+                
+                // If cancelled by someone ELSE (Manager/Admin), notify the user too
+                if (parseInt(session.user.id) !== vacation.userId && user.email) {
+                    const userMailHtml = `
+                    <div style="font-family: sans-serif; color: #333;">
+                        <h2 style="color: #f59e0b;">Twój wniosek urlopowy został anulowany przez przełożonego</h2>
+                        <p>Termin: od ${formatDatePL(vacation.startDate)} do ${formatDatePL(vacation.endDate)}</p>
+                        <p>Jeśli masz pytania, skontaktuj się ze swoim kierownikiem.</p>
+                    </div>
+                    `
+                    await sendEmail(user.email, "Twój urlop został anulowany", userMailHtml)
+                }
+            }
+        } catch (mailErr) {
+            console.error("Migration/Notification error in cancelVacation:", mailErr)
+        }
 
         await createLog({
             action: "VACATION_CANCELLED",
