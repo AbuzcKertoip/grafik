@@ -527,36 +527,89 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
         const leaveTypes = ['VACATION', 'ON_DEMAND', 'SPECIAL_LEAVE', 'CHILDCARE', 'ADDITIONAL', 'SICK', 'OTHER', 'OVERTIME']
 
         await prisma.$transaction(async (tx) => {
+            // Group shifts by userId
+            const userShiftsMap: Record<number, typeof shifts> = {}
             for (const s of shifts) {
-                const startOfDay = new Date(s.year, s.month - 1, s.day, 0, 0, 0)
-                const endOfDay = new Date(s.year, s.month - 1, s.day, 23, 59, 59, 999)
-                const isLeave = leaveTypes.includes(s.type)
+                if (!userShiftsMap[s.userId]) userShiftsMap[s.userId] = []
+                userShiftsMap[s.userId].push(s)
+            }
 
-                await tx.scheduleDay.deleteMany({
-                    where: { userId: s.userId, date: { gte: startOfDay, lte: endOfDay } }
+            for (const userIdStr in userShiftsMap) {
+                const userId = parseInt(userIdStr)
+                const uShifts = userShiftsMap[userId].sort((a,b) => {
+                    const dateA = new Date(a.year, a.month-1, a.day).getTime()
+                    const dateB = new Date(b.year, b.month-1, b.day).getTime()
+                    return dateA - dateB
                 })
 
-                if (s.type !== 'OFF' && s.type !== '') {
-                    const date = new Date(s.year, s.month - 1, s.day)
-                    let vacationId: number | undefined = undefined
+                // Group contiguous shifts of the same type
+                const groups: (typeof shifts)[] = []
+                if (uShifts.length > 0) {
+                    let currentGroup = [uShifts[0]]
+                    for (let i = 1; i < uShifts.length; i++) {
+                        const prev = uShifts[i-1]
+                        const curr = uShifts[i]
+                        const prevDate = new Date(prev.year, prev.month-1, prev.day)
+                        const currDate = new Date(curr.year, curr.month-1, curr.day)
+                        
+                        // Check if contiguous (exactly 1 day difference) and same type
+                        const diffTime = currDate.getTime() - prevDate.getTime()
+                        const diffDays = diffTime / (1000 * 60 * 60 * 24)
+                        
+                        if (diffDays === 1 && curr.type === prev.type) {
+                            currentGroup.push(curr)
+                        } else {
+                            groups.push(currentGroup)
+                            currentGroup = [curr]
+                        }
+                    }
+                    groups.push(currentGroup)
+                }
 
-                    if (isLeave) {
-                        const vac = await tx.vacation.create({
-                            data: {
-                                userId: s.userId,
-                                startDate: date,
-                                endDate: date,
-                                type: s.type as any,
-                                status: 'APPROVED',
-                                note: "Wpis ręczny z grafiku (hurtowy)"
-                            }
+                for (const group of groups) {
+                    const first = group[0]
+                    const last = group[group.length - 1]
+                    const isLeave = leaveTypes.includes(first.type)
+                    
+                    // Delete all days in the group first
+                    for (const s of group) {
+                        const startOfDay = new Date(s.year, s.month - 1, s.day, 0, 0, 0)
+                        const endOfDay = new Date(s.year, s.month - 1, s.day, 23, 59, 59, 999)
+                        await tx.scheduleDay.deleteMany({
+                            where: { userId: s.userId, date: { gte: startOfDay, lte: endOfDay } }
                         })
-                        vacationId = vac.id
                     }
 
-                    await tx.scheduleDay.create({
-                        data: { userId: s.userId, date, type: s.type, vacationId }
-                    })
+                    if (first.type !== 'OFF' && first.type !== '') {
+                        let vacationId: number | undefined = undefined
+
+                        if (isLeave) {
+                            const startDate = new Date(first.year, first.month - 1, first.day)
+                            const endDate = new Date(last.year, last.month - 1, last.day)
+                            const vac = await tx.vacation.create({
+                                data: {
+                                    userId: userId,
+                                    startDate,
+                                    endDate,
+                                    type: first.type as any,
+                                    status: 'APPROVED',
+                                    note: `Wpis ręczny z grafiku (zakres ${group.length} dni)`
+                                }
+                            })
+                            vacationId = vac.id
+                        }
+
+                        for (const s of group) {
+                            await tx.scheduleDay.create({
+                                data: {
+                                    userId: s.userId,
+                                    date: new Date(s.year, s.month - 1, s.day),
+                                    type: s.type,
+                                    vacationId
+                                }
+                            })
+                        }
+                    }
                 }
             }
         })
