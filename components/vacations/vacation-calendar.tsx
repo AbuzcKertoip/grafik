@@ -80,7 +80,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
 
     const visibleVacations = canManage
         ? vacations
-        : vacations.filter(v => v.userId === currentUser?.id)
+        : vacations.filter(v => Number(v.userId) === Number(currentUser?.id))
 
     const pendingVacations = visibleVacations.filter(v => v.status === "PENDING")
     const approvedVacations = visibleVacations.filter(v => v.status !== "PENDING")
@@ -226,7 +226,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-col gap-2">
-                                                        {(canManage || parseInt(currentUser.id) === v.userId) && (
+                                                        {(canManage || Number(currentUser.id) === Number(v.userId)) && (
                                                             <Button size="sm" variant="outline" className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 border-amber-200 dark:border-amber-900" onClick={() => handleCancel(v.id)}>
                                                                 Anuluj
                                                             </Button>
