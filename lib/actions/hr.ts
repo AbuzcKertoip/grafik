@@ -108,14 +108,7 @@ export async function getVacationStats(userId: number, year: number) {
     const accruedOvertimeHours = overtimeLogs._sum.overtime || 0
 
     // Overtime days used
-    const overtimeUsedDays = await prisma.scheduleDay.count({
-        where: {
-            userId,
-            type: 'OVERTIME'
-            // overtime can be used across years, if accrued continuously
-            // or just year? Usually overtime is rolling
-        }
-    })
+    const overtimeUsedDays = await getUsedDaysFromHistory(['OVERTIME']);
 
     const availableOvertimeHours = Math.max(0, accruedOvertimeHours - (overtimeUsedDays * 8))
 

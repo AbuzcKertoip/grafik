@@ -439,6 +439,10 @@ export async function upsertShift(userId: number, year: number, month: number, d
         const startOfDay = new Date(year, month - 1, day, 0, 0, 0)
         const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
 
+        // Identify if this is a leave type
+        const leaveTypes = ['VACATION', 'ON_DEMAND', 'SPECIAL_LEAVE', 'CHILDCARE', 'ADDITIONAL', 'SICK', 'OTHER', 'OVERTIME']
+        const isLeave = leaveTypes.includes(type)
+
         // Remove any existing shifts in that specific day bracket to prevent timezone-duplicate bugs
         await prisma.scheduleDay.deleteMany({
             where: {
@@ -451,12 +455,30 @@ export async function upsertShift(userId: number, year: number, month: number, d
         })
 
         if (type !== 'OFF' && type !== '') {
-            const date = new Date(year, month - 1, day) // Same exact logic generateSchedule uses
+            const date = new Date(year, month - 1, day)
+            let vacationId: number | undefined = undefined
+
+            if (isLeave) {
+                // Create a 1-day Vacation record for history/stats
+                const vac = await prisma.vacation.create({
+                    data: {
+                        userId,
+                        startDate: date,
+                        endDate: date,
+                        type: type as any,
+                        status: 'APPROVED',
+                        note: "Wpis ręczny z grafiku"
+                    }
+                })
+                vacationId = vac.id
+            }
+
             await prisma.scheduleDay.create({
                 data: {
                     userId,
                     date,
                     type,
+                    vacationId
                 },
             })
         }
@@ -502,16 +524,38 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
             }
         }
 
+        const leaveTypes = ['VACATION', 'ON_DEMAND', 'SPECIAL_LEAVE', 'CHILDCARE', 'ADDITIONAL', 'SICK', 'OTHER', 'OVERTIME']
+
         await prisma.$transaction(async (tx) => {
             for (const s of shifts) {
                 const startOfDay = new Date(s.year, s.month - 1, s.day, 0, 0, 0)
                 const endOfDay = new Date(s.year, s.month - 1, s.day, 23, 59, 59, 999)
+                const isLeave = leaveTypes.includes(s.type)
+
                 await tx.scheduleDay.deleteMany({
                     where: { userId: s.userId, date: { gte: startOfDay, lte: endOfDay } }
                 })
+
                 if (s.type !== 'OFF' && s.type !== '') {
+                    const date = new Date(s.year, s.month - 1, s.day)
+                    let vacationId: number | undefined = undefined
+
+                    if (isLeave) {
+                        const vac = await tx.vacation.create({
+                            data: {
+                                userId: s.userId,
+                                startDate: date,
+                                endDate: date,
+                                type: s.type as any,
+                                status: 'APPROVED',
+                                note: "Wpis ręczny z grafiku (hurtowy)"
+                            }
+                        })
+                        vacationId = vac.id
+                    }
+
                     await tx.scheduleDay.create({
-                        data: { userId: s.userId, date: new Date(s.year, s.month - 1, s.day), type: s.type }
+                        data: { userId: s.userId, date, type: s.type, vacationId }
                     })
                 }
             }
