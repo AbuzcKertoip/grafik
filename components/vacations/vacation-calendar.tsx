@@ -28,53 +28,77 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
     const [selectedUser, setSelectedUser] = useState<string>(currentUser?.role === 'ADMIN' ? "" : currentUser?.id.toString())
     const [isOpen, setIsOpen] = useState(false)
     const [type, setType] = useState("VACATION")
-
+    const [loading, setLoading] = useState(false)
+ 
     const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
-
+ 
     const handleAdd = async () => {
-        if (!dateRange?.from || !dateRange?.to || !selectedUser) return
-
-        const result = await createVacation({
-            userId: selectedUser,
-            startDate: dateRange.from,
-            endDate: dateRange.to,
-            type
-        })
-
-        if (result?.success) {
-            setDateRange(undefined)
-            if (canManage) setSelectedUser("")
-            router.refresh()
-            alert(canManage ? "Urlop dodany." : "Wniosek został wysłany do akceptacji.")
-        } else {
-            alert(result?.error || "Błąd dodawania wniosku")
+        if (!dateRange?.from || !dateRange?.to || !selectedUser || loading) return
+ 
+        setLoading(true)
+        try {
+            const result = await createVacation({
+                userId: selectedUser,
+                startDate: dateRange.from,
+                endDate: dateRange.to,
+                type
+            })
+    
+            if (result?.success) {
+                setDateRange(undefined)
+                if (canManage) setSelectedUser("")
+                router.refresh()
+                alert(canManage ? "Urlop dodany." : "Wniosek został wysłany do akceptacji.")
+            } else {
+                alert(result?.error || "Błąd dodawania wniosku")
+            }
+        } finally {
+            setLoading(false)
         }
     }
-
+ 
     const handleApprove = async (id: number) => {
-        const result = await approveVacation(id)
-        if (result?.success) router.refresh()
-        else alert("Błąd zatwierdzania")
+        if (loading) return
+        setLoading(true)
+        try {
+            const result = await approveVacation(id)
+            if (result?.success) router.refresh()
+            else alert("Błąd zatwierdzania")
+        } finally {
+            setLoading(false)
+        }
     }
-
+ 
     const handleReject = async (id: number) => {
+        if (loading) return
         const reason = window.prompt("Podaj powód odrzucenia wniosku:")
         if (reason === null) return
         if (reason.trim() === "") {
             alert("Odrzucenie wymaga podania oficjalnego powodu.")
             return
         }
-
-        const result = await rejectVacation(id, reason.trim())
-        if ((result as any)?.success) router.refresh()
-        else alert("Błąd odrzucania")
+ 
+        setLoading(true)
+        try {
+            const result = await rejectVacation(id, reason.trim())
+            if ((result as any)?.success) router.refresh()
+            else alert("Błąd odrzucania")
+        } finally {
+            setLoading(false)
+        }
     }
-
+ 
     const handleCancel = async (id: number) => {
+        if (loading) return
         if (confirm("Czy na pewno chcesz anulować ten urlop? Dni zostaną zwrócone do puli.")) {
-            const result = await cancelVacation(id)
-            if (result?.success) router.refresh()
-            else alert(result?.error || "Błąd anulowania")
+            setLoading(true)
+            try {
+                const result = await cancelVacation(id)
+                if (result?.success) router.refresh()
+                else alert(result?.error || "Błąd anulowania")
+            } finally {
+                setLoading(false)
+            }
         }
     }
 
@@ -169,9 +193,9 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                             <Button
                                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                                 onClick={handleAdd}
-                                disabled={!dateRange?.from || !dateRange?.to || !selectedUser}
+                                disabled={!dateRange?.from || !dateRange?.to || !selectedUser || loading}
                             >
-                                {canManage ? "Zatwierdź Urlop" : "Wyślij Wniosek"}
+                                {loading ? "Przetwarzanie..." : (canManage ? "Zatwierdź Urlop" : "Wyślij Wniosek")}
                             </Button>
                         </div>
                     </div>
@@ -227,17 +251,17 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                     </div>
                                                     <div className="flex flex-col gap-2">
                                                         {(canManage || Number(currentUser.id) === Number(v.userId)) && (
-                                                            <Button size="sm" variant="outline" className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 border-amber-200 dark:border-amber-900" onClick={() => handleCancel(v.id)}>
-                                                                Anuluj
+                                                            <Button size="sm" variant="outline" className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 border-amber-200 dark:border-amber-900" onClick={() => handleCancel(v.id)} disabled={loading}>
+                                                                {loading ? "..." : "Anuluj"}
                                                             </Button>
                                                         )}
                                                         {canManage && (
                                                             <>
-                                                                <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-900" onClick={() => handleApprove(v.id)}>
-                                                                    <CheckCircle className="w-4 h-4 mr-1" /> Akceptuj
+                                                                <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-900" onClick={() => handleApprove(v.id)} disabled={loading}>
+                                                                    <CheckCircle className="w-4 h-4 mr-1" /> {loading ? "..." : "Akceptuj"}
                                                                 </Button>
-                                                                <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-900" onClick={() => handleReject(v.id)}>
-                                                                    <XCircle className="w-4 h-4 mr-1" /> Odrzuć
+                                                                <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-900" onClick={() => handleReject(v.id)} disabled={loading}>
+                                                                    <XCircle className="w-4 h-4 mr-1" /> {loading ? "..." : "Odrzuć"}
                                                                 </Button>
                                                             </>
                                                         )}
@@ -295,8 +319,8 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {v.status === "APPROVED" && (
-                                                    <Button size="sm" variant="outline" className="text-amber-600 hover:bg-amber-50 border-amber-200" onClick={() => handleCancel(v.id)}>
-                                                        Anuluj
+                                                    <Button size="sm" variant="outline" className="text-amber-600 hover:bg-amber-50 border-amber-200" onClick={() => handleCancel(v.id)} disabled={loading}>
+                                                        {loading ? "..." : "Anuluj"}
                                                     </Button>
                                                 )}
                                             </div>

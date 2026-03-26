@@ -114,9 +114,9 @@ export async function getVacationsReport(year: number, departmentId?: number): P
             department: true,
             vacations: {
                 where: {
-                    type: "VACATION",
                     startDate: { gte: startDate },
-                    endDate: { lte: endDate }
+                    endDate: { lte: endDate },
+                    status: { in: ['APPROVED', 'PENDING'] }
                 }
             }
         },
@@ -126,6 +126,8 @@ export async function getVacationsReport(year: number, departmentId?: number): P
         ]
     })
 
+    const poolTypes = ['VACATION', 'ON_DEMAND']
+
     return users.map(user => {
         let usedThisYear = 0
         let pendingThisYear = 0
@@ -133,10 +135,12 @@ export async function getVacationsReport(year: number, departmentId?: number): P
         user.vacations.forEach(v => {
             const diffDays = getBusinessDaysCount(v.startDate, v.endDate)
 
-            if (v.status === "APPROVED") {
-                usedThisYear += diffDays
-            } else if (v.status === "PENDING") {
-                pendingThisYear += diffDays
+            if (poolTypes.includes(v.type)) {
+                if (v.status === "APPROVED") {
+                    usedThisYear += diffDays
+                } else if (v.status === "PENDING") {
+                    pendingThisYear += diffDays
+                }
             }
         })
 
