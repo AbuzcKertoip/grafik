@@ -83,15 +83,15 @@ export function UserManagement({ users: initialUsers, departments, permissions, 
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Pracownik</TableHead>
-                                <TableHead>Rola</TableHead>
-                                <TableHead>Dział</TableHead>
-                                <TableHead>Uprawnienia</TableHead>
-                                {canManageUsers && <TableHead className="text-right">Akcje</TableHead>}
+                                <TableHead className="whitespace-nowrap">Pracownik</TableHead>
+                                <TableHead className="whitespace-nowrap">Rola</TableHead>
+                                <TableHead className="whitespace-nowrap">Dział</TableHead>
+                                <TableHead className="whitespace-nowrap">Uprawnienia</TableHead>
+                                {canManageUsers && <TableHead className="text-right whitespace-nowrap">Akcje</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>

@@ -82,15 +82,15 @@ export function VacationHistoryTable({ vacations }: VacationHistoryTableProps) {
                     Historia i Zaplanowane Urlopy
                 </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 border-t">
+            <CardContent className="p-0 border-t overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-muted/30">
-                            <TableHead className="w-[150px]">Od</TableHead>
-                            <TableHead className="w-[150px]">Do</TableHead>
-                            <TableHead>Typ urlopu</TableHead>
-                            <TableHead>Czas trwania</TableHead>
-                            <TableHead>Status</TableHead>
+                            <TableHead className="w-[150px] whitespace-nowrap">Od</TableHead>
+                            <TableHead className="w-[150px] whitespace-nowrap">Do</TableHead>
+                            <TableHead className="whitespace-nowrap">Typ urlopu</TableHead>
+                            <TableHead className="whitespace-nowrap">Czas trwania</TableHead>
+                            <TableHead className="whitespace-nowrap">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

@@ -70,13 +70,27 @@ export function ScheduleActions({ users, vacations, year, month, currentUser, de
     }
 
     return (
-        <div className="flex gap-2">
-            <VacationCalendar users={users} vacations={vacations} currentUser={currentUser} />
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <div className="flex gap-2 w-full sm:w-auto">
+                <VacationCalendar users={users} vacations={vacations} currentUser={currentUser} />
+                {canManage && (
+                    <Button
+                        onClick={handleClear}
+                        variant="destructive"
+                        size="icon"
+                        className="sm:hidden shadow-sm transition-all active:scale-95"
+                        disabled={loading}
+                        title="Wyczyść grafik"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                )}
+            </div>
             {canManage && (
                 <>
                     <Button
                         onClick={handleGenerate}
-                        className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all active:scale-95"
+                        className="flex-1 sm:flex-none gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all active:scale-95"
                         disabled={loading}
                     >
                         {loading ? (
@@ -84,12 +98,12 @@ export function ScheduleActions({ users, vacations, year, month, currentUser, de
                         ) : (
                             <CalendarDays className="h-4 w-4" />
                         )}
-                        {loading ? "Generowanie..." : "Generuj Grafik"}
+                        <span className="inline">{loading ? "Generowanie..." : "Generuj Grafik"}</span>
                     </Button>
                     <Button
                         onClick={handleClear}
                         variant="destructive"
-                        className="gap-2 shadow-sm transition-all active:scale-95"
+                        className="hidden sm:flex gap-2 shadow-sm transition-all active:scale-95"
                         disabled={loading}
                     >
                         <Trash2 className="h-4 w-4" />

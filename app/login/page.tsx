@@ -40,7 +40,7 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="relative flex flex-col gap-8 h-screen items-center justify-center bg-background overflow-hidden p-4 pt-16">
+        <div className="relative flex flex-col gap-8 min-h-screen items-center justify-center bg-background overflow-x-hidden p-6 py-20">
             <AuthBanner />
             <AnimatedBackground />
 

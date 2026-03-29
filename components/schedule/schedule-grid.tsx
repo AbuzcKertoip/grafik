@@ -235,18 +235,18 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
             </div>
 
             <Dialog open={isModalOpen} onOpenChange={(open) => { if (!open) { setIsModalOpen(false); setSelectedCells([]); } }}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-md w-[95vw] rounded-xl">
                     <DialogHeader>
-                        <DialogTitle>Zmień przydział ({selectedCells.length} dni)</DialogTitle>
-                        <DialogDescription>Wybierz status grafiku, który ma zostać zastosowany do wszystkich zaznaczonych komórek.</DialogDescription>
+                        <DialogTitle className="text-lg">Zmień przydział ({selectedCells.length} dni)</DialogTitle>
+                        <DialogDescription className="text-sm">Wybierz status grafiku dla zaznaczonych komórek.</DialogDescription>
                     </DialogHeader>
-                    <div className="grid grid-cols-2 gap-2 mt-4 max-h-[350px] overflow-y-auto px-2">
+                    <div className="grid grid-cols-2 gap-2 mt-2 max-h-[60vh] overflow-y-auto px-1 py-1">
                         {SHIFT_TYPES.map(shiftType => (
                             <Button
                                 key={shiftType}
                                 variant="outline"
                                 onClick={() => handleApplyBulk(shiftType)}
-                                className="justify-start h-auto py-3 px-3"
+                                className="justify-start h-auto py-3 px-2 active:scale-95 transition-all hover:bg-muted"
                             >
                                 <div className={cn("w-4 h-4 rounded border shrink-0 mr-3", SHIFT_COLORS[shiftType] || "bg-white dark:bg-slate-950")} />
                                 <div className="flex flex-col items-start overflow-hidden">

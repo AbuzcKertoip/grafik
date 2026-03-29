@@ -19,7 +19,7 @@ import { CalendarDays, ClipboardList, Users, PieChart, LogOut, Home, User, Shiel
 import { getUserCars } from "@/lib/actions/fleet"
 import { hasPermission } from "@/lib/auth/permissions"
 
-export function MainNav() {
+export function MainNav({ onItemClick }: { onItemClick?: () => void }) {
     const pathname = usePathname()
     const { data: session } = useSession()
     const isAdmin = session?.user?.role === "ADMIN"
@@ -103,11 +103,11 @@ export function MainNav() {
     ]
 
     return (
-        <div className="flex flex-col h-full bg-slate-900 text-white w-64 animate-in slide-in-from-left-64 duration-500 ease-out shadow-xl border-r border-slate-800">
+        <div className="flex flex-col h-full bg-slate-900 text-white w-full md:w-64 animate-in slide-in-from-left-64 duration-500 ease-out shadow-xl border-r border-slate-800">
             <div className="p-6 border-b border-slate-800">
                 <h1 className="text-xl font-bold tracking-tight">HR4YOU</h1>
             </div>
-            <nav className="flex-1 p-4 space-y-2">
+            <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                 {links.filter(l => l.show).map((link, index) => {
                     const Icon = link.icon
                     const isActive = pathname === link.href
@@ -115,6 +115,7 @@ export function MainNav() {
                         <Link
                             key={link.href}
                             href={link.href}
+                            onClick={() => onItemClick?.()}
                             className={cn(
                                 "group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ease-in-out hover:translate-x-1 hover:bg-slate-800 hover:text-white relative overflow-hidden",
                                 isActive ? "bg-slate-800 text-white shadow-sm" : "text-slate-400",
@@ -146,7 +147,7 @@ export function MainNav() {
                     <DropdownMenuContent align="start" className="w-56 bg-slate-900 border-slate-800 text-slate-300">
                         <DropdownMenuLabel className="text-slate-400">Moje Konto</DropdownMenuLabel>
                         <DropdownMenuSeparator className="bg-slate-800" />
-                        <DropdownMenuItem onClick={() => setIsPasswordDialogOpen(true)} className="text-white focus:text-white focus:bg-slate-800 cursor-pointer hover:text-white">
+                        <DropdownMenuItem onClick={() => { setIsPasswordDialogOpen(true); onItemClick?.(); }} className="text-white focus:text-white focus:bg-slate-800 cursor-pointer hover:text-white">
                             <KeyRound className="mr-2 h-4 w-4" />
                             Zmień hasło
                         </DropdownMenuItem>
