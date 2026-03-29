@@ -24,10 +24,10 @@ export function MainNav() {
     const { data: session } = useSession()
     const isAdmin = session?.user?.role === "ADMIN"
     const isSzef = session?.user?.role === "SZEF"
-    const canViewAdmin = isAdmin || isSzef || hasPermission(session?.user as any, "manage_departments") || hasPermission(session?.user as any, "manage_users") || hasPermission(session?.user as any, "manage_permissions")
-    const canViewHR = isAdmin || isSzef || session?.user?.role === "HR" || session?.user?.role === "MANAGER" || hasPermission(session?.user as any, "view_hr_panel") || hasPermission(session?.user as any, "manage_hr_data")
-    const canViewReports = isAdmin || isSzef || session?.user?.role === "MANAGER" || hasPermission(session?.user as any, "view_reports")
-    const canViewFleet = isAdmin || isSzef || session?.user?.role === "HR" || hasPermission(session?.user as any, "view_fleet") || hasPermission(session?.user as any, "manage_fleet")
+    const canViewAdmin = hasPermission(session?.user as any, "manage_departments") || hasPermission(session?.user as any, "manage_users") || hasPermission(session?.user as any, "manage_permissions")
+    const canViewHR = hasPermission(session?.user as any, "view_hr_panel") || hasPermission(session?.user as any, "manage_hr_data")
+    const canViewReports = hasPermission(session?.user as any, "view_reports")
+    const canViewFleet = hasPermission(session?.user as any, "view_fleet") || hasPermission(session?.user as any, "manage_fleet")
     const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
     const [hasCar, setHasCar] = useState(false)
 

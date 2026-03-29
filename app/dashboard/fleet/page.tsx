@@ -26,7 +26,7 @@ export default async function FleetPage() {
         }
     }
 
-    const canManageFleet = role === "ADMIN" || role === "HR" || isManagerInHR || hasPermission(user, "manage_fleet");
+    const canManageFleet = isManagerInHR || hasPermission(user, "manage_fleet");
     const canViewFleet = canManageFleet || hasPermission(user, "view_fleet");
 
     if (!canViewFleet) {

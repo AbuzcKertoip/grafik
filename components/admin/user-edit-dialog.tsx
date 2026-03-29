@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import { updateUserRoleAndDepartment, toggleUserPermission } from "@/lib/actions/admin"
-import { ROLES } from "@/lib/auth/permissions"
+import { ROLES, INHERENT_PERMISSIONS } from "@/lib/auth/permissions"
 
 interface UserEditDialogProps {
     user: any
@@ -32,25 +32,6 @@ interface UserEditDialogProps {
     onUpdate: () => void
 }
 
-const INHERENT_PERMISSIONS: Record<string, string[]> = {
-    [ROLES.ADMIN]: [
-        'manage_departments', 'manage_users', 'manage_permissions', 'manage_hr_data',
-        'manage_fleet', 'manage_vacations', 'manage_work_logs', 'view_users',
-        'view_hr_panel', 'view_fleet', 'view_reports', 'generate_schedule',
-        'edit_schedule_dept', 'edit_schedule_all', 'clear_schedule'
-    ],
-    [ROLES.SZEF]: [
-        'view_users', 'view_hr_panel', 'view_fleet', 'view_reports'
-    ],
-    [ROLES.HR]: [
-        'manage_hr_data', 'manage_fleet', 'view_users', 'view_hr_panel', 'view_fleet'
-    ],
-    [ROLES.MANAGER]: [
-        'manage_vacations', 'view_users', 'view_hr_panel', 'view_reports',
-        'generate_schedule', 'edit_schedule_dept'
-    ],
-    [ROLES.USER]: []
-}
 
 export function UserEditDialog({ user, open, onOpenChange, departments, allPermissions, onUpdate }: UserEditDialogProps) {
     const [role, setRole] = useState(user?.role || ROLES.USER)
