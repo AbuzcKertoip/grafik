@@ -21,6 +21,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getBusinessDaysCount } from "@/lib/holidays";
+import { groupVacations } from "@/lib/vacation-utils";
 
 interface VacationHistoryTableProps {
     vacations: Vacation[];
@@ -93,7 +94,7 @@ export function VacationHistoryTable({ vacations }: VacationHistoryTableProps) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {vacations.map((vacation) => {
+                        {groupVacations(vacations).map((vacation) => {
                             const start = new Date(vacation.startDate);
                             const end = new Date(vacation.endDate);
                             const isFuture = start > now;
