@@ -13,6 +13,7 @@ import { groupVacations } from "@/lib/vacation-utils"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { pl } from "date-fns/locale"
+import { hasPermission } from "@/lib/auth/permissions"
 import { CheckCircle, XCircle, Clock } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -31,7 +32,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
     const [type, setType] = useState("VACATION")
     const [loading, setLoading] = useState(false)
  
-    const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
+    const canManage = hasPermission(currentUser as any, "manage_vacations")
  
     const handleAdd = async () => {
         if (!dateRange?.from || !dateRange?.to || !selectedUser || loading) return

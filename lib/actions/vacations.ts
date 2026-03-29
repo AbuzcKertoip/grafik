@@ -34,20 +34,22 @@ export async function getVacations(year: number) {
         endDate: { lte: endDate }
     }
 
-    if (role === 'USER') {
-        where.userId = parseInt(user.id)
+    if (role === 'ADMIN' || role === 'HR') {
+        // Admin or HR sees all
     } else if (role === 'MANAGER') {
-        if (!hasPermission(user, "manage_vacations")) {
-            const allowedDepts = []
-            if (deptId) allowedDepts.push(deptId)
-            if (secDeptId) allowedDepts.push(secDeptId)
-            
-            where.OR = [
-                { userId: parseInt(user.id) },
-                { user: { departmentId: { in: allowedDepts } } },
-                { user: { secondaryDepartmentId: { in: allowedDepts } } }
-            ]
-        }
+        // Managers only see themselves and their department(s)
+        const allowedDepts = []
+        if (deptId) allowedDepts.push(deptId)
+        if (secDeptId) allowedDepts.push(secDeptId)
+        
+        where.OR = [
+            { userId: parseInt(user.id) },
+            { user: { departmentId: { in: allowedDepts } } },
+            { user: { secondaryDepartmentId: { in: allowedDepts } } }
+        ]
+    } else {
+        // Standard user sees only self
+        where.userId = parseInt(user.id)
     }
 
     return await prisma.vacation.findMany({
@@ -301,7 +303,9 @@ export async function approveVacation(id: number) {
         })
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
-        if (session.user.role === 'MANAGER' && !hasPermission(session.user as any, "manage_vacations")) {
+        const isGlobalAdmin = session.user.role === 'ADMIN' || session.user.role === 'HR'
+
+        if (session.user.role === 'MANAGER' && !isGlobalAdmin) {
             // managers can approve standard leaves for their dept 
             // backend isolating this to prevent them approving HR stuff
             if (vacation.type !== 'VACATION' && vacation.type !== 'ON_DEMAND') {
@@ -458,8 +462,10 @@ export async function cancelVacation(id: number) {
                 vacDeptId === sessionSecDeptId ||
                 (vacSecDeptId != null && (vacSecDeptId === sessionDeptId || vacSecDeptId === sessionSecDeptId))
             )
+            
+            const isGlobalAdmin = session.user.role === 'ADMIN' || session.user.role === 'HR'
 
-            if (!isManagersEmployee) return { error: "Brak uprawnień" }
+            if (!isManagersEmployee && !isGlobalAdmin) return { error: "Brak uprawnień" }
         }
 
         await prisma.$transaction(async (tx) => {
@@ -566,7 +572,9 @@ export async function rejectVacation(id: number, reason: string) {
         const vacDeptId = vacation.user.departmentId;
         const vacSecDeptId = vacation.user.secondaryDepartmentId;
 
-        if (session.user.role === 'MANAGER' && !hasPermission(session.user as any, "manage_vacations")) {
+        const isGlobalAdmin = session.user.role === 'ADMIN' || session.user.role === 'HR'
+        
+        if (session.user.role === 'MANAGER' && !isGlobalAdmin) {
             if (
                 vacDeptId !== sessionDeptId &&
                 vacDeptId !== sessionSecDeptId &&

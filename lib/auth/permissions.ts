@@ -37,7 +37,7 @@ export const INHERENT_PERMISSIONS: Record<string, string[]> = {
         'view_users', 'view_hr_panel', 'view_fleet', 'view_reports'
     ],
     [ROLES.HR]: [
-        'manage_hr_data', 'manage_fleet', 'view_users', 'view_hr_panel', 'view_fleet'
+        'manage_hr_data', 'manage_fleet', 'view_users', 'view_hr_panel', 'view_fleet', 'manage_vacations'
     ],
     [ROLES.MANAGER]: [
         'manage_vacations', 'view_users', 'view_hr_panel', 'view_reports',
