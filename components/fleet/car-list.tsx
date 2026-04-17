@@ -94,7 +94,7 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
         policyNumber: "",
         acValidUntil: "",
         acPolicyNumber: "",
-        ownershipType: "COMPANY",
+        ownershipType: "",
         status: "ACTIVE"
     })
 
@@ -114,7 +114,7 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                 policyNumber: car.policyNumber,
                 acValidUntil: car.acValidUntil ? new Date(car.acValidUntil).toISOString().split('T')[0] : "",
                 acPolicyNumber: car.acPolicyNumber || "",
-                ownershipType: car.ownershipType || "COMPANY",
+                ownershipType: car.ownershipType || "",
                 status: car.status
             })
         } else {
@@ -130,7 +130,7 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                 policyNumber: "",
                 acValidUntil: "",
                 acPolicyNumber: "",
-                ownershipType: "COMPANY",
+                ownershipType: "",
                 status: "ACTIVE"
             })
         }
@@ -271,12 +271,8 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                                 </TableCell>
                                 <TableCell>{car.plate}</TableCell>
                                 <TableCell>
-                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                        car.ownershipType === 'LEASING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                                        car.ownershipType === 'BORROWED' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
-                                        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                    }`}>
-                                        {car.ownershipType === 'LEASING' ? 'Leasing' : car.ownershipType === 'BORROWED' ? 'Wypożyczony' : 'Własność firmy'}
+                                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-secondary text-secondary-foreground">
+                                        {car.ownershipType || "Brak danych"}
                                     </span>
                                 </TableCell>
                                 <TableCell>
@@ -405,17 +401,13 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="ownership">Typ własności</Label>
-                            <Select value={formData.ownershipType} onValueChange={(v) => setFormData({ ...formData, ownershipType: v })}>
-                                <SelectTrigger id="ownership">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="COMPANY">Własność firmy</SelectItem>
-                                    <SelectItem value="LEASING">Leasing</SelectItem>
-                                    <SelectItem value="BORROWED">Wypożyczony</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="ownership">Właściciel / Typ własności</Label>
+                            <Input 
+                                id="ownership" 
+                                value={formData.ownershipType} 
+                                onChange={(e) => setFormData({ ...formData, ownershipType: e.target.value })} 
+                                placeholder="Wpisz ręcznie np. Leasing, Wynajem..."
+                            />
                         </div>
                     </div>
                     <DialogFooter>

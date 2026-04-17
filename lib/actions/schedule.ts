@@ -49,7 +49,10 @@ export async function getSchedule(year: number, month: number) {
             if (bokDept) allowedDepts.push(bokDept.id)
 
             where.user = {
-                departmentId: { in: allowedDepts }
+                OR: [
+                    { departmentId: { in: allowedDepts } },
+                    { secondaryDepartmentId: { in: allowedDepts } }
+                ]
             }
         } else if (finalDeptId || finalSecDeptId) {
             // Managers see their whole department and secondary department

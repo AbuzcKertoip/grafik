@@ -192,23 +192,26 @@ export async function createVacation(data: any) {
                     // Pomiń weekendy - nie liczymy ich jako dni urlopowe
                     if (d.getDay() === 0 || d.getDay() === 6) continue
 
-                    await tx.scheduleDay.upsert({
-                        where: {
-                            userId_date: {
-                                userId: parseInt(userId),
-                                date: d,
-                            }
-                        },
-                        update: {
-                            type: vacationType,
-                            vacationId: vacation.id
-                        },
-                        create: {
-                            userId: parseInt(userId),
-                            date: d,
-                            type: vacationType,
-                            vacationId: vacation.id
-                        }
+                    const year = d.getFullYear()
+                    const month = d.getMonth()
+                    const day = d.getDate()
+                    const startOfDay = new Date(year, month, day, 0, 0, 0)
+                    const endOfDay = new Date(year, month, day, 23, 59, 59, 999)
+
+                    await tx.scheduleDay.deleteMany({
+                         where: {
+                              userId: parseInt(userId),
+                              date: { gte: startOfDay, lte: endOfDay }
+                         }
+                    })
+
+                    await tx.scheduleDay.create({
+                         data: {
+                              userId: parseInt(userId),
+                              date: new Date(year, month, day),
+                              type: vacationType,
+                              vacationId: vacation.id
+                         }
                     })
                 }
             }
@@ -348,20 +351,26 @@ export async function approveVacation(id: number) {
                 // Pomiń weekendy - nie liczymy ich jako dni urlopowe
                 if (d.getDay() === 0 || d.getDay() === 6) continue
 
-                await tx.scheduleDay.upsert({
-                    where: {
-                        userId_date: {
-                            userId: vacation.userId,
-                            date: d,
-                        }
-                    },
-                    update: { type: vacationType, vacationId: vacation.id },
-                    create: {
-                        userId: vacation.userId,
-                        date: d,
-                        type: vacationType,
-                        vacationId: vacation.id
-                    }
+                const year = d.getFullYear()
+                const month = d.getMonth()
+                const day = d.getDate()
+                const startOfDay = new Date(year, month, day, 0, 0, 0)
+                const endOfDay = new Date(year, month, day, 23, 59, 59, 999)
+
+                await tx.scheduleDay.deleteMany({
+                     where: {
+                          userId: vacation.userId,
+                          date: { gte: startOfDay, lte: endOfDay }
+                     }
+                })
+
+                await tx.scheduleDay.create({
+                     data: {
+                          userId: vacation.userId,
+                          date: new Date(year, month, day),
+                          type: vacationType,
+                          vacationId: vacation.id
+                     }
                 })
             }
         })
