@@ -149,7 +149,7 @@ export async function createVacation(data: any) {
     const session = await getServerSession(authOptions)
     if (!session) return { error: "Brak dostępu" }
 
-    const { userId, startDate, endDate, type, note } = data
+    const { userId, startDate, endDate, type, note, applicationDate } = data
     const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
     const isSelf = parseInt(session.user.id) === parseInt(userId)
     const isManagerSelf = isSelf && session.user.role === 'MANAGER'
@@ -181,7 +181,8 @@ export async function createVacation(data: any) {
                     endDate: new Date(endDate),
                     type: type || "VACATION",
                     status: status,
-                    note: note || null
+                    note: note || null,
+                    createdAt: applicationDate ? new Date(applicationDate) : undefined
                 },
             })
             finalVacation = vacation;

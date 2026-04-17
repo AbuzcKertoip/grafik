@@ -31,6 +31,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
     const [isOpen, setIsOpen] = useState(false)
     const [type, setType] = useState("VACATION")
     const [loading, setLoading] = useState(false)
+    const [applicationDate, setApplicationDate] = useState<string>(() => new Date().toISOString().split('T')[0])
  
     const canManage = hasPermission(currentUser as any, "manage_vacations")
  
@@ -43,7 +44,8 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                 userId: selectedUser,
                 startDate: dateRange.from,
                 endDate: dateRange.to,
-                type
+                type,
+                applicationDate
             })
     
             if (result?.success) {
@@ -210,6 +212,19 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                         className="w-full border-0 shadow-none"
                                     />
                                 </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+                                    Data wygenerowania druku
+                                    <span className="text-[10px] text-muted-foreground font-normal">(widoczna we wniosku)</span>
+                                </label>
+                                <input 
+                                    type="date"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={applicationDate}
+                                    onChange={(e) => setApplicationDate(e.target.value)}
+                                />
                             </div>
 
                             <Button
