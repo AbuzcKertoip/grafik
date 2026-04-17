@@ -94,7 +94,7 @@ export async function uploadCarPolicyScan(
 
         await writeFile(filepath, buffer)
 
-        const fileUrl = `/uploads/policies/${filename}`
+        const fileUrl = `/api/uploads/policies/${filename}`
 
         const fieldName = type === "oc" ? "policyUrl" : "acPolicyUrl"
 
