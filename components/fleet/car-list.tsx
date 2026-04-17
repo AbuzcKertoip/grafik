@@ -471,7 +471,6 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
                     carId={selectedCar.id}
                     carName={`${selectedCar.make} ${selectedCar.model} (${selectedCar.plate})`}
                     policyUrl={selectedCar.policyUrl || null}
-                    acPolicyUrl={selectedCar.acPolicyUrl || null}
                     isOpen={isPolicyDialogOpen}
                     onOpenChange={setIsPolicyDialogOpen}
                 />

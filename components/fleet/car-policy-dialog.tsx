@@ -55,13 +55,18 @@ function PolicySection({ label, type, currentUrl, carId, onUploaded }: PolicySec
             const formData = new FormData()
             formData.append("file", file)
             const result = await uploadCarPolicyScan(carId, type, formData)
-            if (result.error) {
+            if (result?.error) {
                 toast.error(result.error)
-            } else {
-                toast.success(`Skan polisy ${label} wgrany pomyślnie`)
+            } else if (result?.success) {
+                toast.success(`Skan pomyślnie wgrany`)
                 onUploaded(type, result.fileUrl || null)
                 router.refresh()
+            } else {
+                 toast.error("Nieznany błąd serwera. Plik może być za duży.")
             }
+        } catch (err: any) {
+             console.error("Upload error caught in UI:", err)
+             toast.error("Błąd sieciowy. Plik może być za duży (przekracza limit 10MB) lub serwer odrzucił żądanie.")
         } finally {
             setIsUploading(false)
             // Reset input so same file can be re-selected
@@ -70,17 +75,19 @@ function PolicySection({ label, type, currentUrl, carId, onUploaded }: PolicySec
     }
 
     const handleDelete = async () => {
-        if (!confirm(`Czy na pewno chcesz usunąć skan polisy ${label}?`)) return
+        if (!confirm(`Czy na pewno chcesz usunąć skan?`)) return
         setIsDeleting(true)
         try {
             const result = await deleteCarPolicyScan(carId, type)
-            if (result.error) {
+            if (result?.error) {
                 toast.error(result.error)
             } else {
-                toast.success(`Skan polisy ${label} usunięty`)
+                toast.success(`Skan usunięty`)
                 onUploaded(type, null)
                 router.refresh()
             }
+        } catch (err) {
+            toast.error("Wystąpił błąd podczas usuwania skanu")
         } finally {
             setIsDeleting(false)
         }
@@ -90,7 +97,7 @@ function PolicySection({ label, type, currentUrl, carId, onUploaded }: PolicySec
         <div className="rounded-lg border bg-card p-4 space-y-3">
             <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-blue-500" />
-                <h3 className="font-semibold text-sm">Polisa {label}</h3>
+                <h3 className="font-semibold text-sm">{label}</h3>
             </div>
 
             {currentUrl ? (
@@ -138,7 +145,7 @@ function PolicySection({ label, type, currentUrl, carId, onUploaded }: PolicySec
                 </div>
             ) : (
                 <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Brak skanu polisy</p>
+                    <p className="text-xs text-muted-foreground">Brak skanu polis</p>
                     <Button
                         variant="outline"
                         size="sm"
@@ -149,7 +156,7 @@ function PolicySection({ label, type, currentUrl, carId, onUploaded }: PolicySec
                         {isUploading ? (
                             <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Wgrywanie...</>
                         ) : (
-                            <><Upload className="h-4 w-4 mr-1" /> Wgraj skan polisy (PDF)</>
+                            <><Upload className="h-4 w-4 mr-1" /> Wgraj skan polis (PDF)</>
                         )}
                     </Button>
                 </div>
@@ -170,16 +177,13 @@ export function CarPolicyDialog({
     carId,
     carName,
     policyUrl: initialPolicyUrl,
-    acPolicyUrl: initialAcPolicyUrl,
     isOpen,
     onOpenChange,
 }: CarPolicyDialogProps) {
     const [policyUrl, setPolicyUrl] = useState(initialPolicyUrl)
-    const [acPolicyUrl, setAcPolicyUrl] = useState(initialAcPolicyUrl)
 
     const handleUploaded = (type: "oc" | "ac", url: string | null) => {
-        if (type === "oc") setPolicyUrl(url)
-        else setAcPolicyUrl(url)
+        setPolicyUrl(url)
     }
 
     return (
@@ -193,16 +197,9 @@ export function CarPolicyDialog({
                 </DialogHeader>
                 <div className="space-y-3 py-2">
                     <PolicySection
-                        label="OC"
+                        label="Polisy (OC i AC w jednym pliku)"
                         type="oc"
                         currentUrl={policyUrl}
-                        carId={carId}
-                        onUploaded={handleUploaded}
-                    />
-                    <PolicySection
-                        label="AC"
-                        type="ac"
-                        currentUrl={acPolicyUrl}
                         carId={carId}
                         onUploaded={handleUploaded}
                     />
