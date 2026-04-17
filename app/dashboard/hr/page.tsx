@@ -9,6 +9,7 @@ import Link from "next/link";
 import { User, Shield, AlertTriangle } from "lucide-react";
 
 import { HRUserDirectory } from "@/components/hr/hr-user-directory";
+import { MonthlyVacationReport } from "@/components/hr/monthly-vacation-report";
 
 export default async function HRPage() {
     const session = await getServerSession(authOptions);
@@ -67,6 +68,8 @@ export default async function HRPage() {
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
             <h1 className="text-3xl font-bold text-foreground">Panel HR</h1>
             <p className="text-muted-foreground">Zarządzaj profilami pracowników, badaniami i urlopami.</p>
+
+            <MonthlyVacationReport />
 
             <HRUserDirectory
                 initialUsers={users}
