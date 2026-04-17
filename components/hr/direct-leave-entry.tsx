@@ -31,6 +31,7 @@ export function DirectLeaveEntry({ userId }: DirectLeaveEntryProps) {
         type: "VACATION",
         startDate: "",
         endDate: "",
+        applicationDate: new Date().toISOString().split('T')[0],
         note: ""
     });
 
@@ -58,13 +59,14 @@ export function DirectLeaveEntry({ userId }: DirectLeaveEntryProps) {
                 startDate: formData.startDate,
                 endDate: formData.endDate,
                 type: formData.type,
-                note: formData.note
+                note: formData.note,
+                applicationDate: formData.applicationDate
             });
 
             if (res.success) {
                 toast.success("Zatwierdzona nieobecność została dodana.");
                 setIsOpen(false);
-                setFormData({ type: "VACATION", startDate: "", endDate: "", note: "" });
+                setFormData({ type: "VACATION", startDate: "", endDate: "", applicationDate: new Date().toISOString().split('T')[0], note: "" });
                 router.refresh();
             } else {
                 toast.error(res.error || "Wystąpił błąd");
@@ -134,6 +136,16 @@ export function DirectLeaveEntry({ userId }: DirectLeaveEntryProps) {
                                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                             />
                         </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="applicationDate">Data wygenerowania druku <span className="text-xs text-muted-foreground font-normal">(widoczna we wniosku docx)</span></Label>
+                        <Input
+                            id="applicationDate"
+                            type="date"
+                            value={formData.applicationDate}
+                            onChange={(e) => setFormData({ ...formData, applicationDate: e.target.value })}
+                        />
                     </div>
 
                     <div className="grid gap-2">
