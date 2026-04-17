@@ -17,7 +17,6 @@ interface CarPolicyDialogProps {
     carId: number
     carName: string
     policyUrl: string | null
-    acPolicyUrl: string | null
     isOpen: boolean
     onOpenChange: (open: boolean) => void
 }
