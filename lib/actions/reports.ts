@@ -241,7 +241,8 @@ export async function getAlertsReport(departmentId?: number): Promise<AlertRepor
     const typeMapping: Record<string, string> = {
         'MEDICINE_WORK': 'Medycyna Pracy',
         'SANITARY': 'Sanepid',
-        'SAFETY_TRAINING': 'BHP'
+        'SAFETY_TRAINING': 'BHP',
+        'FIRST_AID': 'Pierwsza Pomoc'
     }
 
     return {

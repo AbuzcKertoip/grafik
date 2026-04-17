@@ -60,6 +60,7 @@ export function MedicalExamList({ exams, userId, isAdmin }: MedicalExamListProps
         'MEDICINE_WORK': 'Medycyna Pracy',
         'SANITARY': 'Badania Sanitarno-Epidemiologiczne',
         'SAFETY_TRAINING': 'Szkolenie BHP',
+        'FIRST_AID': 'Szkolenie z 1 Pomocy',
     }
 
     return (
@@ -86,6 +87,7 @@ export function MedicalExamList({ exams, userId, isAdmin }: MedicalExamListProps
                                         <option value="MEDICINE_WORK">Medycyna Pracy</option>
                                         <option value="SANITARY">Sanitarno-Epidemiologiczne</option>
                                         <option value="SAFETY_TRAINING">Szkolenie BHP</option>
+                                        <option value="FIRST_AID">Pierwsza Pomoc</option>
                                     </select>
                                 </div>
                                 <div className="grid gap-2">

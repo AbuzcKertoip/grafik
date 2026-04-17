@@ -151,6 +151,7 @@ export default async function DashboardPage() {
                                     'MEDICINE_WORK': 'Medycyna Pracy',
                                     'SANITARY': 'Badania Sanitarno-Epidemiologiczne',
                                     'SAFETY_TRAINING': 'Szkolenie BHP',
+                                    'FIRST_AID': 'Szkolenie z Pierwszej Pomocy',
                                 };
                                 return (
                                     <li key={exam.id}>

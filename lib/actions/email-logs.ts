@@ -84,7 +84,8 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
     const examTypesPl: Record<string, string> = {
         SANITARY: "Badanie Sanepidowskie",
         MEDICINE_WORK: "Badanie Medycyny Pracy",
-        SAFETY_TRAINING: "Szkolenie BHP"
+        SAFETY_TRAINING: "Szkolenie BHP",
+        FIRST_AID: "Szkolenie z Pierwszej Pomocy"
     }
 
     if (medicalExams.length > 0) {
