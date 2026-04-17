@@ -42,6 +42,14 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
     const alertDays = settings.alertDaysBefore
     const targetDate = addDays(new Date(), alertDays)
 
+    // Ograniczenie spamu: automatyczna wysyłka tylko raz na 7 dni
+    if (!isManual && settings.lastAlertSent) {
+        const daysSinceLastAlert = (new Date().getTime() - new Date(settings.lastAlertSent).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceLastAlert < 7) {
+            return { success: true, message: "Pominięto, e-mail przesyłany jest automatycznie tylko raz na 7 dni." }
+        }
+    }
+
     // Find expiring medical exams
     const medicalExams = await prisma.medicalExam.findMany({
         where: {
