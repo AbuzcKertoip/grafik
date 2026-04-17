@@ -152,6 +152,7 @@ export async function createVacation(data: any) {
     const { userId, startDate, endDate, type, note } = data
     const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
     const isSelf = parseInt(session.user.id) === parseInt(userId)
+    const isManagerSelf = isSelf && session.user.role === 'MANAGER'
 
     if (!isAdmin && !isSelf) return { error: "Możesz składać wnioski tylko za siebie." }
 
@@ -159,8 +160,8 @@ export async function createVacation(data: any) {
         return { error: "Zwolnienie lekarskie może zostać wprowadzone tylko przez dział HR lub kierownika." }
     }
 
-    // Jeśli type="SICK", to z automatu od razu wbijamy jako "APPROVED" bez względu na to czy wbija to Admin czy Kierownik
-    const approved = isAdmin || type === 'SICK'
+    // Jeśli type="SICK" lub isManagerSelf to z automatu od razu wbijamy jako "APPROVED"
+    const approved = isAdmin || type === 'SICK' || isManagerSelf
     const status = approved ? "APPROVED" : "PENDING"
 
     const validation = await validateVacationLimit(parseInt(userId), new Date(startDate), new Date(endDate), type || "VACATION")
@@ -169,6 +170,8 @@ export async function createVacation(data: any) {
     }
 
     try {
+        let finalVacation: any = null;
+
         await prisma.$transaction(async (tx) => {
             // 1. Create Vacation Record
             const vacation = await tx.vacation.create({
@@ -181,6 +184,7 @@ export async function createVacation(data: any) {
                     note: note || null
                 },
             })
+            finalVacation = vacation;
 
             // 2. Sync with ScheduleDay ONLY IF APPROVED
             if (approved) {
@@ -218,7 +222,30 @@ export async function createVacation(data: any) {
         })
 
         // Wysyłka emaila akceptacyjnego
-        if (!isAdmin) {
+        if (isManagerSelf && approved) {
+            const user = await prisma.user.findUnique({
+                where: { id: parseInt(userId) },
+                include: { department: true }
+            })
+            if (user && user.email) {
+                const start = new Date(startDate)
+                const end = new Date(endDate)
+                const businessDaysCount = getBusinessDaysCount(start, end)
+                const docBuffer = await import("@/lib/docs/vacation-document").then(m => m.generateVacationDoc(finalVacation, user, businessDaysCount)).catch(e => { console.error("Doc gen failed", e); return null; })
+                const attachments = docBuffer ? [{ filename: 'wniosek-o-urlop.docx', content: docBuffer }] : []
+
+                const mailHtml = `
+                <div style="font-family: sans-serif; color: #333;">
+                    <h2 style="color: #10b981;">Twój automatyczny wniosek urlopowy został zatwierdzony!</h2>
+                    <p>Z racji funkcji Menedżera, wniosek systemowo przybrał status Zatwierdzony.</p>
+                    <p>Termin: od ${formatDatePL(startDate)} do ${formatDatePL(endDate)}</p>
+                    <p>W załączniku znajduje się wygenerowany docx ze złożonym wnioskiem (właśnie trafił do archiwum miesiąca).</p>
+                    <p>Dni urlopowe zostały automatycznie wprowadzone w siatkę grafiku.</p>
+                </div>
+                `
+                await sendEmail(user.email, "Zatwierdzony wniosek urlopowy", mailHtml, attachments).catch(console.error)
+            }
+        } else if (!isAdmin) {
             const user = await prisma.user.findUnique({
                 where: { id: parseInt(userId) },
                 include: { department: true }
