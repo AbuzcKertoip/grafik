@@ -30,7 +30,17 @@ export default async function ProfilePage({
     const isAdmin = session.user.role === 'ADMIN';
     const isHR = session.user.role === 'HR';
     const isManager = session.user.role === 'MANAGER';
-    const canManageHR = isAdmin || isHR;
+    let isManagerInHR = false;
+    if (isManager && session.user.departmentId) {
+        const userDept = await prisma.department.findUnique({
+            where: { id: parseInt(session.user.departmentId.toString()) }
+        });
+        if (userDept && userDept.name.toUpperCase() === 'HR') {
+            isManagerInHR = true;
+        }
+    }
+
+    const canManageHR = isAdmin || isHR || isManagerInHR;
 
     const params = await searchParams;
 
@@ -52,8 +62,8 @@ export default async function ProfilePage({
         return <div>Nie znaleziono użytkownika</div>;
     }
 
-    // Security check: If Manager, ensure the targeted user is in their department
-    if (isManager && targetUserId !== parseInt(session.user.id) && user.departmentId !== session.user.departmentId) {
+    // Security check: If Manager (not in HR), ensure the targeted user is in their department
+    if (isManager && !isManagerInHR && targetUserId !== parseInt(session.user.id) && user.departmentId !== session.user.departmentId) {
         redirect("/dashboard/hr"); // or show access denied
     }
 

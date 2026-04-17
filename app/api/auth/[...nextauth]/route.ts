@@ -63,14 +63,23 @@ export const authOptions: NextAuthOptions = {
                     errorCodeKey: "AUTH_LOGIN_SUCCESS"
                 });
 
+                let dynamicPermissions = user.permissions.map(p => p.permission.slug)
+
+                if (user.role === 'MANAGER' && user.departmentId) {
+                    const dept = await prisma.department.findUnique({ where: { id: user.departmentId } })
+                    if (dept && dept.name.toUpperCase() === 'HR') {
+                        if (!dynamicPermissions.includes('manage_hr_data')) dynamicPermissions.push('manage_hr_data')
+                    }
+                }
+
                 return {
                     id: user.id.toString(),
                     username: user.username,
                     name: user.name,
                     role: user.role,
-                    departmentId: user.departmentId || undefined, // Types compatibility
+                    departmentId: user.departmentId || undefined,
                     secondaryDepartmentId: user.secondaryDepartmentId || undefined,
-                    permissions: user.permissions.map(p => p.permission.slug),
+                    permissions: dynamicPermissions,
                 }
             },
         }),
