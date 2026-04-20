@@ -34,10 +34,11 @@ export async function getVacations(year: number) {
         endDate: { lte: endDate }
     }
 
-    if (role === 'ADMIN' || role === 'HR') {
-        // Admin or HR sees all
+    const isGlobalViewer = role === 'ADMIN' || role === 'HR' || role === 'SZEF' || hasPermission(session.user as any, "view_all_schedules");
+
+    if (isGlobalViewer) {
+        // Global viewers see all
     } else if (role === 'MANAGER') {
-        // Managers only see themselves and their department(s)
         const allowedDepts = []
         if (deptId) allowedDepts.push(deptId)
         if (secDeptId) allowedDepts.push(secDeptId)

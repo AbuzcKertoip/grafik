@@ -1,4 +1,5 @@
 import { getSchedule } from "@/lib/actions/schedule"
+import { hasPermission } from "@/lib/auth/permissions"
 
 export const dynamic = 'force-dynamic'
 import { getUsers } from "@/lib/actions/users"
@@ -45,8 +46,13 @@ export default async function SchedulePage(props: SchedulePageProps) {
     const schedule = await getSchedule(year, month)
     const vacations = await getVacations(year)
 
-    // Admins and HR can see the filter and we need to fetch departments for the dropdown
-    const canFilter = session.user.role === 'ADMIN' || session.user.role === 'HR';
+    // Admins, SZEF, and HR can see the filter and we need to fetch departments for the dropdown
+    const isGlobalViewer = session.user.role === 'ADMIN' || 
+                          session.user.role === 'HR' || 
+                          session.user.role === 'SZEF' || 
+                          hasPermission(session.user as any, "view_all_schedules");
+    
+    const canFilter = isGlobalViewer;
     const allDepartments = canFilter ? await prisma.department.findMany({ orderBy: { name: 'asc' } }) : [];
 
     return (

@@ -19,9 +19,11 @@ export async function getUsers(requestedDepartmentId?: string | null) {
 
     const where: any = {}
 
-    // Strict RBAC Rules for Schedule Visibility
-    if (role === ROLES.ADMIN || role === ROLES.HR || hasPermission(session.user as any, "manage_users") || hasPermission(session.user as any, "view_users")) {
-        // Admins and HR can see all, but can also filter by a specific department
+    // Strict RBAC Rules for Schedule Visibility (and generic list visibility)
+    const isGlobalViewer = role === ROLES.ADMIN || role === ROLES.HR || role === ROLES.SZEF || hasPermission(session.user as any, "manage_users") || hasPermission(session.user as any, "view_all_schedules");
+
+    if (isGlobalViewer) {
+        // Admins, SZEF, and HR can see all, but can also filter by a specific department
         if (requestedDepartmentId && requestedDepartmentId !== "ALL") {
             where.OR = [
                 { departmentId: parseInt(requestedDepartmentId) },

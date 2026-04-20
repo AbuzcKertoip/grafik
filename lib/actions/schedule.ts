@@ -24,7 +24,11 @@ export async function getSchedule(year: number, month: number) {
         },
     }
 
-    if (role === 'USER' && session?.user?.id) {
+    const isGlobalViewer = role === 'ADMIN' || role === 'HR' || role === 'SZEF' || hasPermission(session?.user as any, "view_all_schedules");
+
+    if (isGlobalViewer) {
+        // Global viewers see all days for the whole company
+    } else if (role === 'USER' && session?.user?.id) {
         // Regular users see the schedule of people in their department(s)
         if (finalDeptId || finalSecDeptId) {
             const userDepts = [];
