@@ -68,9 +68,21 @@ export async function getVacationStats(userId: number, year: number) {
     if (user.contractType === 'B2B') {
         baseLimit = user.vacationDaysLimit // Allow admin to change this, dont hardcode 26 anymore
         carriedOver = 0 // B2B does not carry over unused days
+    } else if (user.contractType === 'UOP_PART_TIME') {
+        baseLimit = user.vacationDaysLimit // Custom limit for part-time (np 7/8 etatu)
     } else {
-        // UOP: limit depends on seniority
-        baseLimit = user.has10YearsSeniority ? 26 : 20
+        // UOP: limit depends on seniority by default, but we should allow custom limits if HR set them manually. 
+        // We will respect what's in the DB if it was changed from default, but for strict UOP we traditionally derive it:
+        // Actually, let's just use user.vacationDaysLimit for EVERYONE, and only set it to 20/26 during creation!
+        // But to be backwards compatible, if it's 20/26 we keep it, otherwise whatever HR typed.
+        baseLimit = user.vacationDaysLimit;
+        
+        // Safety fallback if it was never set (default is 26)
+        if (baseLimit === 26 && !user.has10YearsSeniority) {
+             baseLimit = 20;
+        } else if (baseLimit === 20 && user.has10YearsSeniority) {
+             baseLimit = 26;
+        }
     }
     const totalLimit = baseLimit + carriedOver
 

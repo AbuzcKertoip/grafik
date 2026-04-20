@@ -8,15 +8,17 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
-import { createVacation, approveVacation, rejectVacation, cancelVacation } from "@/lib/actions/vacations"
+import { createVacation, approveVacation, rejectVacation, cancelVacation, editVacation } from "@/lib/actions/vacations"
 import { groupVacations } from "@/lib/vacation-utils"
 import { useRouter } from "next/navigation"
+import { formatName } from "@/lib/utils"
 import { format } from "date-fns"
 import { pl } from "date-fns/locale"
 import { hasPermission } from "@/lib/auth/permissions"
 import { CheckCircle, XCircle, Clock } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
 
 interface VacationCalendarProps {
     users: any[]
@@ -32,6 +34,8 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
     const [type, setType] = useState("VACATION")
     const [loading, setLoading] = useState(false)
     const [applicationDate, setApplicationDate] = useState<string>(() => new Date().toISOString().split('T')[0])
+    const [searchQuery, setSearchQuery] = useState("")
+    const [editModeId, setEditModeId] = useState<number | null>(null)
  
     const canManage = hasPermission(currentUser as any, "manage_vacations")
  
@@ -55,6 +59,26 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                 alert(canManage ? "Urlop dodany." : "Wniosek został wysłany do akceptacji.")
             } else {
                 alert(result?.error || "Błąd dodawania wniosku")
+            }
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleEdit = async () => {
+        if (!dateRange?.from || !dateRange?.to || !editModeId || loading) return
+
+        setLoading(true)
+        try {
+            const result = await editVacation(editModeId, dateRange.from, dateRange.to)
+            if (result?.success) {
+                setEditModeId(null)
+                setDateRange(undefined)
+                if (canManage) setSelectedUser("")
+                router.refresh()
+                alert("Zmiany zostały zapisane.")
+            } else {
+                alert(result?.error || "Błąd edycji wniosku")
             }
         } finally {
             setLoading(false)
@@ -130,8 +154,19 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
 
     const groupedVisible = groupVacations(visibleVacations)
 
-    const pendingVacations = groupedVisible.filter(v => v.status === "PENDING")
-    const approvedVacations = groupedVisible.filter(v => v.status !== "PENDING")
+    const filteredVacations = groupedVisible.filter(v => {
+        if (!searchQuery) return true;
+        const name = formatName(v.user?.name || v.user?.username || "").toLowerCase();
+        return name.includes(searchQuery.toLowerCase());
+    });
+
+    const pendingVacations = filteredVacations.filter(v => v.status === "PENDING")
+    const approvedVacations = filteredVacations.filter(v => v.status !== "PENDING")
+
+    // Sort users by last name for the dropdown
+    const sortedUsers = [...users].sort((a, b) => {
+        return formatName(a.name || a.username).localeCompare(formatName(b.name || b.username));
+    });
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -156,9 +191,23 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                     {/* Left Sidebar: Form */}
                     <div className="md:col-span-4 space-y-6">
                         <div className="space-y-1">
-                            <h3 className="font-semibold text-lg text-foreground">Nowy wniosek</h3>
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-semibold text-lg text-foreground">
+                                    {editModeId ? "Edycja Wniosku" : "Nowy wniosek"}
+                                </h3>
+                                {editModeId && (
+                                    <Button variant="ghost" size="sm" onClick={() => {
+                                        setEditModeId(null);
+                                        setDateRange(undefined);
+                                        setType("VACATION");
+                                        if (canManage) setSelectedUser("");
+                                    }} className="text-muted-foreground h-6 px-2 text-xs">
+                                        Anuluj
+                                    </Button>
+                                )}
+                            </div>
                             <p className="text-sm text-muted-foreground">
-                                {canManage ? "Dodaj urlop lub zwolnienie." : "Wybierz termin urlopu."}
+                                {editModeId ? "Zmień daty wniosku." : (canManage ? "Dodaj urlop lub zwolnienie." : "Wybierz termin urlopu.")}
                             </p>
                         </div>
 
@@ -166,14 +215,14 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                             {canManage && (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-muted-foreground">Pracownik</label>
-                                    <Select value={selectedUser} onValueChange={setSelectedUser}>
+                                    <Select value={selectedUser} onValueChange={setSelectedUser} disabled={!!editModeId}>
                                         <SelectTrigger className="bg-muted border-border">
                                             <SelectValue placeholder="Wybierz z listy..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {users.map(u => (
+                                            {sortedUsers.map(u => (
                                                 <SelectItem key={u.id} value={u.id.toString()}>
-                                                    {u.name || u.username}
+                                                    {formatName(u.name || u.username)}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -183,7 +232,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-muted-foreground">Rodzaj</label>
-                                <Select value={type} onValueChange={setType}>
+                                <Select value={type} onValueChange={setType} disabled={!!editModeId}>
                                     <SelectTrigger className="bg-muted border-border">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -229,16 +278,29 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
 
                             <Button
                                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                                onClick={handleAdd}
+                                onClick={editModeId ? handleEdit : handleAdd}
                                 disabled={!dateRange?.from || !dateRange?.to || !selectedUser || loading}
                             >
-                                {loading ? "Przetwarzanie..." : (canManage ? "Zatwierdź Urlop" : "Wyślij Wniosek")}
+                                {loading ? "Przetwarzanie..." : (editModeId ? "Zapisz Zmiany" : (canManage ? "Zatwierdź Urlop" : "Wyślij Wniosek"))}
                             </Button>
                         </div>
                     </div>
 
                     {/* Right Content: Lists */}
                     <div className="md:col-span-8 bg-muted/30 rounded-lg p-6 space-y-6 border border-border h-full flex flex-col">
+                        <div className="flex justify-between items-center">
+                            <h3 className="font-semibold text-lg text-foreground">Lista Wniosków</h3>
+                            {canManage && (
+                                <div className="w-1/2">
+                                    <Input 
+                                        placeholder="🔍 Szukaj pracownika..." 
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="h-8"
+                                    />
+                                </div>
+                            )}
+                        </div>
                         <Tabs defaultValue={canManage && pendingVacations.length > 0 ? "pending" : "all"} className="w-full flex-1 flex flex-col">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="pending" className="relative">
@@ -260,7 +322,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <div className="font-semibold text-foreground flex items-center gap-2">
-                                                            {v.user?.name || v.user?.username || "Nieznany"}
+                                                            {formatName(v.user?.name || v.user?.username)}
                                                             <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full flex items-center gap-1">
                                                                 <Clock className="w-3 h-3" /> Oczekuje
                                                             </span>
@@ -294,6 +356,14 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                         )}
                                                         {canManage && (
                                                             <>
+                                                                <Button size="sm" variant="outline" className="text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-900/20 border-gray-200 dark:border-gray-900" onClick={() => {
+                                                                    setEditModeId(v.id);
+                                                                    setSelectedUser(v.userId.toString());
+                                                                    setType(v.type);
+                                                                    setDateRange({ from: new Date(v.startDate), to: new Date(v.endDate) });
+                                                                }} disabled={loading || editModeId === v.id}>
+                                                                    Edytuj
+                                                                </Button>
                                                                 <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-900" onClick={() => handleApprove(v.mergedIds || v.id)} disabled={loading}>
                                                                     <CheckCircle className="w-4 h-4 mr-1" /> {loading ? "..." : "Akceptuj"}
                                                                 </Button>
@@ -332,7 +402,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                 </div>
                                                 <div>
                                                     <div className="font-semibold text-foreground flex items-center gap-2">
-                                                        {v.user?.name || v.user?.username || "Nieznany"}
+                                                        {formatName(v.user?.name || v.user?.username)}
                                                         {v.status === "REJECTED" && (
                                                             <span className="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800">
                                                                 Odrzucony
@@ -355,6 +425,16 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
+                                                {canManage && (v.status === "APPROVED" || v.status === "PENDING") && (
+                                                    <Button size="sm" variant="outline" className="text-gray-600 hover:bg-gray-50 border-gray-200" onClick={() => {
+                                                        setEditModeId(v.id);
+                                                        setSelectedUser(v.userId.toString());
+                                                        setType(v.type);
+                                                        setDateRange({ from: new Date(v.startDate), to: new Date(v.endDate) });
+                                                    }} disabled={loading || editModeId === v.id}>
+                                                        Edytuj
+                                                    </Button>
+                                                )}
                                                 {v.status === "APPROVED" && (
                                                     <Button size="sm" variant="outline" className="text-amber-600 hover:bg-amber-50 border-amber-200" onClick={() => handleCancel(v.mergedIds || v.id)} disabled={loading}>
                                                         {loading ? "..." : "Anuluj"}

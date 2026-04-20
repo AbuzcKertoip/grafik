@@ -15,6 +15,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { User, Shield, AlertTriangle, Search, Filter } from "lucide-react";
+import { formatName } from "@/lib/utils";
 
 type UserWithRelations = PrismaUser & {
     medicalExams: MedicalExam[];
@@ -46,7 +47,7 @@ export function HRUserDirectory({ initialUsers, departments, currentUserRole, cu
         if (searchQuery.trim() !== "") {
             const query = searchQuery.toLowerCase();
             result = result.filter(user =>
-                (user.name && user.name.toLowerCase().includes(query)) ||
+                formatName(user.name || user.username).toLowerCase().includes(query) ||
                 user.username.toLowerCase().includes(query)
             );
         }
@@ -60,8 +61,8 @@ export function HRUserDirectory({ initialUsers, departments, currentUserRole, cu
 
         // Sorting
         result.sort((a, b) => {
-            const nameA = (a.name || a.username).toLowerCase();
-            const nameB = (b.name || b.username).toLowerCase();
+            const nameA = formatName(a.name || a.username).toLowerCase();
+            const nameB = formatName(b.name || b.username).toLowerCase();
 
             switch (sortBy) {
                 case "name-asc":
@@ -178,13 +179,13 @@ export function HRUserDirectory({ initialUsers, departments, currentUserRole, cu
                                     <Avatar className="h-12 w-12 border shadow-sm shrink-0">
                                         <AvatarImage src={user.image || ""} className="object-cover h-full w-full" />
                                         <AvatarFallback className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 font-bold flex items-center justify-center h-full w-full">
-                                            {(user.name || user.username).substring(0, 2).toUpperCase()}
+                                            {formatName(user.name || user.username).substring(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
                                             <h3 className="text-lg font-semibold text-foreground truncate">
-                                                {user.name || user.username}
+                                                {formatName(user.name || user.username)}
                                             </h3>
                                             {user.role === 'ADMIN' ? <Shield className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500" /> : <User className="h-4 w-4 shrink-0 text-muted-foreground" />}
                                         </div>

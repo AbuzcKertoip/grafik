@@ -22,12 +22,36 @@ import {
 } from "@/components/ui/tooltip";
 import { getBusinessDaysCount } from "@/lib/holidays";
 import { groupVacations } from "@/lib/vacation-utils";
+import { deleteVacation } from "@/lib/actions/vacations";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface VacationHistoryTableProps {
     vacations: Vacation[];
 }
 
 export function VacationHistoryTable({ vacations }: VacationHistoryTableProps) {
+    const [isDeleting, setIsDeleting] = useState<number | null>(null);
+
+    const handleDelete = async (id: number) => {
+        if (!confirm("Czy na pewno chcesz usunąć ten anulowany wniosek?")) return;
+        setIsDeleting(id);
+        try {
+            const result = await deleteVacation(id);
+            if (result.success) {
+                toast.success("Usunięto wniosek z historii.");
+            } else {
+                toast.error(result.error || "Wystąpił błąd");
+            }
+        } catch (error) {
+            toast.error("Wystąpił błąd");
+        } finally {
+            setIsDeleting(null);
+        }
+    };
+
     if (!vacations || vacations.length === 0) {
         return (
             <Card>
@@ -130,9 +154,20 @@ export function VacationHistoryTable({ vacations }: VacationHistoryTableProps) {
                                                     </TooltipContent>
                                                 </Tooltip>
                                             ) : vacation.status === "CANCELLED" ? (
-                                                <Badge variant="outline" className="text-muted-foreground bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800">
-                                                    Anulowany
-                                                </Badge>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="outline" className="text-muted-foreground bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800">
+                                                        Anulowany
+                                                    </Badge>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                        onClick={() => handleDelete(vacation.id)}
+                                                        disabled={isDeleting === vacation.id}
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
                                             ) : vacation.status === "PENDING" ? (
                                                 <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/10">
                                                     Oczekujący

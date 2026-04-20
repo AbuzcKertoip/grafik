@@ -660,5 +660,133 @@ export async function rejectVacation(id: number, reason: string) {
 }
 
 export async function deleteVacation(id: number) {
-    return { error: "Usuwanie wniosków jest zablokowane. Proszę użyć opcji 'Anuluj' lub 'Odrzuć' w celu zachowania historii." }
+    const session = await getServerSession(authOptions)
+    if (!session) return { error: "Brak dostępu" }
+
+    try {
+        const vacation = await prisma.vacation.findUnique({
+            where: { id },
+            include: { user: true }
+        })
+
+        if (!vacation) return { error: "Wniosek nie istnieje" }
+
+        const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
+        const isSelf = parseInt(session.user.id) === vacation.userId
+
+        // Normal user can only delete CANCELLED or REJECTED requests of their own.
+        // HR / Admin can delete any request.
+        if (!isAdmin) {
+            if (!isSelf) return { error: "Możesz usuwać tylko własne wnioski." }
+            if (vacation.status !== 'CANCELLED' && vacation.status !== 'REJECTED') {
+                return { error: "Zwykły użytkownik może usunąć tylko anulowany lub odrzucony wniosek." }
+            }
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // First remove schedule days associated with it
+            await tx.scheduleDay.deleteMany({
+                where: { vacationId: id }
+            })
+
+            // Then delete the vacation
+            await tx.vacation.delete({
+                where: { id }
+            })
+        })
+
+        await createLog({
+            action: "VACATION_DELETED",
+            description: `Usunięto urlop (ID: ${vacation.id}) pracownika ${vacation.user.username}`,
+            userId: parseInt(session.user.id),
+            errorCodeKey: "VACATION_DELETED",
+            details: { vacationId: id, targetUserId: vacation.userId }
+        });
+
+        revalidatePath("/dashboard/schedule")
+        revalidatePath("/dashboard/leave")
+        revalidatePath("/dashboard/profile")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd podczas usuwania wniosku." }
+    }
+}
+
+export async function editVacation(id: number, startDate: Date, endDate: Date) {
+    const session = await getServerSession(authOptions)
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
+        return { error: "Brak uprawnień do edycji" }
+    }
+
+    try {
+        const vacation = await prisma.vacation.findUnique({
+            where: { id }
+        })
+
+        if (!vacation) return { error: "Wniosek nie istnieje" }
+
+        // Optionally add validation logic for dates (e.g. limit checks) here, but since it's an HR edit we assume HR knows what they're doing.
+        if (startDate > endDate) {
+            return { error: "Data początkowa nie może być późniejsza niż końcowa" }
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Update the vacation dates
+            const updatedVacation = await tx.vacation.update({
+                where: { id },
+                data: {
+                    startDate,
+                    endDate
+                }
+            })
+
+            // Update schedule days if the vacation was approved or if we want to sync it.
+            // If the status is APPROVED, we must rebuild the schedule days.
+            if (updatedVacation.status === 'APPROVED') {
+                await tx.scheduleDay.deleteMany({
+                    where: { vacationId: id }
+                })
+
+                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    if (d.getDay() === 0 || d.getDay() === 6) continue;
+
+                    const year = d.getFullYear();
+                    const month = d.getMonth();
+                    const day = d.getDate();
+                    
+                    // First remove any existing schedule day that might cause a conflict (if user already had a shift there)
+                    await tx.scheduleDay.deleteMany({
+                        where: {
+                            userId: vacation.userId,
+                            date: { gte: new Date(year, month, day, 0, 0, 0), lte: new Date(year, month, day, 23, 59, 59, 999) }
+                        }
+                    })
+
+                    await tx.scheduleDay.create({
+                        data: {
+                            userId: vacation.userId,
+                            date: new Date(year, month, day),
+                            type: vacation.type,
+                            vacationId: vacation.id
+                        }
+                    })
+                }
+            }
+        })
+
+        await createLog({
+            action: "VACATION_EDITED",
+            description: `Edytowano daty urlopu (ID: ${id})`,
+            userId: parseInt(session.user.id),
+            errorCodeKey: "VACATION_EDITED",
+            details: { vacationId: id, startDate, endDate }
+        });
+
+        revalidatePath("/dashboard/schedule")
+        revalidatePath("/dashboard/leave")
+        revalidatePath("/dashboard/profile")
+        return { success: true }
+    } catch (e) {
+        return { error: "Błąd podczas edycji wniosku." }
+    }
 }

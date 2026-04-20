@@ -24,7 +24,7 @@ model User {
   contractType            String           @default("UOP")
   has10YearsSeniority     Boolean          @default(false)
   hasChildren             Boolean          @default(false)
-  vacationDaysLimit       Int              @default(26)
+  vacationDaysLimit       Float            @default(26.0)
   carriedOverVacationDays Int              @default(0)
   additionalVacationDays  Int              @default(0)
   hasInternetPackage      Boolean          @default(false)

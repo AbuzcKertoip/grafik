@@ -172,6 +172,7 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="UOP">Umowa o pracę (UOP)</SelectItem>
+                                    <SelectItem value="UOP_PART_TIME">Niepełny etat (UOP)</SelectItem>
                                     <SelectItem value="B2B">Samozatrudnienie (B2B)</SelectItem>
                                 </SelectContent>
                             </Select>

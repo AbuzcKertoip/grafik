@@ -160,7 +160,8 @@ export function VacationStats({ userId, isAdmin, limit, used, baseLimit, carried
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="UOP">UOP (20/26)</SelectItem>
-                                                <SelectItem value="B2B">B2B (Stałe 26)</SelectItem>
+                                                <SelectItem value="UOP_PART_TIME">Niepełny etat / Inne</SelectItem>
+                                                <SelectItem value="B2B">B2B (Stałe 26 / Inne)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -209,7 +210,7 @@ export function VacationStats({ userId, isAdmin, limit, used, baseLimit, carried
 
                 <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
                     <span className="font-semibold uppercase text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                        Umowa: {contractType === 'B2B' ? 'B2B' : 'UOP'}
+                        Umowa: {contractType === 'B2B' ? 'B2B' : contractType === 'UOP_PART_TIME' ? 'Niepełny wymiar' : 'UOP'}
                     </span>
                     {contractType !== 'B2B' && (
                         <span>Staż pracy: {has10YearsSeniority ? 'Powyżej 10 lat' : 'Poniżej 10 lat'}</span>
