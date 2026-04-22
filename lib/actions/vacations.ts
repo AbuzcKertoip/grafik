@@ -17,6 +17,18 @@ function formatDatePL(date: Date | string) {
     }).format(new Date(date));
 }
 
+function normalizeDate(d: Date | string) {
+    const date = new Date(d);
+    const warsawDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Warsaw',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(date);
+    const [y, m, day] = warsawDate.split('-').map(Number);
+    return new Date(y, m - 1, day, 0, 0, 0, 0);
+}
+
 export async function getVacations(year: number) {
     const session = await getServerSession(authOptions)
     if (!session) return []
@@ -190,8 +202,8 @@ export async function createVacation(data: any) {
 
             // 2. Sync with ScheduleDay ONLY IF APPROVED
             if (approved) {
-                const start = new Date(startDate)
-                const end = new Date(endDate)
+                const start = normalizeDate(startDate)
+                const end = normalizeDate(endDate)
                 const vacationType = type || "VACATION"
 
                 for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -372,8 +384,8 @@ export async function approveVacation(id: number) {
             })
 
             // 2. Sync
-            const start = new Date(vacation.startDate)
-            const end = new Date(vacation.endDate)
+            const start = normalizeDate(vacation.startDate)
+            const end = normalizeDate(vacation.endDate)
             const vacationType = vacation.type
 
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -748,7 +760,10 @@ export async function editVacation(id: number, startDate: Date, endDate: Date) {
                     where: { vacationId: id }
                 })
 
-                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const start = normalizeDate(startDate)
+                const end = normalizeDate(endDate)
+
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                     if (d.getDay() === 0 || d.getDay() === 6) continue;
 
                     const year = d.getFullYear();
