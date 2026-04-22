@@ -34,6 +34,7 @@ async function main() {
     { slug: 'edit_schedule_dept', name: 'Edycja Grafiku (Własny Dział)', description: 'Możliwość modyfikacji pojedynczych dyżurów w ramach jednego działu.' },
     { slug: 'edit_schedule_all', name: 'Edycja Grafiku (Globalna)', description: 'Możliwość modyfikacji dyżurów u wszystkich pracowników w firmie.' },
     { slug: 'clear_schedule', name: 'Czyszczenie Grafiku', description: 'Możliwość kasowania masowego całego wygenerowanego zapisu.' },
+    { slug: 'auto_approve_own_vacations', name: 'Auto-akceptacja własnych urlopów', description: 'Umożliwia branie urlopu bez wymaganej akceptacji i automatyczne generowanie dokumentu.' },
   ]
   for (const perm of permissions) {
     await prisma.permission.upsert({ where: { slug: perm.slug }, update: { name: perm.name, description: perm.description }, create: perm })

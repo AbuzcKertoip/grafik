@@ -56,7 +56,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
                 setDateRange(undefined)
                 if (canManage) setSelectedUser("")
                 router.refresh()
-                alert(canManage ? "Urlop dodany." : "Wniosek został wysłany do akceptacji.")
+                alert(result?.approved ? "Urlop dodany i zatwierdzony automatycznie." : "Wniosek został wysłany do akceptacji.")
             } else {
                 alert(result?.error || "Błąd dodawania wniosku")
             }

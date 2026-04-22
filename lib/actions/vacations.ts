@@ -167,14 +167,16 @@ export async function createVacation(data: any) {
     const isSelf = parseInt(session.user.id) === parseInt(userId)
     const isManagerSelf = isSelf && session.user.role === 'MANAGER'
 
+    const canAutoApprove = isSelf && hasPermission(session.user as any, "auto_approve_own_vacations")
+
     if (!isAdmin && !isSelf) return { error: "Możesz składać wnioski tylko za siebie." }
 
     if (type === 'SICK' && !isAdmin && session.user.role !== 'MANAGER') {
         return { error: "Zwolnienie lekarskie może zostać wprowadzone tylko przez dział HR lub kierownika." }
     }
 
-    // Jeśli type="SICK" lub isManagerSelf to z automatu od razu wbijamy jako "APPROVED"
-    const approved = isAdmin || type === 'SICK' || isManagerSelf
+    // Jeśli type="SICK" lub isManagerSelf lub canAutoApprove to z automatu od razu wbijamy jako "APPROVED"
+    const approved = isAdmin || type === 'SICK' || isManagerSelf || canAutoApprove
     const status = approved ? "APPROVED" : "PENDING"
 
     const validation = await validateVacationLimit(parseInt(userId), new Date(startDate), new Date(endDate), type || "VACATION")
@@ -236,14 +238,14 @@ export async function createVacation(data: any) {
         })
 
         // Wysyłka emaila akceptacyjnego
-        if (isManagerSelf && approved) {
+        if ((isManagerSelf || canAutoApprove) && approved) {
             const user = await prisma.user.findUnique({
                 where: { id: parseInt(userId) },
                 include: { department: true }
             })
             if (user && user.email) {
-                const start = new Date(startDate)
-                const end = new Date(endDate)
+                const start = normalizeDate(startDate)
+                const end = normalizeDate(endDate)
                 const businessDaysCount = getBusinessDaysCount(start, end)
                 const docBuffer = await import("@/lib/docs/vacation-document").then(m => m.generateVacationDoc(finalVacation, user, businessDaysCount)).catch(e => { console.error("Doc gen failed", e); return null; })
                 const attachments = docBuffer ? [{ filename: 'wniosek-o-urlop.docx', content: docBuffer }] : []
@@ -251,7 +253,7 @@ export async function createVacation(data: any) {
                 const mailHtml = `
                 <div style="font-family: sans-serif; color: #333;">
                     <h2 style="color: #10b981;">Twój automatyczny wniosek urlopowy został zatwierdzony!</h2>
-                    <p>Z racji funkcji Menedżera, wniosek systemowo przybrał status Zatwierdzony.</p>
+                    <p>${isManagerSelf ? 'Z racji funkcji Menedżera, wniosek systemowo przybrał status Zatwierdzony.' : 'Z racji przyznanego uprawnienia systemowo zatwierdzono wniosek i zapisano w grafiku.'}</p>
                     <p>Termin: od ${formatDatePL(startDate)} do ${formatDatePL(endDate)}</p>
                     <p>W załączniku znajduje się wygenerowany docx ze złożonym wnioskiem (właśnie trafił do archiwum miesiąca).</p>
                     <p>Dni urlopowe zostały automatycznie wprowadzone w siatkę grafiku.</p>
