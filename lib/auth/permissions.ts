@@ -3,6 +3,7 @@ import { User } from "next-auth"
 export const PERMISSIONS = {
     MANAGE_USERS: "manage_users",
     MANAGE_DEPARTMENTS: "manage_departments",
+    MANAGE_PERMISSIONS: "manage_permissions",
     VIEW_ALL_SCHEDULES: "view_all_schedules",
     MANAGE_SCHEDULES: "manage_schedules",
     VIEW_REPORTS: "view_reports",
@@ -17,6 +18,7 @@ export const PERMISSIONS = {
     EDIT_SCHEDULE_DEPT: "edit_schedule_dept",
     EDIT_SCHEDULE_ALL: "edit_schedule_all",
     CLEAR_SCHEDULE: "clear_schedule",
+    AUTO_APPROVE_OWN_VACATIONS: "auto_approve_own_vacations",
 } as const
 
 export const ROLES = {
