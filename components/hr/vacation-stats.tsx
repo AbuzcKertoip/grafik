@@ -84,11 +84,26 @@ export function VacationStats({ userId, isAdmin, limit, used, baseLimit, carried
         }
     }
 
+    const isUOP = contractType === 'UOP' || contractType === 'UOP_PART_TIME';
+    const sectionTitle = isUOP ? 'Twój Urlop' : 'Twoje Nieobecności';
+
+    const getContractLabel = (ct: string) => {
+        switch (ct) {
+            case 'UOP': return 'Umowa o pracę';
+            case 'UOP_PART_TIME': return 'Niepełny etat (UOP)';
+            case 'B2B': return 'B2B';
+            case 'UMOWA_ZLECENIE': return 'Umowa zlecenie';
+            case 'UMOWA_O_DZIELO': return 'Umowa o dzieło';
+            case 'INNE': return 'Inne';
+            default: return ct;
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-lg">Twój Urlop</h3>
+                    <h3 className="font-semibold text-lg">{sectionTitle}</h3>
                     {isAdmin && (
                         <Dialog open={isOpen} onOpenChange={setIsOpen}>
                             <DialogTrigger asChild>
@@ -159,10 +174,13 @@ export function VacationStats({ userId, isAdmin, limit, used, baseLimit, carried
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="UOP">UOP (20/26)</SelectItem>
-                                                <SelectItem value="UOP_PART_TIME">Niepełny etat / Inne</SelectItem>
-                                                <SelectItem value="B2B">B2B (Stałe 26 / Inne)</SelectItem>
-                                            </SelectContent>
+                                            <SelectItem value="UOP">Umowa o pracę (UOP)</SelectItem>
+                                            <SelectItem value="UOP_PART_TIME">Niepełny etat (UOP)</SelectItem>
+                                            <SelectItem value="B2B">Samozatrudnienie (B2B)</SelectItem>
+                                            <SelectItem value="UMOWA_ZLECENIE">Umowa zlecenie</SelectItem>
+                                            <SelectItem value="UMOWA_O_DZIELO">Umowa o dzieło</SelectItem>
+                                            <SelectItem value="INNE">Inne</SelectItem>
+                                        </SelectContent>
                                         </Select>
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
@@ -210,9 +228,9 @@ export function VacationStats({ userId, isAdmin, limit, used, baseLimit, carried
 
                 <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
                     <span className="font-semibold uppercase text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                        Umowa: {contractType === 'B2B' ? 'B2B' : contractType === 'UOP_PART_TIME' ? 'Niepełny wymiar' : 'UOP'}
+                        Umowa: {getContractLabel(contractType)}
                     </span>
-                    {contractType !== 'B2B' && (
+                    {(contractType === 'UOP' || contractType === 'UOP_PART_TIME') && (
                         <span>Staż pracy: {has10YearsSeniority ? 'Powyżej 10 lat' : 'Poniżej 10 lat'}</span>
                     )}
                 </div>

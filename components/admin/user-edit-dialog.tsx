@@ -174,12 +174,15 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
                                     <SelectItem value="UOP">Umowa o pracę (UOP)</SelectItem>
                                     <SelectItem value="UOP_PART_TIME">Niepełny etat (UOP)</SelectItem>
                                     <SelectItem value="B2B">Samozatrudnienie (B2B)</SelectItem>
+                                    <SelectItem value="UMOWA_ZLECENIE">Umowa zlecenie</SelectItem>
+                                    <SelectItem value="UMOWA_O_DZIELO">Umowa o dzieło</SelectItem>
+                                    <SelectItem value="INNE">Inne</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
 
-                    {contractType === 'UOP' && (
+                    {(contractType === 'UOP' || contractType === 'UOP_PART_TIME') && (
                         <div className="space-y-4">
                             <Label>Staż pracy (Urlop)</Label>
                             <div className="flex items-center space-x-2 border rounded-md p-4 bg-muted/20">

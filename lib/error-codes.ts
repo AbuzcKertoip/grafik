@@ -23,6 +23,7 @@ export const ERROR_CODES = {
     VACATION_CANCELLED: { code: "HR-006", label: "Anulowanie Urlopu", isError: false },
     VACATION_EDITED: { code: "HR-007", label: "Edycja Urlopu", isError: false },
     VACATION_DELETED: { code: "HR-008", label: "Usunięcie Urlopu", isError: false },
+    MONTHLY_REPORT_APPROVED: { code: "HR-009", label: "Zatwierdzenie Zestawienia Miesięcznego", isError: false },
 
     // System Events
     SETTINGS_UPDATED: { code: "SYS-001", label: "Zmiana Ustawień", isError: false },

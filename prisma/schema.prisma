@@ -51,6 +51,7 @@ model User {
   permissions             UserPermission[]
   vacations               Vacation[]
   workLogs                WorkLogEntry[]
+  approvedReports         MonthlyVacationReport[] @relation("ApprovedReports")
 }
 
 model Department {
@@ -235,4 +236,20 @@ model SystemLog {
   details     String?
   createdAt   DateTime @default(now())
   user        User?    @relation(fields: [userId], references: [id])
+}
+
+model MonthlyVacationReport {
+  id          Int       @id @default(autoincrement())
+  year        Int
+  month       Int
+  status      String    @default("PENDING")
+  approvedAt  DateTime?
+  approvedBy  Int?
+  approver    User?     @relation("ApprovedReports", fields: [approvedBy], references: [id])
+  fileBase64  String?
+  count       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([year, month])
 }

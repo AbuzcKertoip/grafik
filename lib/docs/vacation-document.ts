@@ -25,7 +25,7 @@ function getVacationTypeName(type: string): string {
     }
 }
 
-export function getVacationDocumentChildren(vacation: any, user: any, totalDays: number): any[] {
+export function getVacationDocumentChildren(vacation: any, user: any, totalDays: number, approvedByBoss: boolean = false): any[] {
     const dzial = user.department?.name || "";
     // Use createdAt if available, otherwise fallback to startDate or current date
     const applicationDate = formatDatePL(vacation.createdAt || new Date());
@@ -37,7 +37,7 @@ export function getVacationDocumentChildren(vacation: any, user: any, totalDays:
     const godziny = totalDays * 8;
     const dniLabel = totalDays === 1 ? " dzień " : " dni ";
 
-    return [
+    const children: any[] = [
         new Paragraph({
             alignment: AlignmentType.JUSTIFIED,
             children: [
@@ -117,6 +117,22 @@ export function getVacationDocumentChildren(vacation: any, user: any, totalDays:
             ],
         }),
     ];
+
+    // Add boss approval stamp at the bottom of each page
+    if (approvedByBoss) {
+        children.push(new Paragraph({ text: "" }));
+        children.push(new Paragraph({ text: "" }));
+        children.push(new Paragraph({ text: "" }));
+        children.push(new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 400 },
+            children: [
+                new TextRun({ text: "Zatwierdzone przez zarząd", bold: true, size: 24, color: "333333" }),
+            ]
+        }));
+    }
+
+    return children;
 }
 
 export async function generateVacationDoc(vacation: any, user: any, totalDays: number): Promise<Buffer> {

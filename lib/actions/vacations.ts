@@ -727,7 +727,7 @@ export async function deleteVacation(id: number) {
     }
 }
 
-export async function editVacation(id: number, startDate: Date, endDate: Date) {
+export async function editVacation(id: number, startDate: Date, endDate: Date, type?: string, note?: string) {
     const session = await getServerSession(authOptions)
     if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
         return { error: "Brak uprawnień do edycji" }
@@ -740,18 +740,21 @@ export async function editVacation(id: number, startDate: Date, endDate: Date) {
 
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
-        // Optionally add validation logic for dates (e.g. limit checks) here, but since it's an HR edit we assume HR knows what they're doing.
         if (startDate > endDate) {
             return { error: "Data początkowa nie może być późniejsza niż końcowa" }
         }
 
+        const newType = type || vacation.type
+
         await prisma.$transaction(async (tx) => {
-            // Update the vacation dates
+            // Update the vacation dates, type, and note
             const updatedVacation = await tx.vacation.update({
                 where: { id },
                 data: {
                     startDate,
-                    endDate
+                    endDate,
+                    type: newType,
+                    ...(note !== undefined ? { note } : {})
                 }
             })
 
@@ -772,7 +775,6 @@ export async function editVacation(id: number, startDate: Date, endDate: Date) {
                     const month = d.getMonth();
                     const day = d.getDate();
                     
-                    // First remove any existing schedule day that might cause a conflict (if user already had a shift there)
                     await tx.scheduleDay.deleteMany({
                         where: {
                             userId: vacation.userId,
@@ -784,7 +786,7 @@ export async function editVacation(id: number, startDate: Date, endDate: Date) {
                         data: {
                             userId: vacation.userId,
                             date: new Date(year, month, day),
-                            type: vacation.type,
+                            type: newType,
                             vacationId: vacation.id
                         }
                     })
@@ -794,10 +796,10 @@ export async function editVacation(id: number, startDate: Date, endDate: Date) {
 
         await createLog({
             action: "VACATION_EDITED",
-            description: `Edytowano daty urlopu (ID: ${id})`,
+            description: `Edytowano urlop (ID: ${id})`,
             userId: parseInt(session.user.id),
             errorCodeKey: "VACATION_EDITED",
-            details: { vacationId: id, startDate, endDate }
+            details: { vacationId: id, startDate, endDate, type: newType }
         });
 
         revalidatePath("/dashboard/schedule")

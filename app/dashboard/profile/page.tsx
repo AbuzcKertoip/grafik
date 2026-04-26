@@ -13,10 +13,23 @@ import { ClothingSizes } from "@/components/hr/clothing-sizes";
 import { ContactInfo } from "@/components/user-profile/contact-info";
 import { AvatarUpload } from "@/components/user-profile/avatar-upload";
 import { DirectLeaveEntry } from "@/components/hr/direct-leave-entry";
+import { BossMonthlyReport } from "@/components/hr/boss-monthly-report";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User as UserIcon, Shield } from "lucide-react";
+
+function getContractTypeLabel(contractType: string): string {
+    switch (contractType) {
+        case 'UOP': return 'Umowa o pracę';
+        case 'UOP_PART_TIME': return 'Niepełny etat (UOP)';
+        case 'B2B': return 'B2B';
+        case 'UMOWA_ZLECENIE': return 'Umowa zlecenie';
+        case 'UMOWA_O_DZIELO': return 'Umowa o dzieło';
+        case 'INNE': return 'Inne';
+        default: return contractType;
+    }
+}
 
 export default async function ProfilePage({
     searchParams,
@@ -30,6 +43,7 @@ export default async function ProfilePage({
     const isAdmin = session.user.role === 'ADMIN';
     const isHR = session.user.role === 'HR';
     const isManager = session.user.role === 'MANAGER';
+    const isSzef = session.user.role === 'SZEF';
     let isManagerInHR = false;
     if (isManager && session.user.departmentId) {
         const userDept = await prisma.department.findUnique({
@@ -80,6 +94,12 @@ export default async function ProfilePage({
 
     const isOwner = parseInt(session.user.id) === targetUserId;
     const canEditAvatar = isOwner || isAdmin;
+    const canManageVacations = canManageHR || isManager;
+
+    // Determine if this user has UOP contract
+    const contractType = user.contractType || 'UOP';
+    const isUOP = contractType === 'UOP' || contractType === 'UOP_PART_TIME';
+    const vacationTabLabel = isUOP ? "Urlopy" : "Nieobecności";
 
     return (
         <div className="max-w-5xl mx-auto w-full p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
@@ -96,6 +116,7 @@ export default async function ProfilePage({
                     <p className="text-muted-foreground flex items-center justify-center gap-2 mt-1">
                         {user.role === 'ADMIN' ? <Shield className="h-4 w-4 text-amber-600 dark:text-amber-500" /> : <UserIcon className="h-4 w-4" />}
                         {user.role}
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded">{getContractTypeLabel(contractType)}</span>
                     </p>
                 </div>
             </div>
@@ -103,11 +124,14 @@ export default async function ProfilePage({
             <Tabs defaultValue="contact" className="w-full">
                 <TabsList className="flex flex-wrap h-auto w-full gap-2 mb-8 justify-center">
                     <TabsTrigger value="contact">Kontakt</TabsTrigger>
-                    <TabsTrigger value="vacations">Urlopy</TabsTrigger>
+                    <TabsTrigger value="vacations">{vacationTabLabel}</TabsTrigger>
                     <TabsTrigger value="medical">Badania</TabsTrigger>
                     <TabsTrigger value="equipment">Mienie</TabsTrigger>
                     <TabsTrigger value="benefits">Benefity</TabsTrigger>
                     <TabsTrigger value="clothing">Rozmiary</TabsTrigger>
+                    {(isSzef || isAdmin) && isOwner && (
+                        <TabsTrigger value="reports">Zestawienia</TabsTrigger>
+                    )}
                 </TabsList>
 
                 <TabsContent value="contact" className="space-y-6">
@@ -122,7 +146,7 @@ export default async function ProfilePage({
                 <TabsContent value="vacations" className="space-y-6">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle>Podsumowanie Urlopowe</CardTitle>
+                            <CardTitle>Podsumowanie {isUOP ? "Urlopowe" : "Nieobecności"}</CardTitle>
                             {(canManageHR || isManager) && !isOwner && (
                                 <DirectLeaveEntry userId={targetUserId} />
                             )}
@@ -151,7 +175,11 @@ export default async function ProfilePage({
                         </CardContent>
                     </Card>
 
-                    <VacationHistoryTable vacations={vacations} />
+                    <VacationHistoryTable
+                        vacations={vacations}
+                        canManage={canManageVacations}
+                        contractType={contractType}
+                    />
                 </TabsContent>
 
                 <TabsContent value="medical" className="space-y-6">
@@ -201,6 +229,12 @@ export default async function ProfilePage({
                         />
                     </div>
                 </TabsContent>
+
+                {(isSzef || isAdmin) && isOwner && (
+                    <TabsContent value="reports" className="space-y-6">
+                        <BossMonthlyReport />
+                    </TabsContent>
+                )}
             </Tabs>
 
 
