@@ -96,7 +96,7 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
     }, [])
 
     // Determine if the current user has permission to edit the schedule
-    const isEditable = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
+    const isEditable = currentUser?.role === 'ADMIN' || currentUser?.role === 'SZEF' || currentUser?.role === 'MANAGER'
 
     const daysInMonth = getDaysInMonth(new Date(year, month - 1))
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)

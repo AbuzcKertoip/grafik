@@ -13,7 +13,7 @@ import { MonthlyVacationReport } from "@/components/hr/monthly-vacation-report";
 
 export default async function HRPage() {
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'HR', 'MANAGER'].includes(session.user.role as string)) {
+    if (!session || !['ADMIN', 'HR', 'MANAGER', 'SZEF'].includes(session.user.role as string)) {
         redirect("/dashboard");
     }
 

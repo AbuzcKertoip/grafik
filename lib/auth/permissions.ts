@@ -1,4 +1,5 @@
 import { User } from "next-auth"
+import { prisma } from "@/lib/prisma"
 
 export const PERMISSIONS = {
     MANAGE_USERS: "manage_users",
@@ -36,7 +37,8 @@ export const ROLES = {
 export const INHERENT_PERMISSIONS: Record<string, string[]> = {
     [ROLES.ADMIN]: Object.values(PERMISSIONS), // Admin has everything
     [ROLES.SZEF]: [
-        'view_users', 'view_hr_panel', 'view_fleet', 'view_reports'
+        'view_users', 'view_hr_panel', 'view_fleet', 'view_reports',
+        'manage_vacations', 'view_all_schedules', 'manage_schedules'
     ],
     [ROLES.HR]: [
         'manage_hr_data', 'manage_fleet', 'view_users', 'view_hr_panel', 'view_fleet', 'manage_vacations'
@@ -63,6 +65,19 @@ export function hasPermission(user: User | null | undefined, permissionSlug: str
     if (userPermissions.includes(permissionSlug)) return true
 
     return false
+}
+
+/**
+ * Sprawdza, czy Manager należy do działu HR.
+ * Manager HR ma rozszerzone uprawnienia — widzi wszystkie działy, może edytować grafiki
+ * i urlopy osób z innych działów (jak rola HR).
+ */
+export async function isManagerInHRDept(user: any): Promise<boolean> {
+    if (user.role !== 'MANAGER') return false
+    const deptId = user.departmentId ? parseInt(user.departmentId.toString()) : null
+    if (!deptId) return false
+    const dept = await prisma.department.findUnique({ where: { id: deptId } })
+    return !!(dept && dept.name.toUpperCase() === 'HR')
 }
 
 export function canManageDepartment(user: User, departmentId: number) {

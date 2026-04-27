@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { createLog } from "@/lib/actions/log-actions"
-import { hasPermission } from "@/lib/auth/permissions"
+import { hasPermission, isManagerInHRDept } from "@/lib/auth/permissions"
 
 export async function getSchedule(year: number, month: number) {
     const session = await getServerSession(authOptions)
@@ -45,7 +45,11 @@ export async function getSchedule(year: number, month: number) {
             where.userId = parseInt(session.user.id.toString());
         }
     } else if (role === 'MANAGER') {
-        if (session?.user?.username === 'etomczyk') {
+        // Manager HR widzi cały grafik (jak ADMIN/HR)
+        const managerInHR = await isManagerInHRDept(session?.user)
+        if (managerInHR) {
+            // Global view — no filtering
+        } else if (session?.user?.username === 'etomczyk') {
             const hrDept = await prisma.department.findFirst({ where: { name: 'HR' } })
             const bokDept = await prisma.department.findFirst({ where: { name: 'BOK' } })
             const allowedDepts = []
@@ -97,7 +101,7 @@ interface UserWithSettings {
 
 export async function generateSchedule(year: number, month: number, targetDepartmentId?: number) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "generate_schedule"))) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SZEF' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "generate_schedule"))) {
         return { error: "Brak uprawnień do generowania grafiku." }
     }
 
@@ -106,16 +110,23 @@ export async function generateSchedule(year: number, month: number, targetDepart
 
     let finalDepartmentId = targetDepartmentId;
     if (role === 'MANAGER') {
-        // Obliczamy do jakiego działu manager ma dostęp na podstawie requestu i swoich uprawnień
-        const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
-        const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
-
-        if (targetDepartmentId && (targetDepartmentId === deptIdInt || targetDepartmentId === secDeptIdInt)) {
+        // Manager HR ma globalny dostęp do generowania grafiku
+        const managerInHR = await isManagerInHRDept(session.user)
+        if (managerInHR) {
+            // HR Manager can generate for any department
             finalDepartmentId = targetDepartmentId;
-        } else if (!targetDepartmentId) {
-           finalDepartmentId = deptIdInt || undefined; 
         } else {
-             finalDepartmentId = undefined; // Manager próbujący wygenerować dla obcego działu bez uprawnień zarządzania globalnego
+            // Obliczamy do jakiego działu manager ma dostęp na podstawie requestu i swoich uprawnień
+            const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
+            const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
+
+            if (targetDepartmentId && (targetDepartmentId === deptIdInt || targetDepartmentId === secDeptIdInt)) {
+                finalDepartmentId = targetDepartmentId;
+            } else if (!targetDepartmentId) {
+               finalDepartmentId = deptIdInt || undefined; 
+            } else {
+                 finalDepartmentId = undefined; // Manager próbujący wygenerować dla obcego działu bez uprawnień zarządzania globalnego
+            }
         }
     }
 
@@ -427,19 +438,20 @@ export async function upsertShift(userId: number, year: number, month: number, d
         const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
         const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
 
-        if (role !== 'ADMIN' && role !== 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
+        if (role !== 'ADMIN' && role !== 'SZEF' && role !== 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
             return { error: "Brak uprawnień do edycji grafiku" }
         }
 
-        if (role !== 'ADMIN' && hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
-            const targetUser = await prisma.user.findUnique({ where: { id: userId } })
-            if (!targetUser || (targetUser.departmentId !== deptIdInt && targetUser.secondaryDepartmentId !== secDeptIdInt && targetUser.departmentId !== secDeptIdInt && targetUser.secondaryDepartmentId !== deptIdInt)) {
-                return { error: "Możesz edytować tylko pracowników swojego działu" }
-            }
-        } else if (role === 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_all")) {
-            const targetUser = await prisma.user.findUnique({ where: { id: userId } })
-            if (!targetUser || (targetUser.departmentId !== deptIdInt && targetUser.secondaryDepartmentId !== secDeptIdInt && targetUser.departmentId !== secDeptIdInt && targetUser.secondaryDepartmentId !== deptIdInt)) {
-                return { error: "Możesz edytować tylko pracowników swojego działu" }
+        // ADMIN, SZEF, and Manager HR have global edit access
+        const managerInHR = role === 'MANAGER' ? await isManagerInHRDept(session.user) : false
+        const hasGlobalAccess = role === 'ADMIN' || role === 'SZEF' || managerInHR || hasPermission(session.user as any, "edit_schedule_all")
+
+        if (!hasGlobalAccess) {
+            if (hasPermission(session.user as any, "edit_schedule_dept") || role === 'MANAGER') {
+                const targetUser = await prisma.user.findUnique({ where: { id: userId } })
+                if (!targetUser || (targetUser.departmentId !== deptIdInt && targetUser.secondaryDepartmentId !== secDeptIdInt && targetUser.departmentId !== secDeptIdInt && targetUser.secondaryDepartmentId !== deptIdInt)) {
+                    return { error: "Możesz edytować tylko pracowników swojego działu" }
+                }
             }
         }
 
@@ -516,13 +528,17 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
         const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
         const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
 
-        if (role !== 'ADMIN' && role !== 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
+        if (role !== 'ADMIN' && role !== 'SZEF' && role !== 'MANAGER' && !hasPermission(session.user as any, "edit_schedule_dept") && !hasPermission(session.user as any, "edit_schedule_all")) {
             return { error: "Brak uprawnień do edycji grafiku" }
         }
 
+        // ADMIN, SZEF, and Manager HR have global edit access
+        const managerInHR = role === 'MANAGER' ? await isManagerInHRDept(session.user) : false
+        const hasGlobalAccess = role === 'ADMIN' || role === 'SZEF' || managerInHR || hasPermission(session.user as any, "edit_schedule_all")
+
         // Simplify permission check for batch by checking all involved users upfront.
         const reqUserIds = Array.from(new Set(shifts.map(s => s.userId)))
-        if (role !== 'ADMIN' && !hasPermission(session.user as any, "edit_schedule_all")) {
+        if (!hasGlobalAccess) {
             const targetUsers = await prisma.user.findMany({ where: { id: { in: reqUserIds } } })
             for (const tu of targetUsers) {
                 if (tu.departmentId !== deptIdInt && tu.secondaryDepartmentId !== secDeptIdInt && tu.departmentId !== secDeptIdInt && tu.secondaryDepartmentId !== deptIdInt) {
@@ -639,7 +655,7 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
 
 export async function clearSchedule(year: number, month: number, targetDepartmentId?: number) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "clear_schedule"))) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SZEF' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "clear_schedule"))) {
         return { error: "Brak uprawnień do usuwania grafiku." }
     }
 
@@ -648,15 +664,21 @@ export async function clearSchedule(year: number, month: number, targetDepartmen
 
     let finalDepartmentId = targetDepartmentId;
     if (role === 'MANAGER') {
-        const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
-        const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
-
-        if (targetDepartmentId && (targetDepartmentId === deptIdInt || targetDepartmentId === secDeptIdInt)) {
+        // Manager HR ma globalny dostęp
+        const managerInHR = await isManagerInHRDept(session.user)
+        if (managerInHR) {
             finalDepartmentId = targetDepartmentId;
-        } else if (!targetDepartmentId) {
-           finalDepartmentId = deptIdInt || undefined; 
         } else {
-             finalDepartmentId = undefined; // Deny access
+            const deptIdInt = departmentId ? parseInt(departmentId.toString()) : null;
+            const secDeptIdInt = secondaryDepartmentId ? parseInt(secondaryDepartmentId.toString()) : null;
+
+            if (targetDepartmentId && (targetDepartmentId === deptIdInt || targetDepartmentId === secDeptIdInt)) {
+                finalDepartmentId = targetDepartmentId;
+            } else if (!targetDepartmentId) {
+               finalDepartmentId = deptIdInt || undefined; 
+            } else {
+                 finalDepartmentId = undefined; // Deny access
+            }
         }
     }
 

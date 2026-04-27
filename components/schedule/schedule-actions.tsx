@@ -19,7 +19,7 @@ interface ScheduleActionsProps {
 export function ScheduleActions({ users, vacations, year, month, currentUser, departmentId }: ScheduleActionsProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
-    const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER'
+    const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'SZEF' || currentUser?.role === 'MANAGER'
 
     const handleGenerate = async () => {
         if (!departmentId && currentUser?.role !== 'MANAGER') {

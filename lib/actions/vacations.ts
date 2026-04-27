@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { sendEmail } from "@/lib/actions/mailer"
 import { createLog } from "@/lib/actions/log-actions"
-import { hasPermission } from "@/lib/auth/permissions"
+import { hasPermission, isManagerInHRDept } from "@/lib/auth/permissions"
 
 function formatDatePL(date: Date | string) {
     return new Intl.DateTimeFormat('pl-PL', {
@@ -163,15 +163,19 @@ export async function createVacation(data: any) {
     if (!session) return { error: "Brak dostępu" }
 
     const { userId, startDate, endDate, type, note, applicationDate } = data
-    const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
+    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'SZEF' || hasPermission(session.user as any, "manage_vacations")
     const isSelf = parseInt(session.user.id) === parseInt(userId)
     const isManagerSelf = isSelf && session.user.role === 'MANAGER'
 
+    // Manager HR może tworzyć urlopy dla osób z innych działów
+    const managerInHR = session.user.role === 'MANAGER' ? await isManagerInHRDept(session.user) : false
+    const canCreateForOthers = isAdmin || managerInHR
+
     const canAutoApprove = isSelf && hasPermission(session.user as any, "auto_approve_own_vacations")
 
-    if (!isAdmin && !isSelf) return { error: "Możesz składać wnioski tylko za siebie." }
+    if (!canCreateForOthers && !isSelf) return { error: "Możesz składać wnioski tylko za siebie." }
 
-    if (type === 'SICK' && !isAdmin && session.user.role !== 'MANAGER') {
+    if (type === 'SICK' && !canCreateForOthers && session.user.role !== 'MANAGER') {
         return { error: "Zwolnienie lekarskie może zostać wprowadzone tylko przez dział HR lub kierownika." }
     }
 
@@ -334,7 +338,7 @@ export async function createVacation(data: any) {
 
 export async function approveVacation(id: number) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SZEF' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
         return { error: "Brak uprawnień" }
     }
 
@@ -349,9 +353,12 @@ export async function approveVacation(id: number) {
         })
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
-        const isGlobalAdmin = session.user.role === 'ADMIN' || session.user.role === 'HR'
+        const isGlobalAdmin = session.user.role === 'ADMIN' || session.user.role === 'HR' || session.user.role === 'SZEF'
 
-        if (session.user.role === 'MANAGER' && !isGlobalAdmin) {
+        // Manager HR ma globalny dostęp do zatwierdzania urlopów
+        const managerInHR = session.user.role === 'MANAGER' ? await isManagerInHRDept(session.user) : false
+
+        if (session.user.role === 'MANAGER' && !isGlobalAdmin && !managerInHR) {
             // managers can approve standard leaves for their dept 
             // backend isolating this to prevent them approving HR stuff
             if (vacation.type !== 'VACATION' && vacation.type !== 'ON_DEMAND') {
@@ -496,7 +503,7 @@ export async function cancelVacation(id: number) {
 
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
-        const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
+        const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'SZEF' || hasPermission(session.user as any, "manage_vacations")
         const isSelf = parseInt(session.user.id) === vacation.userId
         
         // Users can cancel their own PENDING or APPROVED vacations.
@@ -515,9 +522,11 @@ export async function cancelVacation(id: number) {
                 (vacSecDeptId != null && (vacSecDeptId === sessionDeptId || vacSecDeptId === sessionSecDeptId))
             )
             
-            const isGlobalAdmin = session.user.role === 'ADMIN' || session.user.role === 'HR'
+            const isGlobalAdmin = session.user.role === 'ADMIN' || session.user.role === 'HR' || session.user.role === 'SZEF'
+            // Manager HR ma globalny dostęp
+            const managerInHR = session.user.role === 'MANAGER' ? await isManagerInHRDept(session.user) : false
 
-            if (!isManagersEmployee && !isGlobalAdmin) return { error: "Brak uprawnień" }
+            if (!isManagersEmployee && !isGlobalAdmin && !managerInHR) return { error: "Brak uprawnień" }
         }
 
         await prisma.$transaction(async (tx) => {
@@ -607,7 +616,7 @@ export async function cancelVacation(id: number) {
 
 export async function rejectVacation(id: number, reason: string) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SZEF' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
         return { error: "Brak uprawnień" }
     }
 
@@ -624,9 +633,11 @@ export async function rejectVacation(id: number, reason: string) {
         const vacDeptId = vacation.user.departmentId;
         const vacSecDeptId = vacation.user.secondaryDepartmentId;
 
-        const isGlobalAdmin = session.user.role === 'ADMIN' || session.user.role === 'HR'
+        const isGlobalAdmin = session.user.role === 'ADMIN' || session.user.role === 'HR' || session.user.role === 'SZEF'
+        // Manager HR ma globalny dostęp do odrzucania urlopów
+        const managerInHR = session.user.role === 'MANAGER' ? await isManagerInHRDept(session.user) : false
         
-        if (session.user.role === 'MANAGER' && !isGlobalAdmin) {
+        if (session.user.role === 'MANAGER' && !isGlobalAdmin && !managerInHR) {
             if (
                 vacDeptId !== sessionDeptId &&
                 vacDeptId !== sessionSecDeptId &&
@@ -686,7 +697,7 @@ export async function deleteVacation(id: number) {
 
         if (!vacation) return { error: "Wniosek nie istnieje" }
 
-        const isAdmin = session.user.role === 'ADMIN' || hasPermission(session.user as any, "manage_vacations")
+        const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'SZEF' || hasPermission(session.user as any, "manage_vacations")
         const isSelf = parseInt(session.user.id) === vacation.userId
 
         // Normal user can only delete CANCELLED or REJECTED requests of their own.
@@ -729,7 +740,7 @@ export async function deleteVacation(id: number) {
 
 export async function editVacation(id: number, startDate: Date, endDate: Date, type?: string, note?: string) {
     const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SZEF' && session.user.role !== 'MANAGER' && !hasPermission(session.user as any, "manage_vacations"))) {
         return { error: "Brak uprawnień do edycji" }
     }
 
