@@ -10,6 +10,7 @@ import { User, Shield, AlertTriangle } from "lucide-react";
 
 import { HRUserDirectory } from "@/components/hr/hr-user-directory";
 import { MonthlyVacationReport } from "@/components/hr/monthly-vacation-report";
+import { BossMonthlyReport } from "@/components/hr/boss-monthly-report";
 
 export default async function HRPage() {
     const session = await getServerSession(authOptions);
@@ -18,6 +19,7 @@ export default async function HRPage() {
     }
 
     const { role, departmentId } = session.user;
+    const isSzefOrAdmin = role === 'SZEF' || role === 'ADMIN';
 
     const whereClause: any = { role: { not: 'ADMIN' } };
 
@@ -69,6 +71,10 @@ export default async function HRPage() {
             <h1 className="text-3xl font-bold text-foreground">Panel HR</h1>
             <p className="text-muted-foreground">Zarządzaj profilami pracowników, badaniami i urlopami.</p>
 
+            {isSzefOrAdmin && (
+                <BossMonthlyReport />
+            )}
+
             <MonthlyVacationReport />
 
             <HRUserDirectory
@@ -81,3 +87,4 @@ export default async function HRPage() {
         </div>
     );
 }
+
