@@ -153,7 +153,7 @@ export async function approveMonthlyVacationReport(year: number, month: number) 
     // Send email with attachment to HR users and Manager HR
     try {
         // Find HR role users and managers in HR department
-        const hrDept = await prisma.department.findFirst({ where: { name: { equals: 'HR', mode: 'insensitive' as any } } });
+        const hrDept = await prisma.department.findFirst({ where: { name: 'HR' } });
         const hrUsers = await prisma.user.findMany({
             where: {
                 OR: [
