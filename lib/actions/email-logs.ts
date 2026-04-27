@@ -50,11 +50,10 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
         }
     }
 
-    // Find expiring medical exams
+    // Find expiring medical exams (all, not just unnotified)
     const medicalExams = await prisma.medicalExam.findMany({
         where: {
-            validUntil: { lte: targetDate },
-            notifiedExpiry: false
+            validUntil: { lte: targetDate }
         },
         include: { user: true }
     })
@@ -71,14 +70,15 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
         }
     })
 
-    if (medicalExams.length === 0 && cars.length === 0) {
-        return { success: true, message: isManual ? "System sprawdzony. Brak zdarzeń wymagających uwag." : "Brak alertów na dziś." }
-    }
+    const hasAlerts = medicalExams.length > 0 || cars.length > 0
 
     // Build HTML Report
     let htmlContent = `
-        <h2>${isManual ? "Ręczny Raport Alertów" : "Dzienny Raport Alertów"} - HR4YOU</h2>
-        <p>${isManual ? "Raport został wygenerowany na żądanie administratora." : "Raport wygenerowany automatycznie."} Poniżej znajduje się lista zdarzeń wymagających uwagi w ciągu najbliższych ${alertDays} dni.</p>
+        <h2>${isManual ? "Ręczny Raport Alertów" : "Cotygodniowy Raport Alertów"} - HR4YOU</h2>
+        <p>${isManual ? "Raport został wygenerowany na żądanie administratora." : "Raport wygenerowany automatycznie."}</p>
+        <p>Data wygenerowania: <b>${format(new Date(), 'dd.MM.yyyy HH:mm')}</b></p>
+        <p>Horyzont czasowy sprawdzenia: <b>${alertDays} dni</b> (do ${format(targetDate, 'dd.MM.yyyy')})</p>
+        <hr/>
     `
 
     const examTypesPl: Record<string, string> = {
@@ -89,39 +89,48 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
     }
 
     if (medicalExams.length > 0) {
-        htmlContent += `<h3>Badania Lekarskie (${medicalExams.length})</h3><ul>`
+        htmlContent += `<h3>⚠️ Badania Lekarskie / Szkolenia (${medicalExams.length})</h3><ul>`
         medicalExams.forEach(exam => {
             const typePl = examTypesPl[exam.type] || exam.type
-            htmlContent += `<li><strong>${exam.user.name || exam.user.username}</strong> - ${typePl} wygasa: ${format(exam.validUntil, 'dd.MM.yyyy')}</li>`
+            const isExpired = new Date(exam.validUntil) < new Date()
+            const marker = isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'
+            htmlContent += `<li><strong>${exam.user.name || exam.user.username}</strong> - ${typePl} — ważne do: ${format(exam.validUntil, 'dd.MM.yyyy')} <em>(${marker})</em></li>`
         })
         htmlContent += `</ul>`
+    } else {
+        htmlContent += `<h3>✅ Badania Lekarskie / Szkolenia</h3><p style="color: #16a34a;">Brak zbliżających się terminów badań lekarskich ani szkoleń w ciągu najbliższych ${alertDays} dni. Wszystko aktualne.</p>`
     }
 
     if (cars.length > 0) {
-        htmlContent += `<h3>Flota Pojazdów (${cars.length})</h3><ul>`
+        htmlContent += `<h3>⚠️ Flota Pojazdów (${cars.length})</h3><ul>`
         cars.forEach(car => {
             htmlContent += `<li><strong>${car.make} ${car.model} (${car.plate})</strong>`
 
             if (car.inspectionValidUntil <= targetDate) {
-                htmlContent += ` - Przegląd do: ${format(car.inspectionValidUntil, 'dd.MM.yyyy')}`
+                const isExpired = new Date(car.inspectionValidUntil) < new Date()
+                htmlContent += ` - Przegląd do: ${format(car.inspectionValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴' : '🟡'}`
             }
             if (car.insuranceValidUntil <= targetDate) {
-                htmlContent += ` - OC do: ${format(car.insuranceValidUntil, 'dd.MM.yyyy')}`
+                const isExpired = new Date(car.insuranceValidUntil) < new Date()
+                htmlContent += ` - OC do: ${format(car.insuranceValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴' : '🟡'}`
             }
             if (car.acValidUntil && car.acValidUntil <= targetDate) {
-                htmlContent += ` - AC do: ${format(car.acValidUntil, 'dd.MM.yyyy')}`
+                const isExpired = new Date(car.acValidUntil) < new Date()
+                htmlContent += ` - AC do: ${format(car.acValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴' : '🟡'}`
             }
             htmlContent += `</li>`
         })
         htmlContent += `</ul>`
+    } else {
+        htmlContent += `<h3>✅ Flota Pojazdów</h3><p style="color: #16a34a;">Brak zbliżających się terminów ubezpieczeń ani przeglądów w ciągu najbliższych ${alertDays} dni. Wszystko aktualne.</p>`
     }
 
-    htmlContent += `<br/><p><small>Wiadomość wygenerowana z systemu powiadomień HR4YOU.</small></p>`
+    htmlContent += `<br/><p><small>Wiadomość wygenerowana z systemu powiadomień HR4YOU. ${hasAlerts ? '' : 'Brak zdarzeń wymagających uwagi — wszystko w porządku!'}</small></p>`
 
     // Send Email
     const emails = settings.alertEmails.split(',').map((e: string) => e.trim()).filter((e: string) => e)
     for (const email of emails) {
-        await sendEmail(email, `HR4YOU - Raport Alertów ${isManual ? "na żądanie" : "systemowych"}`, htmlContent)
+        await sendEmail(email, `HR4YOU - ${hasAlerts ? 'Raport Alertów' : 'Raport tygodniowy — brak uwag'} ${isManual ? "(na żądanie)" : ""}`, htmlContent)
     }
 
     // Update last sent
@@ -132,7 +141,9 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
 
     return { 
         success: true, 
-        message: "Raport został wygenerowany i wysłany pomyślnie na zdefiniowane skrzynki odbiorecze.",
+        message: hasAlerts 
+            ? "Raport został wygenerowany i wysłany pomyślnie na zdefiniowane skrzynki odbiorcze."
+            : "Raport wysłany pomyślnie. Brak zdarzeń wymagających uwagi.",
         stats: { exams: medicalExams.length, cars: cars.length }
     }
 }
