@@ -460,6 +460,7 @@ export function CarList({ initialCars, users, isAdmin }: CarListProps) {
             {/* Policy Dialog */}
             {selectedCar && (
                 <CarPolicyDialog
+                    key={selectedCar.id}
                     carId={selectedCar.id}
                     carName={`${selectedCar.make} ${selectedCar.model} (${selectedCar.plate})`}
                     policyUrl={selectedCar.policyUrl || null}
