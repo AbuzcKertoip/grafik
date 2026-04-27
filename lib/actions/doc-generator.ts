@@ -150,13 +150,16 @@ export async function approveMonthlyVacationReport(year: number, month: number) 
         }
     });
 
-    // Send email to HR
+    // Send email with attachment to HR users and Manager HR
     try {
+        // Find HR role users and managers in HR department
+        const hrDept = await prisma.department.findFirst({ where: { name: { equals: 'HR', mode: 'insensitive' as any } } });
         const hrUsers = await prisma.user.findMany({
             where: {
                 OR: [
                     { role: 'HR' },
-                    { permissions: { some: { permission: { slug: 'manage_hr_data' } } } }
+                    { permissions: { some: { permission: { slug: 'manage_hr_data' } } } },
+                    ...(hrDept ? [{ role: 'MANAGER', departmentId: hrDept.id }] : [])
                 ]
             }
         });
@@ -171,13 +174,19 @@ export async function approveMonthlyVacationReport(year: number, month: number) 
             <h2 style="color: #10b981;">Zestawienie urlopowe zatwierdzone przez zarząd</h2>
             <p>Zestawienie za <b>${months[month - 1]} ${year}</b> zostało zatwierdzone.</p>
             <p>Liczba wniosków: <b>${vacations.length}</b></p>
-            <p>Dokument jest dostępny do pobrania w systemie HR4YOU.</p>
+            <p>W załączniku znajduje się plik DOCX z zatwierdzonymi wnioskami, gotowy do druku.</p>
+            <p>Dokument jest również dostępny do pobrania w Panelu HR systemu HR4YOU.</p>
         </div>
         `;
 
+        const attachments = [{
+            filename: `wnioski-urlopowe-zatwierdzone-${String(month).padStart(2, '0')}-${year}.docx`,
+            content: buffer
+        }];
+
         for (const hrUser of hrUsers) {
             if (hrUser.email) {
-                await sendEmail(hrUser.email, `Zatwierdzone zestawienie urlopowe – ${months[month - 1]} ${year}`, mailHtml).catch(console.error);
+                await sendEmail(hrUser.email, `Zatwierdzone zestawienie urlopowe – ${months[month - 1]} ${year}`, mailHtml, attachments).catch(console.error);
             }
         }
     } catch (err) {
