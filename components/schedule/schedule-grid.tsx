@@ -200,16 +200,16 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                                     className={cn(
                                         "group transition-colors",
                                         highlightedUserId === user.id 
-                                            ? "bg-blue-50/50 dark:bg-blue-900/20" 
-                                            : "hover:bg-muted/30 dark:hover:bg-slate-900/30"
+                                            ? "bg-blue-100 dark:bg-blue-900/40" 
+                                            : "hover:bg-blue-50/60 dark:hover:bg-blue-900/20"
                                     )}
                                 >
                                     <TableCell 
                                         className={cn(
                                             "w-[168px] min-w-[168px] max-w-[168px] font-medium border-r sticky left-0 z-10 truncate text-sm transition-colors cursor-pointer select-none",
                                             highlightedUserId === user.id 
-                                                ? "bg-blue-100/80 dark:bg-blue-900/60" 
-                                                : "bg-card group-hover:bg-muted/50 dark:group-hover:bg-slate-900/50"
+                                                ? "bg-blue-200/90 dark:bg-blue-800/80" 
+                                                : "bg-card group-hover:bg-blue-100/80 dark:group-hover:bg-blue-900/50"
                                         )}
                                         onClick={() => setHighlightedUserId(prev => prev === user.id ? null : user.id)}
                                     >
