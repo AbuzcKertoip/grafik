@@ -52,7 +52,7 @@ const SHIFT_LABELS: Record<string, string> = {
     "OFF": "DW",
 }
 const SHIFT_COLORS: Record<string, string> = {
-    "": "bg-white dark:bg-slate-950 hover:bg-gray-50 dark:hover:bg-slate-900",
+    "": "bg-transparent hover:bg-muted/20 dark:hover:bg-slate-800/30",
     "SHIFT_1": "bg-blue-500 text-white hover:bg-blue-600",
     "SHIFT_2": "bg-orange-400 text-white hover:bg-orange-500",
     "DUTY": "bg-red-500 text-white hover:bg-red-600",
@@ -72,6 +72,7 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
     const [isDragging, setIsDragging] = useState(false)
     const [selectedCells, setSelectedCells] = useState<{userId: number, day: number}[]>([])
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [highlightedUserId, setHighlightedUserId] = useState<number | null>(null)
     const gridRef = useRef<HTMLDivElement>(null)
 
     const isDraggingRef = useRef(isDragging)
@@ -194,8 +195,24 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                         </TableHeader>
                         <TableBody>
                             {users.map((user) => (
-                                <TableRow key={user.id} className="hover:bg-muted/50 dark:hover:bg-slate-900/50">
-                                    <TableCell className="w-[168px] min-w-[168px] max-w-[168px] font-medium border-r sticky left-0 bg-card z-10 dark:border-slate-800 truncate text-sm">
+                                <TableRow 
+                                    key={user.id} 
+                                    className={cn(
+                                        "group transition-colors",
+                                        highlightedUserId === user.id 
+                                            ? "bg-blue-50/50 dark:bg-blue-900/20" 
+                                            : "hover:bg-muted/30 dark:hover:bg-slate-900/30"
+                                    )}
+                                >
+                                    <TableCell 
+                                        className={cn(
+                                            "w-[168px] min-w-[168px] max-w-[168px] font-medium border-r sticky left-0 z-10 truncate text-sm transition-colors cursor-pointer select-none",
+                                            highlightedUserId === user.id 
+                                                ? "bg-blue-100/80 dark:bg-blue-900/60" 
+                                                : "bg-card group-hover:bg-muted/50 dark:group-hover:bg-slate-900/50"
+                                        )}
+                                        onClick={() => setHighlightedUserId(prev => prev === user.id ? null : user.id)}
+                                    >
                                         {user.name}
                                     </TableCell>
                                     {days.map(day => {
