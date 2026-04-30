@@ -101,6 +101,8 @@ export default async function ProfilePage({
     const isUOP = contractType === 'UOP' || contractType === 'UOP_PART_TIME';
     const vacationTabLabel = isUOP ? "Urlopy" : "Nieobecności";
 
+    const canManageEquipment = canManageHR || (isManager && targetUserId !== parseInt(session.user.id) && user.departmentId === session.user.departmentId)
+
     return (
         <div className="max-w-5xl mx-auto w-full p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
             <div className="flex flex-col items-center text-center gap-4">
@@ -197,12 +199,12 @@ export default async function ProfilePage({
                         <EquipmentList
                             equipment={user.equipment}
                             userId={targetUserId}
-                            isAdmin={isAdmin}
+                            isAdmin={canManageEquipment}
                         />
                         <ToolList
                             tools={user.tools}
                             userId={targetUserId}
-                            isAdmin={isAdmin}
+                            isAdmin={canManageEquipment}
                         />
                     </div>
                 </TabsContent>
@@ -225,7 +227,7 @@ export default async function ProfilePage({
                         <ClothingSizes
                             sizes={sizes}
                             userId={targetUserId}
-                            isAdmin={isAdmin} // Maybe HR too?
+                            isAdmin={canManageEquipment}
                         />
                     </div>
                 </TabsContent>

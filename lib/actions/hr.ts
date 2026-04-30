@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import { hasPermission } from "@/lib/auth/permissions"
+import { hasPermission, canManageDepartment } from "@/lib/auth/permissions"
 import { getSaturdayHolidaysCount, getSaturdayHolidaysDetails } from "@/lib/holidays"
 
 export async function getMedicalExams(userId: number) {
@@ -188,7 +188,15 @@ export async function updateVacationBalance(userId: number, limit: number, carri
 // Equipment Actions
 export async function addEquipment(userId: number, name: string, serialNumber: string, notes: string) {
     const session = await getServerSession(authOptions)
-    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
+    if (!session) return { error: "Brak uprawnień" }
+
+    const targetUser = await (prisma as any).user.findUnique({ where: { id: userId }, select: { departmentId: true } })
+    if (!targetUser) return { error: "Nie znaleziono użytkownika" }
+
+    const isAuthorized = hasPermission(session.user as any, "manage_hr_data") || 
+        (session.user.role === 'MANAGER' && targetUser.departmentId && canManageDepartment(session.user as any, targetUser.departmentId))
+
+    if (!isAuthorized) return { error: "Brak uprawnień" }
 
     try {
         await (prisma as any).equipment.create({
@@ -208,7 +216,19 @@ export async function addEquipment(userId: number, name: string, serialNumber: s
 
 export async function deleteEquipment(id: number) {
     const session = await getServerSession(authOptions)
-    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
+    if (!session) return { error: "Brak uprawnień" }
+
+    const item = await (prisma as any).equipment.findUnique({
+        where: { id },
+        include: { user: { select: { departmentId: true } } }
+    });
+
+    if (!item) return { error: "Nie znaleziono" }
+
+    const isAuthorized = hasPermission(session.user as any, "manage_hr_data") || 
+        (session.user.role === 'MANAGER' && item.user.departmentId && canManageDepartment(session.user as any, item.user.departmentId))
+
+    if (!isAuthorized) return { error: "Brak uprawnień" }
 
     try {
         await (prisma as any).equipment.delete({ where: { id } })
@@ -229,8 +249,16 @@ export async function getEquipment(userId: number) {
 // Clothing Size Actions
 export async function updateClothingSizes(userId: number, sizes: { shirt: string, pants: string, shoe: string, jacket: string }) {
     const session = await getServerSession(authOptions)
-    const isSelf = parseInt(session?.user.id!) === userId
-    if (!session || (!hasPermission(session.user as any, "manage_hr_data") && !isSelf)) return { error: "Brak uprawnień" }
+    if (!session) return { error: "Brak uprawnień" }
+
+    const targetUser = await (prisma as any).user.findUnique({ where: { id: userId }, select: { departmentId: true } })
+    if (!targetUser) return { error: "Nie znaleziono użytkownika" }
+
+    const isSelf = parseInt(session.user.id) === userId
+    const isAuthorized = isSelf || hasPermission(session.user as any, "manage_hr_data") || 
+        (session.user.role === 'MANAGER' && targetUser.departmentId && canManageDepartment(session.user as any, targetUser.departmentId))
+
+    if (!isAuthorized) return { error: "Brak uprawnień" }
 
     try {
         await (prisma as any).user.update({
@@ -265,7 +293,15 @@ export async function getClothingSizes(userId: number) {
 // Tool Actions
 export async function addTool(userId: number, name: string, notes: string) {
     const session = await getServerSession(authOptions)
-    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
+    if (!session) return { error: "Brak uprawnień" }
+
+    const targetUser = await (prisma as any).user.findUnique({ where: { id: userId }, select: { departmentId: true } })
+    if (!targetUser) return { error: "Nie znaleziono użytkownika" }
+
+    const isAuthorized = hasPermission(session.user as any, "manage_hr_data") || 
+        (session.user.role === 'MANAGER' && targetUser.departmentId && canManageDepartment(session.user as any, targetUser.departmentId))
+
+    if (!isAuthorized) return { error: "Brak uprawnień" }
 
     try {
         await (prisma as any).tool.create({
@@ -284,7 +320,19 @@ export async function addTool(userId: number, name: string, notes: string) {
 
 export async function deleteTool(id: number) {
     const session = await getServerSession(authOptions)
-    if (!session || !hasPermission(session.user as any, "manage_hr_data")) return { error: "Brak uprawnień" }
+    if (!session) return { error: "Brak uprawnień" }
+
+    const item = await (prisma as any).tool.findUnique({
+        where: { id },
+        include: { user: { select: { departmentId: true } } }
+    });
+
+    if (!item) return { error: "Nie znaleziono" }
+
+    const isAuthorized = hasPermission(session.user as any, "manage_hr_data") || 
+        (session.user.role === 'MANAGER' && item.user.departmentId && canManageDepartment(session.user as any, item.user.departmentId))
+
+    if (!isAuthorized) return { error: "Brak uprawnień" }
 
     try {
         await (prisma as any).tool.delete({ where: { id } })
