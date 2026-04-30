@@ -9,26 +9,26 @@ datasource db {
 }
 
 model User {
-  id                      Int              @id @default(autoincrement())
-  username                String           @unique
+  id                      Int                     @id @default(autoincrement())
+  username                String                  @unique
   password                String
   name                    String?
   image                   String?
-  role                    String           @default("USER")
-  hourlyRate              Float            @default(0.0)
-  sortOrder               Int              @default(999)
+  role                    String                  @default("USER")
+  hourlyRate              Float                   @default(0.0)
+  sortOrder               Int                     @default(999)
   fixedShift              String?
-  skipDuties              Boolean          @default(false)
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
-  contractType            String           @default("UOP")
-  has10YearsSeniority     Boolean          @default(false)
-  hasChildren             Boolean          @default(false)
-  vacationDaysLimit       Float            @default(26.0)
-  carriedOverVacationDays Int              @default(0)
-  additionalVacationDays  Int              @default(0)
-  hasInternetPackage      Boolean          @default(false)
-  hasMultisportCard       Boolean          @default(false)
+  skipDuties              Boolean                 @default(false)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  contractType            String                  @default("UOP")
+  has10YearsSeniority     Boolean                 @default(false)
+  hasChildren             Boolean                 @default(false)
+  vacationDaysLimit       Float                   @default(26.0)
+  carriedOverVacationDays Int                     @default(0)
+  additionalVacationDays  Int                     @default(0)
+  hasInternetPackage      Boolean                 @default(false)
+  hasMultisportCard       Boolean                 @default(false)
   internetDescription     String?
   multisportDescription   String?
   shirtSize               String?
@@ -36,7 +36,7 @@ model User {
   shoeSize                String?
   jacketSize              String?
   phone                   String?
-  email                   String?          @unique
+  email                   String?                 @unique
   emergencyContact        String?
   departmentId            Int?
   secondaryDepartmentId   Int?
@@ -46,11 +46,10 @@ model User {
   scheduleDays            ScheduleDay[]
   systemLogs              SystemLog[]
   tools                   Tool[]
-  secondaryDepartment     Department?      @relation("SecondaryDepartment", fields: [secondaryDepartmentId], references: [id])
-  department              Department?      @relation(fields: [departmentId], references: [id])
+  secondaryDepartment     Department?             @relation("SecondaryDepartment", fields: [secondaryDepartmentId], references: [id])
+  department              Department?             @relation(fields: [departmentId], references: [id])
   permissions             UserPermission[]
   vacations               Vacation[]
-  workLogs                WorkLogEntry[]
   approvedReports         MonthlyVacationReport[] @relation("ApprovedReports")
 }
 
@@ -105,22 +104,6 @@ model ScheduleDay {
   vacation   Vacation? @relation(fields: [vacationId], references: [id])
 
   @@unique([userId, date])
-}
-
-model WorkLogEntry {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  date        DateTime
-  startTime   String?
-  endTime     String?
-  description String
-  project     String?
-  duration    Float    @default(0.0)
-  overtime    Float    @default(0.0)
-  isNightWork Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Vacation {
@@ -239,17 +222,17 @@ model SystemLog {
 }
 
 model MonthlyVacationReport {
-  id          Int       @id @default(autoincrement())
-  year        Int
-  month       Int
-  status      String    @default("PENDING")
-  approvedAt  DateTime?
-  approvedBy  Int?
-  approver    User?     @relation("ApprovedReports", fields: [approvedBy], references: [id])
-  fileBase64  String?
-  count       Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         Int       @id @default(autoincrement())
+  year       Int
+  month      Int
+  status     String    @default("PENDING")
+  approvedAt DateTime?
+  approvedBy Int?
+  approver   User?     @relation("ApprovedReports", fields: [approvedBy], references: [id])
+  fileBase64 String?
+  count      Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([year, month])
 }

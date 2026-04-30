@@ -252,8 +252,6 @@ export async function deleteEmployee(id: number) {
             // Czyszczenie wygenerowanych wniosków urlopowych
             await tx.vacation.deleteMany({ where: { userId: id } })
 
-            // Usunięcie wpisów z kart pracy
-            await tx.workLogEntry.deleteMany({ where: { userId: id } })
 
             // Odpięcie wszelkich powiązań z pojazdami we flocie 
             await tx.car.updateMany({

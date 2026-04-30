@@ -111,13 +111,7 @@ export async function getVacationStats(userId: number, year: number) {
     const childcareUsedDays = await getUsedDaysFromHistory(['CHILDCARE']);
     const additionalUsedDays = await getUsedDaysFromHistory(['ADDITIONAL']);
 
-    // Calculate total overtime hours from WorkLogEntry for ALL time up to this year? Or just lifetime. 
-    // Overtime is usually accrued continuously, but let's just get total for now.
-    const overtimeLogs = await prisma.workLogEntry.aggregate({
-        where: { userId },
-        _sum: { overtime: true }
-    })
-    const accruedOvertimeHours = overtimeLogs._sum.overtime || 0
+    const accruedOvertimeHours = 0;
 
     // Overtime days used
     const overtimeUsedDays = await getUsedDaysFromHistory(['OVERTIME']);

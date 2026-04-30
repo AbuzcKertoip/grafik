@@ -64,20 +64,7 @@ export default async function DashboardPage() {
     // 3. Status Today
     const myStatusToday = todaySchedule.find(s => s.userId === userId);
 
-    // 4. Work Stats (Current Month)
-    const workStats = await prisma.workLogEntry.aggregate({
-        _sum: {
-            duration: true,
-            overtime: true,
-        },
-        where: {
-            userId: userId,
-            date: {
-                gte: startOfMonth,
-                lte: endOfMonth,
-            }
-        }
-    });
+
 
     // 5. Admin: Pending Vacations (skipped as per previous notes)
 
@@ -127,11 +114,7 @@ export default async function DashboardPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Link href="/dashboard/work-logs">
-                        <Button className="gap-2">
-                            <Clock className="h-4 w-4" /> Ewidencja
-                        </Button>
-                    </Link>
+
                     <Link href="/dashboard/schedule">
                         <Button variant="outline" className="gap-2">
                             <CalendarDays className="h-4 w-4" /> Grafik
@@ -244,47 +227,6 @@ export default async function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                {/* Card 3: Stats */}
-                <Card className="shadow-sm">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg font-medium flex items-center gap-2">
-                            <FileText className="h-5 w-5" /> Twoje Podsumowanie
-                        </CardTitle>
-                        <CardDescription>{format(now, "LLLL yyyy", { locale: pl })}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-muted p-3 rounded-lg border text-center">
-                                <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                                    {workStats._sum.duration || 0}
-                                </p>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mt-1">
-                                    Godziny
-                                </p>
-                            </div>
-                            <div className="bg-muted p-3 rounded-lg border text-center">
-                                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                                    {workStats._sum.overtime || 0}
-                                </p>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mt-1">
-                                    Nadgodziny
-                                </p>
-                            </div>
-                        </div>
-
-                        {session.user.role === 'ADMIN' && (
-                            <div className="mt-6 pt-4 border-t dark:border-slate-800">
-                                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-md border border-amber-100 dark:border-amber-800">
-                                    <AlertCircle className="h-5 w-5" />
-                                    <div className="text-sm">
-                                        <p className="font-semibold">Panel Administratora</p>
-                                        <p className="opacity-90">Zarządzaj grafikiem i urlopami</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
             </div>
         </div>
     );

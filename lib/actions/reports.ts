@@ -55,15 +55,7 @@ export async function getWorkTimeReport(year: number, month: number, departmentI
             role: { not: "ADMIN" } // Exclude admins from reports usually
         },
         include: {
-            department: true,
-            workLogs: {
-                where: {
-                    date: {
-                        gte: startDate,
-                        lte: endDate
-                    }
-                }
-            }
+            department: true
         },
         orderBy: [
             { sortOrder: 'asc' },
@@ -72,8 +64,8 @@ export async function getWorkTimeReport(year: number, month: number, departmentI
     })
 
     return users.map(user => {
-        const totalHours = user.workLogs.reduce((sum, log) => sum + (log.duration || 0), 0)
-        const totalOvertime = user.workLogs.reduce((sum, log) => sum + (log.overtime || 0), 0)
+        const totalHours = 0
+        const totalOvertime = 0
         return {
             userId: user.id,
             name: user.name || user.username,

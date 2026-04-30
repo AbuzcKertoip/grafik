@@ -58,12 +58,7 @@ export function MainNav({ onItemClick }: { onItemClick?: () => void }) {
             icon: CalendarDays,
             show: true,
         },
-        {
-            href: "/dashboard/work-logs",
-            label: "Karta Pracy",
-            icon: ClipboardList,
-            show: !isAdmin,
-        },
+
         // {
         //     href: "/dashboard/users",
         //     label: "Pracownicy",
