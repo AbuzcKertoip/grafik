@@ -200,15 +200,15 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                                     className={cn(
                                         "group transition-colors",
                                         highlightedUserId === user.id 
-                                            ? "bg-indigo-100/60 dark:bg-indigo-900/40" 
+                                            ? "bg-slate-100 dark:bg-red-950/40 border-y-2 border-black dark:border-red-600" 
                                             : "hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20"
                                     )}
                                 >
                                     <TableCell 
                                         className={cn(
-                                            "w-[168px] min-w-[168px] max-w-[168px] font-medium border-r sticky left-0 z-10 truncate text-sm transition-colors cursor-pointer select-none",
+                                            "w-[168px] min-w-[168px] max-w-[168px] font-medium border-r sticky left-0 z-20 truncate text-sm transition-colors cursor-pointer select-none",
                                             highlightedUserId === user.id 
-                                                ? "bg-indigo-200/90 dark:bg-indigo-800/80" 
+                                                ? "bg-slate-200 dark:bg-red-900/60 text-black dark:text-red-100 border-l-2 border-black dark:border-red-600" 
                                                 : "bg-card group-hover:bg-indigo-100/80 dark:group-hover:bg-indigo-900/50"
                                         )}
                                         onClick={() => setHighlightedUserId(prev => prev === user.id ? null : user.id)}
@@ -232,7 +232,8 @@ export function ScheduleGrid({ users, schedule, year, month, currentUser }: Sche
                                                     "p-0 border-r text-center select-none transition-colors min-w-[34px] w-[34px] h-9 overflow-hidden dark:border-slate-800",
                                                     isSelected ? "ring-2 ring-primary ring-inset opacity-80" : "",
                                                     !isSelected && SHIFT_COLORS[type],
-                                                    !isSelected && !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : ""
+                                                    !isSelected && !type && isOff ? "bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20" : "",
+                                                    highlightedUserId === user.id && day === days.length ? "border-r-2 border-black dark:border-red-600" : ""
                                                 )}
                                                 onMouseDown={() => handleMouseDown(user.id, day)}
                                                 onMouseEnter={() => handleMouseEnter(user.id, day)}
