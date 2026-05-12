@@ -33,6 +33,7 @@ export async function generateMonthlyVacationReportDoc(year: number, month: numb
 
     const whereClause: any = {
         status: "APPROVED",
+        type: { not: "SICK" }, // Wykluczamy L4/chorobowe – zestawienie zawiera tylko urlopy
         // Chcemy wychwycić wszystkie urlopy, które zaczynają się lub trwają w danym miesiącu
         startDate: { lte: endDate },
         endDate: { gte: startDate }
@@ -99,6 +100,7 @@ export async function approveMonthlyVacationReport(year: number, month: number) 
     const vacations = await prisma.vacation.findMany({
         where: {
             status: "APPROVED",
+            type: { not: "SICK" }, // Wykluczamy L4/chorobowe – zestawienie zawiera tylko urlopy
             startDate: { lte: endDate },
             endDate: { gte: startDate }
         },
