@@ -16,6 +16,25 @@ import { sendEmail } from "@/lib/actions/mailer"
 import { addDays, format } from "date-fns"
 import { createLog } from "@/lib/actions/log-actions"
 
+// Format date in Polish timezone (Europe/Warsaw) to avoid off-by-one-day bug
+// when server runs in UTC and dates are stored from Polish timezone input
+function formatDatePL(date: Date | string, pattern: string = 'dd.MM.yyyy'): string {
+    const d = new Date(date)
+    // Convert to Polish timezone string, then parse back
+    const plString = d.toLocaleString('sv-SE', { timeZone: 'Europe/Warsaw' })
+    const [datePart] = plString.split(' ')
+    const [year, month, day] = datePart.split('-')
+    if (pattern === 'dd.MM.yyyy') {
+        return `${day}.${month}.${year}`
+    }
+    if (pattern === 'dd.MM.yyyy HH:mm') {
+        const timePart = plString.split(' ')[1] || '00:00:00'
+        const [h, m] = timePart.split(':')
+        return `${day}.${month}.${year} ${h}:${m}`
+    }
+    return `${day}.${month}.${year}`
+}
+
 export async function getEmailLogs() {
     const session = await getServerSession(authOptions)
     if (!session || session.user.role !== "ADMIN") {
@@ -42,13 +61,6 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
     const alertDays = settings.alertDaysBefore
     const targetDate = addDays(new Date(), alertDays)
 
-    // Ograniczenie spamu: automatyczna wysyłka tylko raz na 7 dni
-    if (!isManual && settings.lastAlertSent) {
-        const daysSinceLastAlert = (new Date().getTime() - new Date(settings.lastAlertSent).getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSinceLastAlert < 7) {
-            return { success: true, message: "Pominięto, e-mail przesyłany jest automatycznie tylko raz na 7 dni." }
-        }
-    }
 
     // Find expiring medical exams (all, not just unnotified)
     const medicalExams = await prisma.medicalExam.findMany({
@@ -81,8 +93,8 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
     let htmlContent = `
         <h2>${isManual ? "Ręczny Raport Alertów" : "Cotygodniowy Raport Alertów"} - HR4YOU</h2>
         <p>${isManual ? "Raport został wygenerowany na żądanie administratora." : "Raport wygenerowany automatycznie."}</p>
-        <p>Data wygenerowania: <b>${format(new Date(), 'dd.MM.yyyy HH:mm')}</b></p>
-        <p>Horyzont czasowy sprawdzenia: <b>${alertDays} dni</b> (do ${format(targetDate, 'dd.MM.yyyy')})</p>
+        <p>Data wygenerowania: <b>${formatDatePL(new Date(), 'dd.MM.yyyy HH:mm')}</b></p>
+        <p>Horyzont czasowy sprawdzenia: <b>${alertDays} dni</b> (do ${formatDatePL(targetDate)})</p>
         <hr/>
     `
 
@@ -99,7 +111,7 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
             const typePl = examTypesPl[exam.type] || exam.type
             const isExpired = new Date(exam.validUntil) < new Date()
             const marker = isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'
-            htmlContent += `<li><strong>${exam.user.name || exam.user.username}</strong> - ${typePl} — ważne do: ${format(exam.validUntil, 'dd.MM.yyyy')} <em>(${marker})</em></li>`
+            htmlContent += `<li><strong>${exam.user.name || exam.user.username}</strong> - ${typePl} — ważne do: ${formatDatePL(exam.validUntil)} <em>(${marker})</em></li>`
         })
         htmlContent += `</ul>`
     } else {
@@ -113,15 +125,15 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
 
             if (car.inspectionValidUntil <= targetDate) {
                 const isExpired = new Date(car.inspectionValidUntil) < new Date()
-                htmlContent += ` - Przegląd do: ${format(car.inspectionValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴' : '🟡'}`
+                htmlContent += ` - Przegląd do: ${formatDatePL(car.inspectionValidUntil)} ${isExpired ? '🔴' : '🟡'}`
             }
             if (car.insuranceValidUntil <= targetDate) {
                 const isExpired = new Date(car.insuranceValidUntil) < new Date()
-                htmlContent += ` - OC do: ${format(car.insuranceValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴' : '🟡'}`
+                htmlContent += ` - OC do: ${formatDatePL(car.insuranceValidUntil)} ${isExpired ? '🔴' : '🟡'}`
             }
             if (car.acValidUntil && car.acValidUntil <= targetDate) {
                 const isExpired = new Date(car.acValidUntil) < new Date()
-                htmlContent += ` - AC do: ${format(car.acValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴' : '🟡'}`
+                htmlContent += ` - AC do: ${formatDatePL(car.acValidUntil)} ${isExpired ? '🔴' : '🟡'}`
             }
             htmlContent += `</li>`
         })
@@ -164,15 +176,15 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
                 individualHtml += `<li><strong>${car.make} ${car.model} (${car.plate})</strong>`
                 if (car.inspectionValidUntil <= targetDate) {
                     const isExpired = new Date(car.inspectionValidUntil) < new Date()
-                    individualHtml += ` — Przegląd do: ${format(car.inspectionValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴 PRZETERMINOWANY' : '🟡 Wygasa wkrótce'}`
+                    individualHtml += ` — Przegląd do: ${formatDatePL(car.inspectionValidUntil)} ${isExpired ? '🔴 PRZETERMINOWANY' : '🟡 Wygasa wkrótce'}`
                 }
                 if (car.insuranceValidUntil <= targetDate) {
                     const isExpired = new Date(car.insuranceValidUntil) < new Date()
-                    individualHtml += ` — OC do: ${format(car.insuranceValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'}`
+                    individualHtml += ` — OC do: ${formatDatePL(car.insuranceValidUntil)} ${isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'}`
                 }
                 if (car.acValidUntil && car.acValidUntil <= targetDate) {
                     const isExpired = new Date(car.acValidUntil) < new Date()
-                    individualHtml += ` — AC do: ${format(car.acValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'}`
+                    individualHtml += ` — AC do: ${formatDatePL(car.acValidUntil)} ${isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'}`
                 }
                 individualHtml += `</li>`
             }
@@ -214,7 +226,7 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
                 const typePl = examTypesPl[exam.type] || exam.type
                 const isExpired = new Date(exam.validUntil) < new Date()
                 const marker = isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'
-                individualHtml += `<li><strong>${typePl}</strong> — ważne do: ${format(exam.validUntil, 'dd.MM.yyyy')} <em>(${marker})</em></li>`
+                individualHtml += `<li><strong>${typePl}</strong> — ważne do: ${formatDatePL(exam.validUntil)} <em>(${marker})</em></li>`
             }
             individualHtml += `</ul>
                 <p>Proszę o kontakt z działem HR w celu umówienia terminu.</p>
