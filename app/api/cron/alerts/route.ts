@@ -17,7 +17,7 @@ export async function GET(request: Request) {
             await createLog({
                 action: "CRON_ALERT_TRIGGERED",
                 description: `Wygenerowano i wysłano systemowy automatyczny raport alertów. Znaleziono: ${result.stats.exams} badań, ${result.stats.cars} pojazdów.`,
-                userId: 0, // 0 can signify system
+                userId: null, // system-generated, no user
                 errorCodeKey: "CRON_ALERT_TRIGGERED",
             });
         }

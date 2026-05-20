@@ -55,7 +55,7 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
         where: {
             validUntil: { lte: targetDate }
         },
-        include: { user: true }
+        include: { user: { select: { id: true, name: true, username: true, email: true } } }
     })
 
     // Find expiring cars (Inspection, OC, AC)
@@ -67,6 +67,11 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
                 { insuranceValidUntil: { lte: targetDate } },
                 { acValidUntil: { lte: targetDate } }
             ]
+        },
+        include: {
+            caretaker: {
+                select: { id: true, name: true, username: true, email: true }
+            }
         }
     })
 
@@ -133,11 +138,105 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
         await sendEmail(email, `HR4YOU - ${hasAlerts ? 'Raport Alertów' : 'Raport tygodniowy — brak uwag'} ${isManual ? "(na żądanie)" : ""}`, htmlContent)
     }
 
-    // Update last sent
-    await prisma.systemSettings.update({
-        where: { id: 1 },
-        data: { lastAlertSent: new Date() }
-    })
+    // ── Individual notifications: car caretakers ──
+    if (cars.length > 0) {
+        // Group cars by caretaker
+        const carsByCaretaker = new Map<string, typeof cars>()
+        for (const car of cars) {
+            if (car.caretaker?.email) {
+                const key = car.caretaker.email
+                if (!carsByCaretaker.has(key)) {
+                    carsByCaretaker.set(key, [])
+                }
+                carsByCaretaker.get(key)!.push(car)
+            }
+        }
+
+        for (const [caretakerEmail, caretakerCars] of carsByCaretaker) {
+            const caretakerName = caretakerCars[0].caretaker?.name || caretakerCars[0].caretaker?.username || ''
+            let individualHtml = `
+                <h2>Powiadomienie o pojeździe - HR4YOU</h2>
+                <p>Witaj <strong>${caretakerName}</strong>,</p>
+                <p>Pojazd(y) przypisane do Ciebie wymagają uwagi w ciągu najbliższych <strong>${alertDays} dni</strong>:</p>
+                <ul>
+            `
+            for (const car of caretakerCars) {
+                individualHtml += `<li><strong>${car.make} ${car.model} (${car.plate})</strong>`
+                if (car.inspectionValidUntil <= targetDate) {
+                    const isExpired = new Date(car.inspectionValidUntil) < new Date()
+                    individualHtml += ` — Przegląd do: ${format(car.inspectionValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴 PRZETERMINOWANY' : '🟡 Wygasa wkrótce'}`
+                }
+                if (car.insuranceValidUntil <= targetDate) {
+                    const isExpired = new Date(car.insuranceValidUntil) < new Date()
+                    individualHtml += ` — OC do: ${format(car.insuranceValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'}`
+                }
+                if (car.acValidUntil && car.acValidUntil <= targetDate) {
+                    const isExpired = new Date(car.acValidUntil) < new Date()
+                    individualHtml += ` — AC do: ${format(car.acValidUntil, 'dd.MM.yyyy')} ${isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'}`
+                }
+                individualHtml += `</li>`
+            }
+            individualHtml += `</ul>
+                <p>Proszę o podjęcie odpowiednich kroków.</p>
+                <p><small>Wiadomość wygenerowana automatycznie z systemu HR4YOU.</small></p>
+            `
+            try {
+                await sendEmail(caretakerEmail, `HR4YOU - Twój pojazd wymaga uwagi`, individualHtml)
+            } catch (e) {
+                console.error(`Failed to send car alert to caretaker ${caretakerEmail}:`, e)
+            }
+        }
+    }
+
+    // ── Individual notifications: employees with expiring exams/trainings ──
+    if (medicalExams.length > 0) {
+        // Group exams by employee
+        const examsByUser = new Map<string, typeof medicalExams>()
+        for (const exam of medicalExams) {
+            if (exam.user.email) {
+                const key = exam.user.email
+                if (!examsByUser.has(key)) {
+                    examsByUser.set(key, [])
+                }
+                examsByUser.get(key)!.push(exam)
+            }
+        }
+
+        for (const [userEmail, userExams] of examsByUser) {
+            const userName = userExams[0].user.name || userExams[0].user.username
+            let individualHtml = `
+                <h2>Powiadomienie o badaniach/szkoleniach - HR4YOU</h2>
+                <p>Witaj <strong>${userName}</strong>,</p>
+                <p>Następujące badania lub szkolenia wymagają Twojej uwagi:</p>
+                <ul>
+            `
+            for (const exam of userExams) {
+                const typePl = examTypesPl[exam.type] || exam.type
+                const isExpired = new Date(exam.validUntil) < new Date()
+                const marker = isExpired ? '🔴 PRZETERMINOWANE' : '🟡 Wygasa wkrótce'
+                individualHtml += `<li><strong>${typePl}</strong> — ważne do: ${format(exam.validUntil, 'dd.MM.yyyy')} <em>(${marker})</em></li>`
+            }
+            individualHtml += `</ul>
+                <p>Proszę o kontakt z działem HR w celu umówienia terminu.</p>
+                <p><small>Wiadomość wygenerowana automatycznie z systemu HR4YOU.</small></p>
+            `
+            try {
+                await sendEmail(userEmail, `HR4YOU - Zbliżający się termin badań/szkoleń`, individualHtml)
+            } catch (e) {
+                console.error(`Failed to send exam alert to employee ${userEmail}:`, e)
+            }
+        }
+    }
+
+    // Update last sent (non-blocking — don't crash if DB write fails)
+    try {
+        await prisma.systemSettings.update({
+            where: { id: 1 },
+            data: { lastAlertSent: new Date() }
+        })
+    } catch (updateError) {
+        console.error('Failed to update lastAlertSent:', updateError)
+    }
 
     return { 
         success: true, 

@@ -35,26 +35,34 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
     try {
         const info = await transporter.sendMail(mailOptions)
 
-        // Log success
-        await prisma.emailLog.create({
-            data: {
-                toEmail: to,
-                subject: subject,
-                status: 'SUCCESS',
-            }
-        })
+        // Log success (non-blocking — don't crash if DB write fails)
+        try {
+            await prisma.emailLog.create({
+                data: {
+                    toEmail: to,
+                    subject: subject,
+                    status: 'SUCCESS',
+                }
+            })
+        } catch (logError) {
+            console.error('Failed to log email success:', logError)
+        }
 
         return info
     } catch (error: any) {
-        // Log failure
-        await prisma.emailLog.create({
-            data: {
-                toEmail: to,
-                subject: subject,
-                status: 'FAILED',
-                errorMsg: error.message || 'Unknown error'
-            }
-        })
+        // Log failure (non-blocking)
+        try {
+            await prisma.emailLog.create({
+                data: {
+                    toEmail: to,
+                    subject: subject,
+                    status: 'FAILED',
+                    errorMsg: error.message || 'Unknown error'
+                }
+            })
+        } catch (logError) {
+            console.error('Failed to log email failure:', logError)
+        }
         throw error
     }
 }

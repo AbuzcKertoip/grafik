@@ -6,7 +6,7 @@ import { ErrorCodeKey, ERROR_CODES } from "@/lib/error-codes"
 interface CreateLogProps {
     action: string;
     description: string;
-    userId?: number;
+    userId?: number | null;
     errorCodeKey?: ErrorCodeKey;
     details?: Record<string, any>;
 }

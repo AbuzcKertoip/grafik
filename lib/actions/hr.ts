@@ -68,6 +68,12 @@ export async function getVacationStats(userId: number, year: number) {
     if (user.contractType === 'B2B') {
         baseLimit = user.vacationDaysLimit // Allow admin to change this, dont hardcode 26 anymore
         carriedOver = 0 // B2B does not carry over unused days
+        // Apply seniority logic same as UOP
+        if (baseLimit === 26 && !user.has10YearsSeniority) {
+            baseLimit = 20;
+        } else if (baseLimit === 20 && user.has10YearsSeniority) {
+            baseLimit = 26;
+        }
     } else if (user.contractType === 'UOP_PART_TIME') {
         baseLimit = user.vacationDaysLimit // Custom limit for part-time (np 7/8 etatu)
     } else {

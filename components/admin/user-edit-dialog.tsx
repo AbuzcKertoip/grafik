@@ -182,7 +182,7 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
                         </div>
                     </div>
 
-                    {(contractType === 'UOP' || contractType === 'UOP_PART_TIME') && (
+                    {(contractType === 'UOP' || contractType === 'UOP_PART_TIME' || contractType === 'B2B') && (
                         <div className="space-y-4">
                             <Label>Staż pracy (Urlop)</Label>
                             <div className="flex items-center space-x-2 border rounded-md p-4 bg-muted/20">

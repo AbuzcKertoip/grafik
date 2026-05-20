@@ -190,7 +190,7 @@ export function UserCreateDialog({ open, onOpenChange, departments, onUpdate }: 
                         </div>
                     </div>
 
-                    {(formData.contractType === 'UOP' || formData.contractType === 'UOP_PART_TIME') && (
+                    {(formData.contractType === 'UOP' || formData.contractType === 'UOP_PART_TIME' || formData.contractType === 'B2B') && (
                         <div className="space-y-4">
                             <Label>Staż pracy (Urlop)</Label>
                             <div className="flex items-center space-x-2 border rounded-md p-4 bg-muted/20">

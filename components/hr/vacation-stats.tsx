@@ -230,7 +230,7 @@ export function VacationStats({ userId, isAdmin, limit, used, baseLimit, carried
                     <span className="font-semibold uppercase text-[10px] bg-muted px-1.5 py-0.5 rounded">
                         Umowa: {getContractLabel(contractType)}
                     </span>
-                    {(contractType === 'UOP' || contractType === 'UOP_PART_TIME') && (
+                    {(contractType === 'UOP' || contractType === 'UOP_PART_TIME' || contractType === 'B2B') && (
                         <span>Staż pracy: {has10YearsSeniority ? 'Powyżej 10 lat' : 'Poniżej 10 lat'}</span>
                     )}
                 </div>
