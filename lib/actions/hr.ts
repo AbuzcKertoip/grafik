@@ -105,8 +105,10 @@ export async function getVacationStats(userId: number, year: number) {
             }
         });
         
+        const { groupVacations } = await import("../vacation-utils");
+        const groupedVacations = groupVacations(approvedVacations);
         const { getBusinessDaysCount } = await import("../holidays");
-        return approvedVacations.reduce((acc, vac) => {
+        return groupedVacations.reduce((acc: number, vac: any) => {
             return acc + getBusinessDaysCount(new Date(vac.startDate), new Date(vac.endDate));
         }, 0);
     }

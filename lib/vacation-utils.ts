@@ -43,7 +43,11 @@ export function groupVacations(vacations: any[]): any[] {
             isConsecutive
         ) {
             // Merge into current group
-            lastGroup.endDate = v.endDate;
+            const currentEndDate = new Date(lastGroup.endDate);
+            const newEndDate = new Date(v.endDate);
+            if (newEndDate > currentEndDate) {
+                lastGroup.endDate = v.endDate;
+            }
             if (!lastGroup.mergedIds) lastGroup.mergedIds = [lastGroup.id];
             lastGroup.mergedIds.push(v.id);
             
