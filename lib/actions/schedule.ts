@@ -8,7 +8,7 @@ import { createLog } from "@/lib/actions/log-actions"
 import { hasPermission, isManagerInHRDept } from "@/lib/auth/permissions"
 import { sendEmail } from "@/lib/actions/mailer"
 
-export function translateShiftType(type: string): string {
+function translateShiftType(type: string): string {
     switch (type) {
         case 'SHIFT_1': return 'Zmiana 1'
         case 'SHIFT_2': return 'Zmiana 2'
