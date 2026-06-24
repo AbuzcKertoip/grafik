@@ -7,6 +7,8 @@ import { CalendarDays, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
+import { SwapRequestsPanel } from "@/components/schedule/swap-requests-panel"
+
 interface ScheduleActionsProps {
     users: any[]
     vacations: any[]
@@ -14,9 +16,11 @@ interface ScheduleActionsProps {
     month: number
     currentUser: any
     departmentId?: number
+    userSwapRequests: any[]
+    managerSwapRequests: any[]
 }
 
-export function ScheduleActions({ users, vacations, year, month, currentUser, departmentId }: ScheduleActionsProps) {
+export function ScheduleActions({ users, vacations, year, month, currentUser, departmentId, userSwapRequests, managerSwapRequests }: ScheduleActionsProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'SZEF' || currentUser?.role === 'MANAGER'
@@ -73,6 +77,7 @@ export function ScheduleActions({ users, vacations, year, month, currentUser, de
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
             <div className="flex gap-2 w-full sm:w-auto">
                 <VacationCalendar users={users} vacations={vacations} currentUser={currentUser} />
+                <SwapRequestsPanel users={users} currentUser={currentUser} userRequests={userSwapRequests} managerRequests={managerSwapRequests} />
                 {canManage && (
                     <Button
                         onClick={handleClear}

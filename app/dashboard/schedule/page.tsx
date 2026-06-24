@@ -1,5 +1,6 @@
 import { getSchedule } from "@/lib/actions/schedule"
 import { hasPermission } from "@/lib/auth/permissions"
+import { getUserSwapRequests, getManagerSwapRequests } from "@/lib/actions/shift-swaps"
 
 export const dynamic = 'force-dynamic'
 import { getUsers } from "@/lib/actions/users"
@@ -45,6 +46,8 @@ export default async function SchedulePage(props: SchedulePageProps) {
     const users = await getUsers(requestedDeptId)
     const schedule = await getSchedule(year, month)
     const vacations = await getVacations(year)
+    const userSwapRequests = await getUserSwapRequests(parseInt(session.user.id))
+    const managerSwapRequests = await getManagerSwapRequests()
 
     // Admins, SZEF, and HR can see the filter and we need to fetch departments for the dropdown
     const isGlobalViewer = session.user.role === 'ADMIN' || 
@@ -94,6 +97,8 @@ export default async function SchedulePage(props: SchedulePageProps) {
                     month={month}
                     currentUser={session?.user}
                     departmentId={requestedDeptId ? parseInt(requestedDeptId) : undefined}
+                    userSwapRequests={userSwapRequests}
+                    managerSwapRequests={managerSwapRequests}
                 />
             </div>
 

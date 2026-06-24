@@ -27,6 +27,7 @@ export interface CalendarProps {
     selected?: { from?: Date; to?: Date } | Date
     onSelect?: (value: any) => void
     className?: string
+    disabled?: (date: Date) => boolean
 }
 
 export function Calendar({
@@ -34,6 +35,7 @@ export function Calendar({
     selected,
     onSelect,
     className,
+    disabled,
 }: CalendarProps) {
     const [currentMonth, setCurrentMonth] = React.useState(new Date())
 
@@ -170,18 +172,20 @@ export function Calendar({
                     const rangeStart = isRangeStart(day)
                     const rangeEnd = isRangeEnd(day)
                     const currentMonthDay = isSameMonth(day, monthStart)
+                    const isDisabled = disabled ? disabled(day) : false
 
                     return (
                         <button
                             key={idx}
                             type="button"
-                            onClick={() => handleDateClick(day)}
-                            disabled={!currentMonthDay}
+                            onClick={() => !isDisabled && handleDateClick(day)}
+                            disabled={!currentMonthDay || isDisabled}
                             className={cn(
                                 "h-12 w-full text-sm transition-all relative flex items-center justify-center font-semibold rounded-xl group",
                                 // Base styles
                                 !currentMonthDay && "opacity-0 pointer-events-none",
-                                currentMonthDay && !isInRange && !isSelected && "text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:shadow-sm",
+                                isDisabled && currentMonthDay && "opacity-50 cursor-not-allowed text-muted-foreground",
+                                currentMonthDay && !isInRange && !isSelected && !isDisabled && "text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:shadow-sm",
 
                                 // Today style
                                 isToday(day) && currentMonthDay && !isSelected && !isInRange && "text-emerald-600 bg-emerald-50/30 ring-1 ring-emerald-100 ring-inset",

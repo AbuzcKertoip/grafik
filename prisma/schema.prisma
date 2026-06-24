@@ -51,6 +51,8 @@ model User {
   permissions             UserPermission[]
   vacations               Vacation[]
   approvedReports         MonthlyVacationReport[] @relation("ApprovedReports")
+  swapRequestsMade        ShiftSwapRequest[]      @relation("SwapRequester")
+  swapRequestsReceived    ShiftSwapRequest[]      @relation("SwapTarget")
 }
 
 model Department {
@@ -235,4 +237,19 @@ model MonthlyVacationReport {
   updatedAt  DateTime  @updatedAt
 
   @@unique([year, month])
+}
+
+model ShiftSwapRequest {
+  id                 Int       @id @default(autoincrement())
+  requesterId        Int
+  targetUserId       Int
+  requesterDate      DateTime
+  targetUserDate     DateTime
+  isWeekend          Boolean   @default(false)
+  status             String    @default("PENDING_COLLEAGUE") // PENDING_COLLEAGUE, PENDING_MANAGER, APPROVED, REJECTED
+  note               String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  requester          User      @relation("SwapRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  targetUser         User      @relation("SwapTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
 }

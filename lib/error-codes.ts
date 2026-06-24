@@ -24,6 +24,8 @@ export const ERROR_CODES = {
     VACATION_EDITED: { code: "HR-007", label: "Edycja Urlopu", isError: false },
     VACATION_DELETED: { code: "HR-008", label: "Usunięcie Urlopu", isError: false },
     MONTHLY_REPORT_APPROVED: { code: "HR-009", label: "Zatwierdzenie Zestawienia Miesięcznego", isError: false },
+    SWAP_REQUESTED: { code: "HR-010", label: "Wniosek o Zamianę", isError: false },
+    SWAP_APPROVED: { code: "HR-011", label: "Zatwierdzenie Zamiany", isError: false },
 
     // System Events
     SETTINGS_UPDATED: { code: "SYS-001", label: "Zmiana Ustawień", isError: false },
