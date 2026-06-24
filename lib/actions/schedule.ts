@@ -6,6 +6,28 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { createLog } from "@/lib/actions/log-actions"
 import { hasPermission, isManagerInHRDept } from "@/lib/auth/permissions"
+import { sendEmail } from "@/lib/actions/mailer"
+
+export function translateShiftType(type: string): string {
+    switch (type) {
+        case 'SHIFT_1': return 'Zmiana 1'
+        case 'SHIFT_2': return 'Zmiana 2'
+        case 'VACATION': return 'Urlop wypoczynkowy'
+        case 'ON_DEMAND': return 'Urlop na żądanie'
+        case 'SPECIAL_LEAVE': return 'Urlop okolicznościowy'
+        case 'CHILDCARE': return 'Opieka nad dzieckiem'
+        case 'ADDITIONAL': return 'Urlop dodatkowy'
+        case 'SICK': return 'Zwolnienie lekarskie'
+        case 'DUTY': return 'Dyżur'
+        case 'HOLIDAY': return 'Święto'
+        case 'OVERTIME': return 'Odbiór nadgodzin'
+        case 'OTHER': return 'Inna nieobecność'
+        case 'OFF': 
+        case '': 
+            return 'Brak dyżuru (WOLNE)'
+        default: return type
+    }
+}
 
 export async function getSchedule(year: number, month: number) {
     const session = await getServerSession(authOptions)
@@ -502,6 +524,29 @@ export async function upsertShift(userId: number, year: number, month: number, d
             })
         }
 
+        // Email Notification
+        try {
+            const targetUserForMail = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true, username: true } })
+            if (targetUserForMail?.email) {
+                const dateStr = `${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}.${year}`
+                const typeStr = translateShiftType(type)
+                const mailHtml = `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px;">
+                        <h2 style="color: #4f46e5; margin-top: 0;">Zmiana w Twoim grafiku</h2>
+                        <p>Cześć ${targetUserForMail.name || targetUserForMail.username},</p>
+                        <p>Twój grafik na dzień <strong>${dateStr}</strong> został zmodyfikowany przez przełożonego/HR.</p>
+                        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                            <p style="margin: 0; font-size: 16px;">Nowy status dyżuru: <strong style="color: #111827;">${typeStr}</strong></p>
+                        </div>
+                        <p style="color: #6b7280; font-size: 14px;">Zaloguj się do systemu HR4YOU, aby zobaczyć aktualny grafik.</p>
+                    </div>
+                `
+                await sendEmail(targetUserForMail.email, "HR4YOU - Zmiana w grafiku", mailHtml).catch(e => console.error("Email failed", e))
+            }
+        } catch (mailErr) {
+            console.error("Failed to send schedule update email:", mailErr)
+        }
+
         await createLog({
             action: "UPSERT_SHIFT",
             description: `Zmieniono dyżur (Dzień: ${day}.${month}.${year}, Typ: ${type}) dla pracownika ID: ${userId}`,
@@ -636,6 +681,51 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
                 }
             }
         })
+
+        // Email Notification for Bulk Update
+        try {
+            const shiftsByUser: Record<number, typeof shifts> = {}
+            for (const s of shifts) {
+                if (!shiftsByUser[s.userId]) shiftsByUser[s.userId] = []
+                shiftsByUser[s.userId].push(s)
+            }
+
+            for (const userIdStr in shiftsByUser) {
+                const userId = parseInt(userIdStr)
+                const userShifts = shiftsByUser[userId].sort((a,b) => {
+                    const dateA = new Date(a.year, a.month-1, a.day).getTime()
+                    const dateB = new Date(b.year, b.month-1, b.day).getTime()
+                    return dateA - dateB
+                })
+
+                const targetUserForMail = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true, username: true } })
+                if (targetUserForMail?.email) {
+                    let shiftsHtmlList = ''
+                    for (const s of userShifts) {
+                        const dateStr = `${s.day.toString().padStart(2, '0')}.${s.month.toString().padStart(2, '0')}.${s.year}`
+                        const typeStr = translateShiftType(s.type)
+                        shiftsHtmlList += `<li style="margin-bottom: 8px;"><strong>${dateStr}</strong>: ${typeStr}</li>`
+                    }
+
+                    const mailHtml = `
+                        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px;">
+                            <h2 style="color: #4f46e5; margin-top: 0;">Zmiany w Twoim grafiku</h2>
+                            <p>Cześć ${targetUserForMail.name || targetUserForMail.username},</p>
+                            <p>W Twoim grafiku wprowadzono nowe zmiany (przez przełożonego lub HR). Poniżej znajduje się zestawienie:</p>
+                            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                                <ul style="margin: 0; padding-left: 20px; color: #111827;">
+                                    ${shiftsHtmlList}
+                                </ul>
+                            </div>
+                            <p style="color: #6b7280; font-size: 14px;">Zaloguj się do systemu HR4YOU, aby zobaczyć aktualny grafik.</p>
+                        </div>
+                    `
+                    await sendEmail(targetUserForMail.email, "HR4YOU - Zmiany w grafiku", mailHtml).catch(e => console.error("Email failed", e))
+                }
+            }
+        } catch (mailErr) {
+            console.error("Failed to send bulk schedule update emails:", mailErr)
+        }
 
         await createLog({
             action: "UPSERT_SHIFTS_BULK",

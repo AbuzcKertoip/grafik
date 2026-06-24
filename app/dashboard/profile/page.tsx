@@ -101,7 +101,7 @@ export default async function ProfilePage({
     const isUOP = contractType === 'UOP' || contractType === 'UOP_PART_TIME';
     const vacationTabLabel = isUOP ? "Urlopy" : "Nieobecności";
 
-    const canManageEquipment = canManageHR || (isManager && targetUserId !== parseInt(session.user.id) && user.departmentId === session.user.departmentId)
+    const canManageEquipment = canManageHR || (isManager && user.departmentId && user.departmentId === session.user.departmentId)
 
     return (
         <div className="max-w-5xl mx-auto w-full p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
