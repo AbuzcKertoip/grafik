@@ -33,6 +33,7 @@ export function SwapRequestsPanel({ users, currentUser, userRequests, managerReq
     const [loading, setLoading] = useState(false)
 
     // Formularz nowego wniosku
+    const [step, setStep] = useState(1)
     const [selectedUser, setSelectedUser] = useState<string>("")
     const [reqDate, setReqDate] = useState<Date | undefined>()
     const [targetDate, setTargetDate] = useState<Date | undefined>()
@@ -63,6 +64,7 @@ export function SwapRequestsPanel({ users, currentUser, userRequests, managerReq
                 setTargetDate(undefined)
                 setSelectedUser("")
                 setIsWeekend(false)
+                setStep(1)
                 router.refresh()
                 alert("Wniosek został wysłany.")
             } else {
@@ -102,7 +104,10 @@ export function SwapRequestsPanel({ users, currentUser, userRequests, managerReq
     }
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(val) => {
+            setIsOpen(val)
+            if (!val) setStep(1)
+        }}>
             <DialogTrigger asChild>
                 <Button variant="default" className="bg-sky-600 hover:bg-sky-700 text-white shadow-sm relative">
                     <ArrowLeftRight className="w-4 h-4 mr-2" />
@@ -123,74 +128,114 @@ export function SwapRequestsPanel({ users, currentUser, userRequests, managerReq
                 </DialogHeader>
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-4">
-                    {/* Lewa kolumna - Formularz */}
+                    {/* Lewa kolumna - Formularz (Multi-step) */}
                     <div className="md:col-span-4 space-y-6">
                         <div className="space-y-1">
-                            <h3 className="font-semibold text-lg text-foreground">Nowy wniosek</h3>
-                            <p className="text-sm text-muted-foreground">Wybierz osobę i daty zamiany.</p>
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-semibold text-lg text-foreground">Nowy wniosek</h3>
+                                <span className="text-xs font-medium bg-muted px-2 py-1 rounded-md text-muted-foreground">Krok {step} z 3</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {step === 1 && "Wybierz osobę do zamiany."}
+                                {step === 2 && "Wybierz datę, którą oddajesz."}
+                                {step === 3 && "Wybierz datę, którą bierzesz w zamian."}
+                            </p>
                         </div>
 
                         <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Z kim chcesz się zamienić?</label>
-                                <Select value={selectedUser} onValueChange={setSelectedUser}>
-                                    <SelectTrigger className="bg-muted border-border">
-                                        <SelectValue placeholder="Wybierz z listy..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {sortedUsers.map(u => (
-                                            <SelectItem key={u.id} value={u.id.toString()}>
-                                                {formatName(u.name || u.username)}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            {step === 1 && (
+                                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-muted-foreground">Z kim chcesz się zamienić?</label>
+                                        <Select value={selectedUser} onValueChange={setSelectedUser}>
+                                            <SelectTrigger className="bg-muted border-border">
+                                                <SelectValue placeholder="Wybierz z listy..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {sortedUsers.map(u => (
+                                                    <SelectItem key={u.id} value={u.id.toString()}>
+                                                        {formatName(u.name || u.username)}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
 
-                            <div className="flex items-center space-x-2">
-                                <Checkbox 
-                                    id="isWeekend" 
-                                    checked={isWeekend} 
-                                    onCheckedChange={(c) => setIsWeekend(c as boolean)} 
-                                />
-                                <label htmlFor="isWeekend" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                    Zamiana całego weekendu (Sob+Ndz)
-                                </label>
-                            </div>
+                                    <div className="flex items-center space-x-2 pt-2">
+                                        <Checkbox 
+                                            id="isWeekend" 
+                                            checked={isWeekend} 
+                                            onCheckedChange={(c) => setIsWeekend(c as boolean)} 
+                                        />
+                                        <label htmlFor="isWeekend" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                            Zamiana całego weekendu (Sob+Ndz)
+                                        </label>
+                                    </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Data, którą oddajesz</label>
-                                <div className="border border-border rounded-lg p-3 bg-card shadow-sm flex justify-center">
-                                    <Calendar
-                                        mode="single"
-                                        selected={reqDate}
-                                        onSelect={setReqDate}
-                                        className="w-full border-0 shadow-none"
-                                        disabled={(date) => isWeekend && date.getDay() !== 6} // Tylko soboty dla weekendow
-                                    />
+                                    <Button
+                                        className="w-full mt-4"
+                                        onClick={() => setStep(2)}
+                                        disabled={!selectedUser}
+                                    >
+                                        Dalej
+                                    </Button>
                                 </div>
-                            </div>
+                            )}
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Data, którą bierzesz w zamian</label>
-                                <div className="border border-border rounded-lg p-3 bg-card shadow-sm flex justify-center">
-                                    <Calendar
-                                        mode="single"
-                                        selected={targetDate}
-                                        onSelect={setTargetDate}
-                                        className="w-full border-0 shadow-none"
-                                        disabled={(date) => isWeekend && date.getDay() !== 6} // Tylko soboty dla weekendow
-                                    />
+                            {step === 2 && (
+                                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                                    <div className="border border-border rounded-lg p-3 bg-card shadow-sm flex justify-center">
+                                        <Calendar
+                                            mode="single"
+                                            selected={reqDate}
+                                            onSelect={(d) => {
+                                                setReqDate(d as Date);
+                                                if (d) setTimeout(() => setStep(3), 300); // Auto-advance
+                                            }}
+                                            className="w-full border-0 shadow-none"
+                                            disabled={(date) => isWeekend && date.getDay() !== 6}
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" className="w-1/3" onClick={() => setStep(1)}>Wstecz</Button>
+                                        <Button className="w-2/3" onClick={() => setStep(3)} disabled={!reqDate}>Dalej</Button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
-                            <Button
-                                className="w-full bg-sky-600 hover:bg-sky-700 text-white"
-                                onClick={handleCreate}
-                                disabled={!reqDate || !targetDate || !selectedUser || loading}
-                            >
-                                {loading ? "Wysyłanie..." : "Wyślij Wniosek"}
-                            </Button>
+                            {step === 3 && (
+                                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                                    <div className="border border-border rounded-lg p-3 bg-card shadow-sm flex justify-center">
+                                        <Calendar
+                                            mode="single"
+                                            selected={targetDate}
+                                            onSelect={setTargetDate}
+                                            className="w-full border-0 shadow-none"
+                                            disabled={(date) => isWeekend && date.getDay() !== 6}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2 pt-2">
+                                        {reqDate && targetDate && (
+                                            <div className="bg-sky-50 dark:bg-sky-900/20 p-3 rounded-md text-sm border border-sky-100 dark:border-sky-800">
+                                                <div className="font-semibold text-sky-700 dark:text-sky-300 mb-1">Podsumowanie:</div>
+                                                <div>Oddajesz: <strong>{format(reqDate, 'd MMM yyyy', { locale: pl })}</strong></div>
+                                                <div>Bierzesz: <strong>{format(targetDate, 'd MMM yyyy', { locale: pl })}</strong></div>
+                                                <div className="text-[10px] text-muted-foreground mt-1">{isWeekend ? "(+ Niedziele)" : ""}</div>
+                                            </div>
+                                        )}
+                                        <div className="flex gap-2 mt-2">
+                                            <Button variant="outline" className="w-1/3" onClick={() => setStep(2)}>Wstecz</Button>
+                                            <Button
+                                                className="w-2/3 bg-sky-600 hover:bg-sky-700 text-white"
+                                                onClick={handleCreate}
+                                                disabled={!reqDate || !targetDate || !selectedUser || loading}
+                                            >
+                                                {loading ? "Wysyłanie..." : "Wyślij Wniosek"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
