@@ -37,7 +37,7 @@ export async function getSchedule(year: number, month: number) {
 
     // Calculate start and end date of the month
     const startDate = new Date(year, month - 1, 1)
-    const endDate = new Date(year, month, 0) // last day of month
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999) // last day of month
 
     const where: any = {
         date: {
@@ -183,7 +183,7 @@ export async function generateSchedule(year: number, month: number, targetDepart
     // Let's fetch vacations from 2026-01-01 to target month end.
     const simulationStart = new Date(2026, 0, 1) // Jan 1 2026
     const targetMonthStart = new Date(year, month - 1, 1)
-    const targetMonthEnd = new Date(year, month, 0)
+    const targetMonthEnd = new Date(year, month, 0, 23, 59, 59, 999)
     const daysInMonth = targetMonthEnd.getDate()
 
     const vacations = await (prisma as any).vacation.findMany({
@@ -778,7 +778,7 @@ export async function clearSchedule(year: number, month: number, targetDepartmen
 
     // Calculate start and end date of the month
     const startDate = new Date(year, month - 1, 1)
-    const endDate = new Date(year, month, 0) // last day of month
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999) // last day of month
 
     const deptUsers = await prisma.user.findMany({
         where: { 
