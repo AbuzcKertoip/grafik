@@ -1,7 +1,7 @@
 /**
  * Bot Discord HR4YOU — komenda !dyżur / !dyzur
- * Odpowiada informacją, kto ma dyżur w najbliższy weekend (sobota + niedziela)
- * wraz z numerem telefonu z profilu pracownika.
+ * Odpowiada informacją o najbliższym dyżurze (trwającym lub nadchodzącym).
+ * Kolejne dni dyżuru tej samej osoby są łączone w jeden zakres, np. 05–07.07.2026.
  *
  * Konfiguracja (.env):
  *   DISCORD_BOT_TOKEN=...   (token z Discord Developer Portal)
@@ -21,6 +21,9 @@ if (!TOKEN) {
     process.exit(1)
 }
 
+const LOOKBACK_DAYS = 14  // ile dni wstecz szukać początku trwającego dyżuru
+const LOOKAHEAD_DAYS = 60 // ile dni w przód szukać najbliższego dyżuru
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -29,43 +32,99 @@ const client = new Client({
     ],
 })
 
-/** Zwraca [sobota, niedziela] najbliższego weekendu (w trakcie weekendu — bieżący). */
-function getTargetWeekend(now = new Date()): [Date, Date] {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const dow = d.getDay() // 0 = niedziela, 6 = sobota
-    let saturday: Date
-    if (dow === 6) {
-        saturday = d
-    } else if (dow === 0) {
-        saturday = new Date(d)
-        saturday.setDate(d.getDate() - 1)
-    } else {
-        saturday = new Date(d)
-        saturday.setDate(d.getDate() + (6 - dow))
+interface DutyUser {
+    name: string | null
+    username: string
+    phone: string | null
+    department: { name: string } | null
+}
+
+interface DutyRun {
+    user: DutyUser
+    start: Date
+    end: Date
+}
+
+function dayValue(d: Date): number {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+}
+
+const ONE_DAY = 24 * 60 * 60 * 1000
+
+/** Łączy dni dyżuru danego użytkownika w ciągłe zakresy. */
+function buildRuns(days: { date: Date; user: DutyUser; userId: number }[]): DutyRun[] {
+    const byUser = new Map<number, { date: Date; user: DutyUser }[]>()
+    for (const d of days) {
+        if (!byUser.has(d.userId)) byUser.set(d.userId, [])
+        byUser.get(d.userId)!.push(d)
     }
-    const sunday = new Date(saturday)
-    sunday.setDate(saturday.getDate() + 1)
-    return [saturday, sunday]
+
+    const runs: DutyRun[] = []
+    for (const entries of byUser.values()) {
+        entries.sort((a, b) => dayValue(a.date) - dayValue(b.date))
+        let run: DutyRun | null = null
+        for (const e of entries) {
+            if (run && dayValue(e.date) - dayValue(run.end) === ONE_DAY) {
+                run.end = e.date
+            } else {
+                if (run) runs.push(run)
+                run = { user: e.user, start: e.date, end: e.date }
+            }
+        }
+        if (run) runs.push(run)
+    }
+    return runs
 }
 
 function fmtDate(d: Date): string {
     return `${d.getDate().toString().padStart(2, "0")}.${(d.getMonth() + 1).toString().padStart(2, "0")}.${d.getFullYear()}`
 }
 
-async function getDutyForDay(day: Date) {
-    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0)
-    const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999)
-    return prisma.scheduleDay.findMany({
-        where: { type: "DUTY", date: { gte: start, lte: end } },
-        include: { user: { select: { name: true, username: true, phone: true, department: { select: { name: true } } } } },
-    })
+/** Formatuje zakres: pojedynczy dzień "05.07.2026", zakres "05–07.07.2026" lub "30.06–02.07.2026". */
+function fmtRange(start: Date, end: Date): string {
+    if (dayValue(start) === dayValue(end)) return fmtDate(start)
+    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+        return `${start.getDate().toString().padStart(2, "0")}–${fmtDate(end)}`
+    }
+    return `${fmtDate(start)}–${fmtDate(end)}`
 }
 
-function dutyLine(duty: Awaited<ReturnType<typeof getDutyForDay>>[number]): string {
-    const name = duty.user.name || duty.user.username
-    const phone = duty.user.phone ? `📞 ${duty.user.phone}` : "📞 brak numeru w systemie"
-    const dept = duty.user.department?.name ? ` _(${duty.user.department.name})_` : ""
-    return `**${name}**${dept} — ${phone}`
+function dutyLine(run: DutyRun): string {
+    const name = run.user.name || run.user.username
+    const phone = run.user.phone ? `📞 ${run.user.phone}` : "📞 brak numeru w systemie"
+    const dept = run.user.department?.name ? ` _(${run.user.department.name})_` : ""
+    return `**${fmtRange(run.start, run.end)}** — **${name}**${dept} — ${phone}`
+}
+
+async function getNearestDutyRuns(): Promise<DutyRun[]> {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const from = new Date(today.getTime() - LOOKBACK_DAYS * ONE_DAY)
+    const to = new Date(today.getTime() + LOOKAHEAD_DAYS * ONE_DAY)
+
+    const days = await prisma.scheduleDay.findMany({
+        where: { type: "DUTY", date: { gte: from, lte: to } },
+        include: { user: { select: { name: true, username: true, phone: true, department: { select: { name: true } } } } },
+        orderBy: { date: "asc" },
+    })
+
+    const runs = buildRuns(days)
+        .filter(r => dayValue(r.end) >= today.getTime()) // trwające lub przyszłe
+        .sort((a, b) => dayValue(a.start) - dayValue(b.start))
+
+    if (runs.length === 0) return []
+
+    // Najbliższy okres dyżurowy: pierwszy blok + wszystkie bloki nakładające się
+    // lub bezpośrednio z nim sąsiadujące (np. sobota jedna osoba, niedziela-wtorek druga)
+    const period: DutyRun[] = []
+    let coverageEnd = dayValue(runs[0].end)
+    for (const r of runs) {
+        if (dayValue(r.start) <= coverageEnd + ONE_DAY) {
+            period.push(r)
+            coverageEnd = Math.max(coverageEnd, dayValue(r.end))
+        }
+    }
+    return period
 }
 
 client.on("messageCreate", async (message) => {
@@ -74,22 +133,14 @@ client.on("messageCreate", async (message) => {
     if (cmd !== "!dyżur" && cmd !== "!dyzur") return
 
     try {
-        const [saturday, sunday] = getTargetWeekend()
-        const [satDuties, sunDuties] = await Promise.all([getDutyForDay(saturday), getDutyForDay(sunday)])
+        const runs = await getNearestDutyRuns()
 
         const embed = new EmbedBuilder()
             .setColor(0xef4444)
-            .setTitle(`🛠️ Dyżur weekendowy ${fmtDate(saturday)}–${fmtDate(sunday)}`)
-            .addFields(
-                {
-                    name: `Sobota ${fmtDate(saturday)}`,
-                    value: satDuties.length ? satDuties.map(dutyLine).join("\n") : "_Brak przypisanego dyżuru_",
-                },
-                {
-                    name: `Niedziela ${fmtDate(sunday)}`,
-                    value: sunDuties.length ? sunDuties.map(dutyLine).join("\n") : "_Brak przypisanego dyżuru_",
-                },
-            )
+            .setTitle("🛠️ Najbliższy dyżur")
+            .setDescription(runs.length
+                ? runs.map(dutyLine).join("\n")
+                : `_Brak przypisanych dyżurów w grafiku (sprawdzono ${LOOKAHEAD_DAYS} dni w przód)._`)
             .setFooter({ text: "HR4YOU • dane z grafiku" })
             .setTimestamp()
 
