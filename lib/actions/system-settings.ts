@@ -42,7 +42,8 @@ export async function updateSystemSettings(data: any) {
                 smtpFromEmail: data.smtpFromEmail,
                 smtpSecure: data.smtpSecure ?? true,
                 alertEmails: data.alertEmails,
-                alertDaysBefore: data.alertDaysBefore ? parseInt(data.alertDaysBefore) : 30
+                alertDaysBefore: data.alertDaysBefore ? parseInt(data.alertDaysBefore) : 30,
+                discordWebhookUrl: data.discordWebhookUrl?.trim() || null
             }
         })
 

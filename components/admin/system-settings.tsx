@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { updateSystemSettings, testSmtpConnection } from "@/lib/actions/system-settings"
+import { testDiscordWebhook } from "@/lib/actions/discord"
 import { getEmailLogs, triggerManualAlerts } from "@/lib/actions/email-logs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
-import { Save, Send, RefreshCw, MailWarning } from "lucide-react"
+import { Save, Send, RefreshCw, MailWarning, MessageCircle } from "lucide-react"
 import { format } from "date-fns"
 import { pl } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +30,7 @@ interface SystemSettingsProps {
 export function SystemSettingsTab({ settings }: SystemSettingsProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [isTesting, setIsTesting] = useState(false)
+    const [isTestingDiscord, setIsTestingDiscord] = useState(false)
     const [isTriggering, setIsTriggering] = useState(false)
     const [logs, setLogs] = useState<any[]>([])
     const [formData, setFormData] = useState({
@@ -40,6 +42,7 @@ export function SystemSettingsTab({ settings }: SystemSettingsProps) {
         smtpSecure: settings?.smtpSecure ?? true,
         alertEmails: settings?.alertEmails || "",
         alertDaysBefore: settings?.alertDaysBefore || 30,
+        discordWebhookUrl: settings?.discordWebhookUrl || "",
     })
     const [testEmail, setTestEmail] = useState("")
 
@@ -92,6 +95,24 @@ export function SystemSettingsTab({ settings }: SystemSettingsProps) {
             toast.error("Wystąpił błąd krytyczny.")
         } finally {
             setIsTesting(false)
+        }
+    }
+
+    const handleTestDiscord = async () => {
+        setIsTestingDiscord(true)
+        try {
+            // Save first so the test uses the URL currently typed into the form
+            await updateSystemSettings(formData)
+            const res = await testDiscordWebhook()
+            if (res.success) {
+                toast.success(res.message)
+            } else {
+                toast.error(res.error)
+            }
+        } catch (error: any) {
+            toast.error("Wystąpił błąd krytyczny.")
+        } finally {
+            setIsTestingDiscord(false)
         }
     }
 
@@ -219,6 +240,42 @@ export function SystemSettingsTab({ settings }: SystemSettingsProps) {
                                 />
                                 <Button onClick={handleTestEmail} disabled={isTesting} className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white">
                                     {isTesting ? "Wysyłanie..." : <><Send className="w-4 h-4 mr-2" /> Wyślij</>}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-[#5865F2]/30 shadow-sm">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <MessageCircle className="w-5 h-5 text-[#5865F2]" /> Powiadomienia Discord
+                            </CardTitle>
+                            <CardDescription>
+                                Zmiany w grafiku będą wysyłane na kanał Discord z oznaczeniem (@ping) pracownika.
+                                Discord ID pracownika ustawisz w edycji użytkownika.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 pt-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="discordWebhookUrl">Webhook URL</Label>
+                                <Input
+                                    id="discordWebhookUrl"
+                                    name="discordWebhookUrl"
+                                    value={formData.discordWebhookUrl}
+                                    onChange={handleChange}
+                                    placeholder="https://discord.com/api/webhooks/..."
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Discord: Ustawienia kanału → Integracje → Webhooki → Nowy webhook → Kopiuj URL. Pozostaw puste, aby wyłączyć powiadomienia.
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button onClick={handleSave} disabled={isLoading} variant="secondary">
+                                    {isLoading ? "Zapisywanie..." : <><Save className="w-4 h-4 mr-2" /> Zapisz</>}
+                                </Button>
+                                <Button onClick={handleTestDiscord} disabled={isTestingDiscord} variant="outline" className="border-[#5865F2] text-[#5865F2] hover:bg-[#5865F2]/10">
+                                    {isTestingDiscord ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                                    Wyślij test
                                 </Button>
                             </div>
                         </CardContent>

@@ -38,6 +38,7 @@ model User {
   phone                   String?
   email                   String?                 @unique
   emergencyContact        String?
+  discordId               String?
   departmentId            Int?
   secondaryDepartmentId   Int?
   cars                    Car[]
@@ -191,6 +192,7 @@ model SystemSettings {
   smtpSecure      Boolean   @default(true)
   alertEmails     String?
   alertDaysBefore Int       @default(30)
+  discordWebhookUrl String?
   lastAlertSent   DateTime?
   updatedAt       DateTime  @updatedAt
 }

@@ -18,6 +18,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import { updateUserRoleAndDepartment, toggleUserPermission } from "@/lib/actions/admin"
@@ -42,6 +43,7 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
     const [contractType, setContractType] = useState<string>(user?.contractType || "UOP")
     const [has10YearsSeniority, setHas10YearsSeniority] = useState<boolean>(user?.has10YearsSeniority || false)
     const [hasChildren, setHasChildren] = useState<boolean>(user?.hasChildren || false)
+    const [discordId, setDiscordId] = useState<string>(user?.discordId || "")
     const [isLoading, setIsLoading] = useState(false)
     const [localPermissions, setLocalPermissions] = useState<Set<number>>(new Set())
 
@@ -59,6 +61,7 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
             setContractType(user.contractType || "UOP")
             setHas10YearsSeniority(user.has10YearsSeniority || false)
             setHasChildren(user.hasChildren || false)
+            setDiscordId(user.discordId || "")
             setLocalPermissions(new Set(user.permissions?.map((p: any) => p.permissionId)))
         }
     }, [user])
@@ -73,7 +76,8 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
             fixedShift: fixedShift === "NONE" ? null : fixedShift,
             contractType,
             has10YearsSeniority,
-            hasChildren
+            hasChildren,
+            discordId: discordId.trim() || null
         })
         setIsLoading(false)
 
@@ -244,6 +248,20 @@ export function UserEditDialog({ user, open, onOpenChange, departments, allPermi
                     </div>
 
                     <div className="space-y-4">
+                        <Label htmlFor="discordId">Discord ID (powiadomienia)</Label>
+                        <Input
+                            id="discordId"
+                            value={discordId}
+                            onChange={(e) => setDiscordId(e.target.value.replace(/[^0-9]/g, ""))}
+                            placeholder="np. 284739123456789012"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Numeryczne ID użytkownika Discord — pracownik będzie oznaczany (@ping) przy zmianach w grafiku.
+                            Jak znaleźć: Discord → Ustawienia → Zaawansowane → Tryb dewelopera, potem PPM na osobie → Kopiuj ID użytkownika.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
                         <Label>Dodatkowe Uprawnienia</Label>
                         <div className="grid grid-cols-1 gap-2 border rounded-md p-4">
                             {allPermissions.map((perm) => {

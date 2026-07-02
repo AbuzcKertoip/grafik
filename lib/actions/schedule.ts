@@ -7,6 +7,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { createLog } from "@/lib/actions/log-actions"
 import { hasPermission, isManagerInHRDept } from "@/lib/auth/permissions"
 import { sendEmail } from "@/lib/actions/mailer"
+import { notifyDiscordScheduleChanges } from "@/lib/actions/discord"
 
 function translateShiftType(type: string): string {
     switch (type) {
@@ -547,6 +548,17 @@ export async function upsertShift(userId: number, year: number, month: number, d
             console.error("Failed to send schedule update email:", mailErr)
         }
 
+        // Discord Notification
+        try {
+            const dateStr = `${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}.${year}`
+            await notifyDiscordScheduleChanges(
+                [{ userId, shifts: [{ dateStr, typeStr: translateShiftType(type) }] }],
+                session.user.name || (session.user as any).username
+            )
+        } catch (discordErr) {
+            console.error("Failed to send Discord schedule notification:", discordErr)
+        }
+
         await createLog({
             action: "UPSERT_SHIFT",
             description: `Zmieniono dyżur (Dzień: ${day}.${month}.${year}, Typ: ${type}) dla pracownika ID: ${userId}`,
@@ -725,6 +737,27 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
             }
         } catch (mailErr) {
             console.error("Failed to send bulk schedule update emails:", mailErr)
+        }
+
+        // Discord Notification for Bulk Update (single message, pings each affected user)
+        try {
+            const discordByUser: Record<number, typeof shifts> = {}
+            for (const s of shifts) {
+                if (!discordByUser[s.userId]) discordByUser[s.userId] = []
+                discordByUser[s.userId].push(s)
+            }
+            const discordChanges = Object.entries(discordByUser).map(([uid, uShifts]) => ({
+                userId: parseInt(uid),
+                shifts: uShifts
+                    .sort((a, b) => new Date(a.year, a.month - 1, a.day).getTime() - new Date(b.year, b.month - 1, b.day).getTime())
+                    .map(s => ({
+                        dateStr: `${s.day.toString().padStart(2, '0')}.${s.month.toString().padStart(2, '0')}.${s.year}`,
+                        typeStr: translateShiftType(s.type)
+                    }))
+            }))
+            await notifyDiscordScheduleChanges(discordChanges, session.user.name || (session.user as any).username)
+        } catch (discordErr) {
+            console.error("Failed to send Discord bulk schedule notification:", discordErr)
         }
 
         await createLog({
