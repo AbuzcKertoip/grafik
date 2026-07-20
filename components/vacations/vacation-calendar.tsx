@@ -93,7 +93,7 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
             for (const i of ids) {
                 const result = await approveVacation(i)
                 if (!result?.success) {
-                    alert(`Błąd zatwierdzania (ID: ${i})`)
+                    alert(result?.error || `Błąd zatwierdzania (ID: ${i})`)
                     break
                 }
             }

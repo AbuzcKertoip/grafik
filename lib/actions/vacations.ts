@@ -359,9 +359,9 @@ export async function approveVacation(id: number) {
         const managerInHR = session.user.role === 'MANAGER' ? await isManagerInHRDept(session.user) : false
 
         if (session.user.role === 'MANAGER' && !isGlobalAdmin && !managerInHR) {
-            // managers can approve standard leaves for their dept 
-            // backend isolating this to prevent them approving HR stuff
-            if (vacation.type !== 'VACATION' && vacation.type !== 'ON_DEMAND') {
+            // managers can approve standard leaves + additional (za święta) for their dept 
+            // backend isolating this to prevent them approving HR-only types (SICK, CHILDCARE, OVERTIME, SPECIAL_LEAVE)
+            if (vacation.type !== 'VACATION' && vacation.type !== 'ON_DEMAND' && vacation.type !== 'ADDITIONAL') {
                 return { error: 'Tylko dział HR może akceptować tego typu wnioski.' }
             }
 
