@@ -365,17 +365,19 @@ export async function approveVacation(id: number) {
                 return { error: 'Tylko dział HR może akceptować tego typu wnioski.' }
             }
 
-            const sessionDeptId = session.user.departmentId;
-            const sessionSecDeptId = (session.user as any).secondaryDepartmentId;
+            // parseInt po obu stronach — eliminuje mismatch typów string/number z JWT vs Prisma
+            const sessionDeptId = session.user.departmentId ? parseInt(session.user.departmentId.toString()) : null;
+            const sessionSecDeptId = (session.user as any).secondaryDepartmentId ? parseInt((session.user as any).secondaryDepartmentId.toString()) : null;
             const vacDeptId = vacation.user.departmentId;
             const vacSecDeptId = vacation.user.secondaryDepartmentId;
 
-            if (
-                vacDeptId !== sessionDeptId &&
-                vacDeptId !== sessionSecDeptId &&
-                vacSecDeptId !== sessionDeptId &&
-                vacSecDeptId !== sessionSecDeptId
-            ) {
+            console.log(`[approveVacation] managerDepts: ${sessionDeptId}, ${sessionSecDeptId} | vacDepts: ${vacDeptId}, ${vacSecDeptId}`)
+
+            const isManagersEmployee =
+                (vacDeptId !== null && vacDeptId !== undefined && (vacDeptId === sessionDeptId || vacDeptId === sessionSecDeptId)) ||
+                (vacSecDeptId !== null && vacSecDeptId !== undefined && (vacSecDeptId === sessionDeptId || vacSecDeptId === sessionSecDeptId));
+
+            if (!isManagersEmployee) {
                 return { error: "Możesz akceptować urlopy tylko we własnym dziale." }
             }
         }
@@ -485,6 +487,7 @@ export async function approveVacation(id: number) {
         revalidatePath("/dashboard/schedule")
         return { success: true }
     } catch (error) {
+        console.error("[approveVacation] error:", error)
         return { error: "Błąd zatwierdzania wniosku" }
     }
 }
