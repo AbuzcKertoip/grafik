@@ -32,9 +32,7 @@ interface HRUserDirectoryProps {
 
 export function HRUserDirectory({ initialUsers, departments, currentUserRole, currentUserDeptId, isManagerInHR }: HRUserDirectoryProps) {
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedDepartment, setSelectedDepartment] = useState<string>(
-        (currentUserRole === 'MANAGER' && !isManagerInHR) ? (currentUserDeptId?.toString() || "ALL") : "ALL"
-    );
+    const [selectedDepartment, setSelectedDepartment] = useState<string>("ALL");
     const [sortBy, setSortBy] = useState<string>("name-asc");
 
     const now = new Date();
@@ -55,7 +53,8 @@ export function HRUserDirectory({ initialUsers, departments, currentUserRole, cu
         // Department filter
         if (selectedDepartment !== "ALL") {
             result = result.filter(user =>
-                user.departmentId?.toString() === selectedDepartment
+                user.departmentId?.toString() === selectedDepartment ||
+                (user as any).secondaryDepartmentId?.toString() === selectedDepartment
             );
         }
 

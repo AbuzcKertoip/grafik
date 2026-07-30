@@ -75,15 +75,25 @@ export function hasPermission(user: User | null | undefined, permissionSlug: str
 export async function isManagerInHRDept(user: any): Promise<boolean> {
     if (user.role !== 'MANAGER') return false
     const deptId = user.departmentId ? parseInt(user.departmentId.toString()) : null
-    if (!deptId) return false
-    const dept = await prisma.department.findUnique({ where: { id: deptId } })
-    return !!(dept && dept.name.toUpperCase() === 'HR')
+    const secDeptId = user.secondaryDepartmentId ? parseInt(user.secondaryDepartmentId.toString()) : null
+    
+    if (deptId) {
+        const dept = await prisma.department.findUnique({ where: { id: deptId } })
+        if (dept && dept.name.toUpperCase() === 'HR') return true;
+    }
+    
+    if (secDeptId) {
+        const secDept = await prisma.department.findUnique({ where: { id: secDeptId } })
+        if (secDept && secDept.name.toUpperCase() === 'HR') return true;
+    }
+    
+    return false
 }
 
 export function canManageDepartment(user: User, departmentId: number) {
     if (user.role === ROLES.ADMIN || user.role === ROLES.SZEF) return true
     if (user.role === ROLES.HR) return true // HR can usually see all
-    if (user.role === ROLES.MANAGER && user.departmentId === departmentId) return true
+    if (user.role === ROLES.MANAGER && (user.departmentId === departmentId || (user as any).secondaryDepartmentId === departmentId)) return true
     
     // Specjalny wyjątek dla Managera BOK i HR jednocześnie
     if (user.username === 'etomczyk') {
