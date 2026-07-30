@@ -75,7 +75,7 @@ export async function getVacations(year: number) {
 import { getVacationStats } from "./hr"
 import { getBusinessDaysCount } from "../holidays"
 
-async function validateVacationLimit(userId: number, startDate: Date, endDate: Date, type: string, excludeVacationId?: number) {
+export async function validateVacationLimit(userId: number, startDate: Date, endDate: Date, type: string, excludeVacationId?: number) {
     const start = new Date(startDate)
     const end = new Date(endDate)
     const year = start.getFullYear()
@@ -90,7 +90,7 @@ async function validateVacationLimit(userId: number, startDate: Date, endDate: D
     }
 
     const daysRequested = getBusinessDaysCount(start, end)
-    const stats = await getVacationStats(userId, year)
+    const stats = await getVacationStats(userId, year, excludeVacationId)
 
     const getPendingDays = async (types: string[]) => {
         const pended = await prisma.vacation.findMany({
@@ -759,6 +759,11 @@ export async function editVacation(id: number, startDate: Date, endDate: Date, t
         }
 
         const newType = type || vacation.type
+
+        const validation = await validateVacationLimit(vacation.userId, startDate, endDate, newType, id)
+        if (!validation.valid) {
+            return { error: validation.error }
+        }
 
         await prisma.$transaction(async (tx) => {
             // Update the vacation dates, type, and note

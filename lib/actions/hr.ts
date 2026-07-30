@@ -47,7 +47,7 @@ export async function deleteMedicalExam(id: number) {
     }
 }
 
-export async function getVacationStats(userId: number, year: number) {
+export async function getVacationStats(userId: number, year: number, excludeVacationId?: number) {
     const user = await (prisma as any).user.findUnique({
         where: { id: userId },
         select: {
@@ -101,7 +101,8 @@ export async function getVacationStats(userId: number, year: number) {
                 type: { in: types },
                 status: 'APPROVED',
                 startDate: { gte: new Date(year, 0, 1) },
-                endDate: { lte: new Date(year, 11, 31) }
+                endDate: { lte: new Date(year, 11, 31) },
+                ...(excludeVacationId ? { id: { not: excludeVacationId } } : {})
             }
         });
         

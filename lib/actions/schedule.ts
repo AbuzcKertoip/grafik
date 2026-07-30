@@ -501,6 +501,12 @@ export async function upsertShift(userId: number, year: number, month: number, d
             let vacationId: number | undefined = undefined
 
             if (isLeave) {
+                const { validateVacationLimit } = await import("./vacations")
+                const validation = await validateVacationLimit(userId, date, date, type)
+                if (!validation.valid) {
+                    return { error: `Błąd dodawania urlopu: ${validation.error}` }
+                }
+
                 // Create a 1-day Vacation record for history/stats
                 const vac = await prisma.vacation.create({
                     data: {
