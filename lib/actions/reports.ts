@@ -121,6 +121,26 @@ export async function getVacationsReport(year: number, departmentId?: number): P
     const poolTypes = ['VACATION', 'ON_DEMAND']
 
     return users.map(user => {
+        let baseLimit = user.vacationDaysLimit;
+        let carriedOver = user.carriedOverVacationDays || 0;
+
+        if (user.contractType === 'B2B') {
+            carriedOver = 0;
+            if (baseLimit === 26 && !user.has10YearsSeniority) {
+                baseLimit = 20;
+            } else if (baseLimit === 20 && user.has10YearsSeniority) {
+                baseLimit = 26;
+            }
+        } else if (user.contractType === 'UOP_PART_TIME') {
+            // Part-time keeps exact limit
+        } else {
+            if (baseLimit === 26 && !user.has10YearsSeniority) {
+                 baseLimit = 20;
+            } else if (baseLimit === 20 && user.has10YearsSeniority) {
+                 baseLimit = 26;
+            }
+        }
+
         let usedThisYear = 0
         let pendingThisYear = 0
 
@@ -136,15 +156,15 @@ export async function getVacationsReport(year: number, departmentId?: number): P
             }
         })
 
-        const totalAvailable = user.vacationDaysLimit + user.carriedOverVacationDays
+        const totalAvailable = baseLimit + carriedOver
         const remaining = totalAvailable - usedThisYear
 
         return {
             userId: user.id,
             name: user.name || user.username,
             department: user.department?.name || "-",
-            limit: user.vacationDaysLimit,
-            carriedOver: user.carriedOverVacationDays,
+            limit: baseLimit,
+            carriedOver: carriedOver,
             usedThisYear,
             pendingThisYear,
             remaining
