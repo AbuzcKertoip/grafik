@@ -501,6 +501,11 @@ export async function upsertShift(userId: number, year: number, month: number, d
             let vacationId: number | undefined = undefined
 
             if (isLeave) {
+                // Pomiń weekendy dla urlopów
+                if (date.getDay() === 0 || date.getDay() === 6) {
+                    return { error: "Nie można wprowadzić urlopu w weekend." }
+                }
+
                 const { validateVacationLimit } = await import("./vacations")
                 const validation = await validateVacationLimit(userId, date, date, type)
                 if (!validation.valid) {
@@ -529,6 +534,11 @@ export async function upsertShift(userId: number, year: number, month: number, d
                     vacationId
                 },
             })
+
+            if (vacationId) {
+                const { processManualVacationDoc } = await import("./vacations")
+                await processManualVacationDoc(vacationId)
+            }
         }
 
         // Email Notification
@@ -611,6 +621,7 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
         }
 
         const leaveTypes = ['VACATION', 'ON_DEMAND', 'SPECIAL_LEAVE', 'CHILDCARE', 'ADDITIONAL', 'SICK', 'OTHER', 'OVERTIME']
+        const createdVacationIds: number[] = []
 
         await prisma.$transaction(async (tx) => {
             // Group shifts by userId
@@ -672,6 +683,13 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
                         if (isLeave) {
                             const startDate = new Date(first.year, first.month - 1, first.day)
                             const endDate = new Date(last.year, last.month - 1, last.day)
+                            
+                            const { validateVacationLimit } = await import("./vacations")
+                            const validation = await validateVacationLimit(userId, startDate, endDate, first.type)
+                            if (!validation.valid) {
+                                throw new Error(`Błąd dodawania urlopu dla ID: ${userId} (${startDate.toLocaleDateString()}): ${validation.error}`)
+                            }
+
                             const vac = await tx.vacation.create({
                                 data: {
                                     userId: userId,
@@ -683,9 +701,15 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
                                 }
                             })
                             vacationId = vac.id
+                            createdVacationIds.push(vac.id)
                         }
 
                         for (const s of group) {
+                            if (isLeave) {
+                                const d = new Date(s.year, s.month - 1, s.day)
+                                if (d.getDay() === 0 || d.getDay() === 6) continue
+                            }
+
                             await tx.scheduleDay.create({
                                 data: {
                                     userId: s.userId,
@@ -699,6 +723,13 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
                 }
             }
         })
+
+        if (createdVacationIds.length > 0) {
+            const { processManualVacationDoc } = await import("./vacations")
+            for (const vacId of createdVacationIds) {
+                await processManualVacationDoc(vacId)
+            }
+        }
 
         // Email Notification for Bulk Update
         try {
@@ -776,9 +807,9 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
         
         revalidatePath("/dashboard/schedule")
         return { success: true }
-    } catch (error) {
+    } catch (error: any) {
         console.error(error)
-        return { error: "Failed to bulk save shifts" }
+        return { error: error.message && error.message.includes("Błąd dodawania urlopu") ? error.message : "Failed to bulk save shifts" }
     }
 }
 

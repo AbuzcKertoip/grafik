@@ -829,3 +829,38 @@ export async function editVacation(id: number, startDate: Date, endDate: Date, t
         return { error: "Błąd podczas edycji wniosku." }
     }
 }
+
+export async function processManualVacationDoc(vacationId: number) {
+    const vacation = await prisma.vacation.findUnique({
+        where: { id: vacationId },
+        include: { user: { include: { department: true } } }
+    })
+
+    if (!vacation || !vacation.user.email) return
+
+    const start = normalizeDate(vacation.startDate)
+    const end = normalizeDate(vacation.endDate)
+    const businessDaysCount = getBusinessDaysCount(start, end)
+    
+    let docBuffer = null;
+    try {
+        const m = await import("@/lib/docs/vacation-document");
+        docBuffer = await m.generateVacationDoc(vacation, vacation.user, businessDaysCount)
+    } catch (e) {
+        console.error("Doc gen failed", e)
+    }
+
+    const attachments = docBuffer ? [{ filename: 'wniosek-o-urlop.docx', content: docBuffer }] : []
+
+    const mailHtml = `
+    <div style="font-family: sans-serif; color: #333;">
+        <h2 style="color: #10b981;">Urlop został wprowadzony z poziomu grafiku</h2>
+        <p>Przełożony / HR wprowadził do Twojego grafiku dni urlopowe.</p>
+        <p>Termin: od ${formatDatePL(vacation.startDate)} do ${formatDatePL(vacation.endDate)}</p>
+        <p>Typ: ${vacation.type}</p>
+        <p>W załączniku znajduje się wygenerowany docx ze złożonym wnioskiem (właśnie trafił do archiwum miesiąca).</p>
+        <p>Dni urlopowe zostały automatycznie zaktualizowane w siatce grafiku.</p>
+    </div>
+    `
+    await sendEmail(vacation.user.email, "Zatwierdzony wniosek urlopowy (wpis z grafiku)", mailHtml, attachments).catch(console.error)
+}
