@@ -485,6 +485,22 @@ export async function upsertShift(userId: number, year: number, month: number, d
         const leaveTypes = ['VACATION', 'ON_DEMAND', 'SPECIAL_LEAVE', 'CHILDCARE', 'ADDITIONAL', 'SICK', 'OTHER', 'OVERTIME']
         const isLeave = leaveTypes.includes(type)
 
+        // Check if there's an existing vacation on this day
+        const existingVacation = await prisma.scheduleDay.findFirst({
+            where: {
+                userId,
+                date: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                },
+                vacationId: { not: null }
+            }
+        })
+
+        if (existingVacation) {
+            return { error: "W tym dniu zaplanowany jest już urlop. Aby zmienić dyżur, należy najpierw wycofać powiązany wniosek urlopowy." }
+        }
+
         // Remove any existing shifts in that specific day bracket to prevent timezone-duplicate bugs
         await prisma.scheduleDay.deleteMany({
             where: {
@@ -672,6 +688,14 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
                     for (const s of group) {
                         const startOfDay = new Date(s.year, s.month - 1, s.day, 0, 0, 0)
                         const endOfDay = new Date(s.year, s.month - 1, s.day, 23, 59, 59, 999)
+                        
+                        const existingVacation = await tx.scheduleDay.findFirst({
+                            where: { userId: s.userId, date: { gte: startOfDay, lte: endOfDay }, vacationId: { not: null } }
+                        })
+                        if (existingVacation) {
+                            throw new Error("W wybranym zakresie znajduje się już zatwierdzony urlop. Aby go nadpisać, należy najpierw anulować powiązany wniosek urlopowy.")
+                        }
+
                         await tx.scheduleDay.deleteMany({
                             where: { userId: s.userId, date: { gte: startOfDay, lte: endOfDay } }
                         })
@@ -809,7 +833,11 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
         return { success: true }
     } catch (error: any) {
         console.error(error)
-        return { error: error.message && error.message.includes("Błąd dodawania urlopu") ? error.message : "Failed to bulk save shifts" }
+        const msg = error.message
+        if (msg && (msg.includes("Błąd dodawania urlopu") || msg.includes("zatwierdzony urlop"))) {
+            return { error: msg }
+        }
+        return { error: "Failed to bulk save shifts" }
     }
 }
 
