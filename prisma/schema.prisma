@@ -98,13 +98,14 @@ model MedicalExam {
 }
 
 model ScheduleDay {
-  id         Int       @id @default(autoincrement())
-  userId     Int
-  date       DateTime
-  type       String
-  vacationId Int?
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vacation   Vacation? @relation(fields: [vacationId], references: [id])
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  date         DateTime
+  type         String
+  originalType String?
+  vacationId   Int?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vacation     Vacation? @relation(fields: [vacationId], references: [id])
 
   @@unique([userId, date])
 }

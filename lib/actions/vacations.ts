@@ -222,6 +222,14 @@ export async function createVacation(data: any) {
                     const startOfDay = new Date(year, month, day, 0, 0, 0)
                     const endOfDay = new Date(year, month, day, 23, 59, 59, 999)
 
+                    const existingDay = await tx.scheduleDay.findFirst({
+                         where: {
+                              userId: parseInt(userId),
+                              date: { gte: startOfDay, lte: endOfDay }
+                         }
+                    })
+                    const originalType = existingDay ? existingDay.type : null;
+
                     await tx.scheduleDay.deleteMany({
                          where: {
                               userId: parseInt(userId),
@@ -234,6 +242,7 @@ export async function createVacation(data: any) {
                               userId: parseInt(userId),
                               date: new Date(year, month, day),
                               type: vacationType,
+                              originalType,
                               vacationId: vacation.id
                          }
                     })
@@ -409,6 +418,14 @@ export async function approveVacation(id: number) {
                 const startOfDay = new Date(year, month, day, 0, 0, 0)
                 const endOfDay = new Date(year, month, day, 23, 59, 59, 999)
 
+                const existingDay = await tx.scheduleDay.findFirst({
+                     where: {
+                          userId: vacation.userId,
+                          date: { gte: startOfDay, lte: endOfDay }
+                     }
+                })
+                const originalType = existingDay ? existingDay.type : null;
+
                 await tx.scheduleDay.deleteMany({
                      where: {
                           userId: vacation.userId,
@@ -421,6 +438,7 @@ export async function approveVacation(id: number) {
                           userId: vacation.userId,
                           date: new Date(year, month, day),
                           type: vacationType,
+                          originalType,
                           vacationId: vacation.id
                      }
                 })
@@ -539,11 +557,21 @@ export async function cancelVacation(id: number) {
                 data: { status: "CANCELLED" }
             })
 
-            // 2. Remove from Schedule
-            await tx.scheduleDay.updateMany({
-                where: { vacationId: id },
-                data: { type: "OFF", vacationId: null }
+            // 2. Restore Schedule from originalType
+            const daysToRestore = await tx.scheduleDay.findMany({
+                where: { vacationId: id }
             })
+
+            for (const day of daysToRestore) {
+                await tx.scheduleDay.update({
+                    where: { id: day.id },
+                    data: { 
+                        type: day.originalType || "OFF", 
+                        vacationId: null,
+                        originalType: null
+                    }
+                })
+            }
         })
 
         // 3. Notify Manager

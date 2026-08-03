@@ -501,6 +501,18 @@ export async function upsertShift(userId: number, year: number, month: number, d
             return { error: "W tym dniu zaplanowany jest już urlop. Aby zmienić dyżur, należy najpierw wycofać powiązany wniosek urlopowy." }
         }
 
+        // Fetch existing shift before deleting it to preserve originalType
+        const existingShiftToOverride = await prisma.scheduleDay.findFirst({
+            where: {
+                userId,
+                date: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                }
+            }
+        })
+        const originalType = existingShiftToOverride ? existingShiftToOverride.type : null;
+
         // Remove any existing shifts in that specific day bracket to prevent timezone-duplicate bugs
         await prisma.scheduleDay.deleteMany({
             where: {
@@ -547,6 +559,7 @@ export async function upsertShift(userId: number, year: number, month: number, d
                     userId,
                     date,
                     type,
+                    originalType: isLeave ? originalType : null,
                     vacationId
                 },
             })
@@ -689,12 +702,15 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
                         const startOfDay = new Date(s.year, s.month - 1, s.day, 0, 0, 0)
                         const endOfDay = new Date(s.year, s.month - 1, s.day, 23, 59, 59, 999)
                         
-                        const existingVacation = await tx.scheduleDay.findFirst({
-                            where: { userId: s.userId, date: { gte: startOfDay, lte: endOfDay }, vacationId: { not: null } }
+                        const existingShift = await tx.scheduleDay.findFirst({
+                            where: { userId: s.userId, date: { gte: startOfDay, lte: endOfDay } }
                         })
-                        if (existingVacation) {
+                        
+                        if (existingShift && existingShift.vacationId !== null) {
                             throw new Error("W wybranym zakresie znajduje się już zatwierdzony urlop. Aby go nadpisać, należy najpierw anulować powiązany wniosek urlopowy.")
                         }
+
+                        ;(s as any).originalType = existingShift ? existingShift.type : null;
 
                         await tx.scheduleDay.deleteMany({
                             where: { userId: s.userId, date: { gte: startOfDay, lte: endOfDay } }
@@ -739,6 +755,7 @@ export async function upsertShifts(shifts: { userId: number, year: number, month
                                     userId: s.userId,
                                     date: new Date(s.year, s.month - 1, s.day),
                                     type: s.type,
+                                    originalType: isLeave ? (s as any).originalType : null,
                                     vacationId
                                 }
                             })
