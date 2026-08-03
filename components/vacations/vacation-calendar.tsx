@@ -42,6 +42,15 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
     const handleAdd = async () => {
         if (!dateRange?.from || !dateRange?.to || !selectedUser || loading) return
  
+        const diffTime = Math.abs(dateRange.to.getTime() - dateRange.from.getTime())
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+        
+        if (diffDays > 7) {
+            if (!window.confirm(`⚠️ Ostrzeżenie!\nWprowadzany urlop trwa dłużej niż tydzień (${diffDays} dni kalendarzowych).\nCzy na pewno chcesz go ${canManage ? 'zatwierdzić' : 'wysłać'}?`)) {
+                return
+            }
+        }
+
         setLoading(true)
         try {
             const result = await createVacation({
@@ -87,9 +96,28 @@ export function VacationCalendar({ users, vacations, currentUser }: VacationCale
  
     const handleApprove = async (id: number | number[]) => {
         if (loading) return
+        
+        const ids = Array.isArray(id) ? id : [id]
+        
+        // Zabezpieczenie przed długimi urlopami (> 7 dni)
+        for (const i of ids) {
+            const vacation = vacations.find((v: any) => v.id === i)
+            if (vacation) {
+                const start = new Date(vacation.startDate)
+                const end = new Date(vacation.endDate)
+                const diffTime = Math.abs(end.getTime() - start.getTime())
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+                
+                if (diffDays > 7) {
+                    if (!window.confirm(`⚠️ Ostrzeżenie!\nWniosek pracownika ${vacation.user?.name || vacation.user?.username || ''} trwa dłużej niż tydzień (${diffDays} dni kalendarzowych).\nCzy na pewno chcesz go zatwierdzić?`)) {
+                        return
+                    }
+                }
+            }
+        }
+
         setLoading(true)
         try {
-            const ids = Array.isArray(id) ? id : [id]
             for (const i of ids) {
                 const result = await approveVacation(i)
                 if (!result?.success) {
