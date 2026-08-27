@@ -31,6 +31,7 @@ export const ERROR_CODES = {
     SETTINGS_UPDATED: { code: "SYS-001", label: "Zmiana Ustawień", isError: false },
     MANUAL_ALERT_TRIGGERED: { code: "SYS-002", label: "Ręczny Alert Systemowy", isError: false },
     CRON_ALERT_TRIGGERED: { code: "SYS-003", label: "Automatyczny Alert Systemowy", isError: false },
+    CRON_VACATION_BALANCE_REPORT: { code: "SYS-005", label: "Automatyczny Raport Sald Urlopowych", isError: false },
     EMAIL_SEND_FAILED: { code: "ERR-SYS-004", label: "Błąd Wysyłania Email", isError: true },
 
     // Generic

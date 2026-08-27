@@ -11,6 +11,7 @@ import { User, Shield, AlertTriangle } from "lucide-react";
 import { HRUserDirectory } from "@/components/hr/hr-user-directory";
 import { MonthlyVacationReport } from "@/components/hr/monthly-vacation-report";
 import { BossMonthlyReport } from "@/components/hr/boss-monthly-report";
+import { VacationBalanceReport } from "@/components/hr/vacation-balance-report";
 
 export default async function HRPage() {
     const session = await getServerSession(authOptions);
@@ -76,6 +77,8 @@ export default async function HRPage() {
             )}
 
             <MonthlyVacationReport />
+
+            <VacationBalanceReport />
 
             <HRUserDirectory
                 initialUsers={users}

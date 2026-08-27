@@ -242,6 +242,19 @@ model MonthlyVacationReport {
   @@unique([year, month])
 }
 
+model VacationBalanceReport {
+  id          Int      @id @default(autoincrement())
+  year        Int
+  month       Int
+  fileBase64  String?
+  generatedBy Int?     // null = automatyczny cron
+  rowCount    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([year, month])
+}
+
 model ShiftSwapRequest {
   id                 Int       @id @default(autoincrement())
   requesterId        Int

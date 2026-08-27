@@ -285,3 +285,122 @@ export async function getAlertsReport(departmentId?: number): Promise<AlertRepor
         })
     }
 }
+
+// ─────────────────────────────────────────────
+//  VACATION BALANCE REPORT  (per-employee, Excel)
+// ─────────────────────────────────────────────
+
+export type VacationBalanceRow = {
+    userId: number
+    name: string
+    department: string
+    contractType: string
+    annualLimit: number
+    carriedOver: number
+    additionalDays: number
+    totalAvailable: number
+    /** Days used up to and including the last day of the report month */
+    usedUpToMonth: number
+    /** Remaining balance as of the last day of the report month */
+    balance: number
+}
+
+/**
+ * Calculates vacation balance for every non-admin employee.
+ *
+ * KEY RULE: only APPROVED vacations whose endDate falls within or before
+ * the last day of the requested month are counted. Requests for future months
+ * are NOT subtracted — this is the "real state" as of month end.
+ */
+export async function getVacationBalanceReportData(
+    year: number,
+    month: number
+): Promise<VacationBalanceRow[]> {
+    // Build the boundary: last moment of the last day of the report month
+    const reportMonthEnd = new Date(year, month, 0, 23, 59, 59, 999) // month is 1-indexed, so month+0 = 0th day of next month = last day of this month
+
+    const users = await prisma.user.findMany({
+        where: { role: { not: "ADMIN" } },
+        include: {
+            department: true,
+            vacations: {
+                where: {
+                    status: "APPROVED",
+                    type: { in: ["VACATION", "ON_DEMAND"] },
+                    // Only count vacations that ENDED on or before the last day of the report month
+                    endDate: { lte: reportMonthEnd }
+                }
+            }
+        },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+    })
+
+    return users.map(user => {
+        // --- Compute base limit (same logic as existing getVacationsReport) ---
+        let baseLimit = user.vacationDaysLimit
+        if (user.contractType === "B2B") {
+            if (baseLimit === 26 && !user.has10YearsSeniority) baseLimit = 20
+            else if (baseLimit === 20 && user.has10YearsSeniority) baseLimit = 26
+        } else {
+            if (baseLimit === 26 && !user.has10YearsSeniority) baseLimit = 20
+            else if (baseLimit === 20 && user.has10YearsSeniority) baseLimit = 26
+        }
+
+        const carriedOver = user.contractType === "B2B" ? 0 : (user.carriedOverVacationDays ?? 0)
+        const additionalDays = user.additionalVacationDays ?? 0
+        const totalAvailable = baseLimit + carriedOver + additionalDays
+
+        // Count business days used for all qualifying approved vacations
+        const usedUpToMonth = user.vacations.reduce((sum, v) => {
+            return sum + getBusinessDaysCount(v.startDate, v.endDate)
+        }, 0)
+
+        const balance = totalAvailable - usedUpToMonth
+
+        return {
+            userId: user.id,
+            name: user.name || user.username,
+            department: user.department?.name ?? "-",
+            contractType: user.contractType,
+            annualLimit: baseLimit,
+            carriedOver,
+            additionalDays,
+            totalAvailable,
+            usedUpToMonth,
+            balance
+        }
+    })
+}
+
+/** Persist (upsert) a generated vacation balance report to the database. */
+export async function saveVacationBalanceReport(
+    year: number,
+    month: number,
+    fileBase64: string,
+    rowCount: number,
+    generatedBy: number | null = null
+) {
+    await (prisma as any).vacationBalanceReport.upsert({
+        where: { year_month: { year, month } },
+        create: { year, month, fileBase64, rowCount, generatedBy },
+        update: { fileBase64, rowCount, generatedBy, updatedAt: new Date() }
+    })
+}
+
+/** Return metadata + file for the last saved vacation balance report for a given month. */
+export async function getLastVacationBalanceReport(year: number, month: number) {
+    const report = await (prisma as any).vacationBalanceReport.findUnique({
+        where: { year_month: { year, month } }
+    })
+    if (!report) return null
+    return {
+        year: report.year as number,
+        month: report.month as number,
+        rowCount: report.rowCount as number,
+        generatedBy: report.generatedBy as number | null,
+        fileBase64: report.fileBase64 as string | null,
+        createdAt: report.createdAt as Date,
+        updatedAt: report.updatedAt as Date
+    }
+}
+
