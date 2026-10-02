@@ -23,6 +23,9 @@ export default async function DashboardPage() {
     }
 
     const userId = parseInt(session.user.id);
+    const userRole = session.user.role;
+    const userDeptId = (session.user as any).departmentId ? parseInt((session.user as any).departmentId.toString()) : null;
+    const userSecDeptId = (session.user as any).secondaryDepartmentId ? parseInt((session.user as any).secondaryDepartmentId.toString()) : null;
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -31,14 +34,33 @@ export default async function DashboardPage() {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
     // 1. Fetch Today's Team Schedule
-    const todaySchedule = await prisma.scheduleDay.findMany({
-        where: {
-            date: {
-                gte: startOfToday,
-                lte: endOfToday,
-            },
-            type: { in: ['SHIFT_1', 'SHIFT_2', 'DUTY'] }
+    // For regular users — restrict to their own department(s) only
+    const todayWhere: any = {
+        date: {
+            gte: startOfToday,
+            lte: endOfToday,
         },
+        type: { in: ['SHIFT_1', 'SHIFT_2', 'DUTY'] }
+    };
+
+    const isPrivileged = userRole === 'ADMIN' || userRole === 'HR' || userRole === 'SZEF' || userRole === 'MANAGER';
+    if (!isPrivileged) {
+        // Regular USER sees only coworkers from their department(s)
+        if (userDeptId || userSecDeptId) {
+            const depts: number[] = [];
+            if (userDeptId) depts.push(userDeptId);
+            if (userSecDeptId) depts.push(userSecDeptId);
+            todayWhere.user = {
+                departmentId: { in: depts }
+            };
+        } else {
+            // No department assigned — only see themselves
+            todayWhere.userId = userId;
+        }
+    }
+
+    const todaySchedule = await prisma.scheduleDay.findMany({
+        where: todayWhere,
         include: {
             user: true,
         },
