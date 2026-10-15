@@ -93,6 +93,14 @@ export async function getAllUsers() {
         where: { employmentEndDate: null },
         include: {
             department: true,
+            cars: {
+                select: {
+                    id: true,
+                    make: true,
+                    model: true,
+                    plate: true
+                }
+            },
             permissions: {
                 include: {
                     permission: true
@@ -257,6 +265,14 @@ export async function terminateEmployee(id: number, endDate: Date) {
             return { error: "Ten pracownik jest już zwolniony." }
         }
 
+        const carsToDetach = await prisma.car.findMany({
+            where: { caretakerId: id },
+            select: { plate: true, make: true, model: true }
+        })
+        const carInfo = carsToDetach.length > 0 
+            ? `. Odpięto z floty pojazdy: ${carsToDetach.map(c => `${c.make} ${c.model} (${c.plate})`).join(", ")}`
+            : ""
+
         await prisma.$transaction(async (tx) => {
             // Ustawienie daty zakończenia pracy
             await tx.user.update({
@@ -273,13 +289,18 @@ export async function terminateEmployee(id: number, endDate: Date) {
 
         await createLog({
             action: "EMPLOYEE_TERMINATED",
-            description: `Zwolniono pracownika ${user.name || user.username} (data zakończenia: ${endDate.toISOString().split('T')[0]})`,
+            description: `Zwolniono pracownika ${user.name || user.username} (data zakończenia: ${endDate.toISOString().split('T')[0]})${carInfo}`,
             userId: session?.user?.id ? parseInt(session.user.id) : undefined,
             errorCodeKey: "EMPLOYEE_TERMINATED",
-            details: { targetUserId: id, endDate: endDate.toISOString() }
+            details: { 
+                targetUserId: id, 
+                endDate: endDate.toISOString(),
+                detachedCars: carsToDetach.map(c => c.plate)
+            }
         })
 
         revalidatePath("/dashboard/admin")
+        revalidatePath("/dashboard/fleet")
         return { success: true }
     } catch (error: any) {
         console.error("Błąd podczas zwalniania pracownika:", error)

@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { UserEditDialog } from "./user-edit-dialog"
 import { UserCreateDialog } from "./user-create-dialog"
 import { useRouter } from "next/navigation"
-import { UserPlus, UserX, AlertTriangle } from "lucide-react"
+import { UserPlus, UserX, AlertTriangle, Car } from "lucide-react"
 import { terminateEmployee } from "@/lib/actions/admin"
 import { toast } from "sonner"
 import {
@@ -234,6 +234,25 @@ export function UserManagement({ users: initialUsers, departments, permissions, 
                                 <li>Wszystkie dotychczasowe dane (wnioski, historia, badania, sprzęt) <strong>zostaną zachowane</strong> w Archiwum.</li>
                             </ul>
                         </div>
+
+                        {userToTerminate?.cars && userToTerminate.cars.length > 0 && (
+                            <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 p-3 text-xs text-blue-900 dark:text-blue-200 space-y-1">
+                                <p className="font-semibold flex items-center gap-1.5">
+                                    <Car className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                    Przypisane pojazdy służbowe ({userToTerminate.cars.length}):
+                                </p>
+                                <ul className="list-disc list-inside font-medium">
+                                    {userToTerminate.cars.map((c: any) => (
+                                        <li key={c.id}>
+                                            {c.make} {c.model} (<span className="font-mono">{c.plate}</span>)
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="text-muted-foreground dark:text-blue-300/70 text-[11px] pt-0.5">
+                                    Pojazdy zostaną automatycznie zwolnione i pozostaną we flocie bez opiekuna do ponownego przypisania.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label htmlFor="termination-date" className="text-sm font-medium">
