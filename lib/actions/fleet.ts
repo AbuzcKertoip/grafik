@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { revalidatePath } from "next/cache"
 import { hasPermission } from "@/lib/auth/permissions"
+import { createLog } from "@/lib/actions/log-actions"
 
 // Pomocnicza funkcja sprawdzająca czy user ma dostęp do floty
 export async function isFleetAdmin(session: any) {
@@ -43,6 +44,12 @@ export async function getCars() {
                     id: true,
                     name: true,
                     username: true
+                }
+            },
+            repairs: {
+                select: {
+                    id: true,
+                    cost: true
                 }
             }
         },
@@ -155,6 +162,87 @@ export async function deleteCar(id: number) {
     } catch (error) {
         console.error("Error deleting car:", error)
         return { success: false, error: "Failed to delete car" }
+    }
+}
+
+export async function retireCar(id: number, data: { status: string; date: Date; notes?: string }) {
+    const session = await getServerSession(authOptions)
+    if (!await isFleetAdmin(session)) {
+        return { success: false, error: "Brak uprawnień" }
+    }
+
+    try {
+        const car = await prisma.car.findUnique({ where: { id } })
+        if (!car) {
+            return { success: false, error: "Nie znaleziono pojazdu" }
+        }
+
+        const updated = await prisma.car.update({
+            where: { id },
+            data: {
+                status: data.status,
+                retiredDate: data.date,
+                retiredReason: data.status,
+                retiredNotes: data.notes || null,
+                caretakerId: null // Odpinamy opiekuna
+            }
+        })
+
+        const reasonLabel = data.status === "SOLD" ? "sprzedany" : data.status === "SCRAPPED" ? "zezłomowany" : "wycofany z floty"
+
+        await createLog({
+            action: "CAR_RETIRED",
+            description: `Pojazd ${car.make} ${car.model} (${car.plate}) został oznaczony jako ${reasonLabel}${data.notes ? `: ${data.notes}` : ""}`,
+            userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+            errorCodeKey: "CAR_RETIRED",
+            details: { carId: id, status: data.status, date: data.date.toISOString(), notes: data.notes }
+        })
+
+        revalidatePath("/dashboard/fleet")
+        revalidatePath("/dashboard/my-cars")
+        return { success: true, car: updated }
+    } catch (error) {
+        console.error("Error retiring car:", error)
+        return { success: false, error: "Wystąpił błąd podczas wycofywania pojazdu" }
+    }
+}
+
+export async function reinstateCar(id: number) {
+    const session = await getServerSession(authOptions)
+    if (!await isFleetAdmin(session)) {
+        return { success: false, error: "Brak uprawnień" }
+    }
+
+    try {
+        const car = await prisma.car.findUnique({ where: { id } })
+        if (!car) {
+            return { success: false, error: "Nie znaleziono pojazdu" }
+        }
+
+        const updated = await prisma.car.update({
+            where: { id },
+            data: {
+                status: "ACTIVE",
+                retiredDate: null,
+                retiredReason: null,
+                retiredNotes: null
+            }
+        })
+
+        await createLog({
+            action: "CAR_REINSTATED",
+            description: `Pojazd ${car.make} ${car.model} (${car.plate}) został przywrócony do aktywnej floty`,
+            userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+            errorCodeKey: "CAR_REINSTATED",
+            details: { carId: id }
+        })
+
+        revalidatePath("/dashboard/fleet")
+        revalidatePath("/dashboard/my-cars")
+        return { success: true, car: updated }
+    } catch (error) {
+        console.error("Error reinstating car:", error)
+        return { success: false, error: "Wystąpił błąd podczas przywracania pojazdu" }
     }
 }
 

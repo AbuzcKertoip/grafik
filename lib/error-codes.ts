@@ -29,6 +29,12 @@ export const ERROR_CODES = {
     SWAP_REQUESTED: { code: "HR-010", label: "Wniosek o Zamianę", isError: false },
     SWAP_APPROVED: { code: "HR-011", label: "Zatwierdzenie Zamiany", isError: false },
 
+    // Fleet Events
+    CAR_CREATED: { code: "FLT-001", label: "Dodanie Pojazdu", isError: false },
+    CAR_UPDATED: { code: "FLT-002", label: "Aktualizacja Pojazdu", isError: false },
+    CAR_RETIRED: { code: "FLT-003", label: "Wycofanie Pojazdu (Sprzedaż / Złomowanie)", isError: false },
+    CAR_REINSTATED: { code: "FLT-004", label: "Przywrócenie Pojazdu do Floty", isError: false },
+
     // System Events
     SETTINGS_UPDATED: { code: "SYS-001", label: "Zmiana Ustawień", isError: false },
     MANUAL_ALERT_TRIGGERED: { code: "SYS-002", label: "Ręczny Alert Systemowy", isError: false },

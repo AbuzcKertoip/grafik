@@ -163,6 +163,9 @@ model Car {
   acPolicyNumber       String?     @default("")
   ownershipType        String      @default("COMPANY")
   status               String      @default("ACTIVE")
+  retiredDate          DateTime?
+  retiredReason        String?
+  retiredNotes         String?
   caretakerId          Int?
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
