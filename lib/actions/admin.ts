@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { ROLES, hasPermission } from "@/lib/auth/permissions"
 import { hashPassword } from "@/lib/password"
+import { createLog } from "@/lib/actions/log-actions"
 
 // --- Department Management ---
 
@@ -89,6 +90,7 @@ export async function getAllUsers() {
     }
 
     const users = await prisma.user.findMany({
+        where: { employmentEndDate: null },
         include: {
             department: true,
             permissions: {
@@ -234,50 +236,115 @@ export async function createUser(data: any) {
     }
 }
 
-export async function deleteEmployee(id: number) {
+export async function terminateEmployee(id: number, endDate: Date) {
     const session = await getServerSession(authOptions)
     if (!session || !hasPermission(session.user as any, "manage_users")) {
         return { error: "Brak uprawnień do wykonania tej operacji." }
     }
 
     try {
-        // Blokada przed usunięciem konta zalogowanego administratora
+        // Blokada przed zwolnieniem konta zalogowanego administratora
         if (id === parseInt(session.user?.id || "0")) {
-            return { error: "Nie możesz usunąć aktualnie zalogowanego konta!" }
+            return { error: "Nie możesz zwolnić aktualnie zalogowanego konta!" }
         }
 
-        // Transakcja w Prisma, na wypadek gdy kaskadowe usuwanie natrafia na limity więzów we flagach
+        const user = await prisma.user.findUnique({ where: { id } })
+        if (!user) {
+            return { error: "Nie znaleziono pracownika." }
+        }
+
+        if (user.employmentEndDate) {
+            return { error: "Ten pracownik jest już zwolniony." }
+        }
+
         await prisma.$transaction(async (tx) => {
-            // Czyszczenie przypisanych dyżurów w grafiku
-            await tx.scheduleDay.deleteMany({ where: { userId: id } })
+            // Ustawienie daty zakończenia pracy
+            await tx.user.update({
+                where: { id },
+                data: { employmentEndDate: endDate }
+            })
 
-            // Czyszczenie wygenerowanych wniosków urlopowych
-            await tx.vacation.deleteMany({ where: { userId: id } })
-
-
-            // Odpięcie wszelkich powiązań z pojazdami we flocie 
+            // Odpięcie wszelkich powiązań z pojazdami we flocie
             await tx.car.updateMany({
                 where: { caretakerId: id },
                 data: { caretakerId: null }
             })
+        })
 
-            // Usunięcie ekwipunku przypisanego
-            await tx.equipment.deleteMany({ where: { userId: id } })
-
-            // Usunięcie archiwalnych badań medycznych
-            await tx.medicalExam.deleteMany({ where: { userId: id } })
-
-            // Skasowanie uprawnień przypisanych dla użytkownika
-            await tx.userPermission.deleteMany({ where: { userId: id } })
-
-            // Właściwe usunięcie pracownika 
-            await tx.user.delete({ where: { id } })
+        await createLog({
+            action: "EMPLOYEE_TERMINATED",
+            description: `Zwolniono pracownika ${user.name || user.username} (data zakończenia: ${endDate.toISOString().split('T')[0]})`,
+            userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+            errorCodeKey: "EMPLOYEE_TERMINATED",
+            details: { targetUserId: id, endDate: endDate.toISOString() }
         })
 
         revalidatePath("/dashboard/admin")
         return { success: true }
     } catch (error: any) {
-        console.error("Błąd podczas usuwania użytkownika:", error)
-        return { error: "Błąd bazy danych przy usuwaniu pracownika. Upewnij się, że nie został przypisany m.in do krytycznych raportów archiwalnych." }
+        console.error("Błąd podczas zwalniania pracownika:", error)
+        return { error: "Błąd bazy danych przy zwalnianiu pracownika." }
+    }
+}
+
+export async function getArchivedEmployees() {
+    const session = await getServerSession(authOptions)
+    if (!session || !hasPermission(session.user as any, "manage_users")) {
+        return { error: "Brak uprawnień" }
+    }
+
+    const users = await prisma.user.findMany({
+        where: { employmentEndDate: { not: null } },
+        include: {
+            department: true,
+            vacations: {
+                where: { status: "APPROVED" },
+                orderBy: { startDate: "desc" },
+                take: 5
+            },
+            equipment: true,
+            tools: true,
+            medicalExams: true,
+        },
+        orderBy: { employmentEndDate: 'desc' }
+    })
+
+    return { success: true, users }
+}
+
+export async function reinstateEmployee(id: number) {
+    const session = await getServerSession(authOptions)
+    if (!session || !hasPermission(session.user as any, "manage_users")) {
+        return { error: "Brak uprawnień do wykonania tej operacji." }
+    }
+
+    try {
+        const user = await prisma.user.findUnique({ where: { id } })
+        if (!user) {
+            return { error: "Nie znaleziono pracownika." }
+        }
+
+        if (!user.employmentEndDate) {
+            return { error: "Ten pracownik nie jest zwolniony." }
+        }
+
+        await prisma.user.update({
+            where: { id },
+            data: { employmentEndDate: null }
+        })
+
+        await createLog({
+            action: "EMPLOYEE_REINSTATED",
+            description: `Przywrócono pracownika ${user.name || user.username} do aktywnej kadry`,
+            userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+            errorCodeKey: "EMPLOYEE_REINSTATED",
+            details: { targetUserId: id }
+        })
+
+        revalidatePath("/dashboard/admin")
+        return { success: true }
+    } catch (error: any) {
+        console.error("Błąd podczas przywracania pracownika:", error)
+        return { error: "Błąd bazy danych przy przywracaniu pracownika." }
     }
 }

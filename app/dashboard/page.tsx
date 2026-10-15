@@ -40,7 +40,8 @@ export default async function DashboardPage() {
             gte: startOfToday,
             lte: endOfToday,
         },
-        type: { in: ['SHIFT_1', 'SHIFT_2', 'DUTY'] }
+        type: { in: ['SHIFT_1', 'SHIFT_2', 'DUTY'] },
+        user: { employmentEndDate: null }
     };
 
     const isPrivileged = userRole === 'ADMIN' || userRole === 'HR' || userRole === 'SZEF' || userRole === 'MANAGER';
@@ -51,6 +52,7 @@ export default async function DashboardPage() {
             if (userDeptId) depts.push(userDeptId);
             if (userSecDeptId) depts.push(userSecDeptId);
             todayWhere.user = {
+                ...todayWhere.user,
                 departmentId: { in: depts }
             };
         } else {
@@ -96,6 +98,7 @@ export default async function DashboardPage() {
     if (session.user.role === 'ADMIN') {
         // Admin sees all expiring exams
         examsToCheck = await (prisma as any).medicalExam.findMany({
+            where: { user: { employmentEndDate: null } },
             include: { user: true }
         });
     } else {

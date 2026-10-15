@@ -160,6 +160,7 @@ export async function acceptColleagueSwap(requestId: number) {
             const manager = await prisma.user.findFirst({
                 where: { 
                     role: 'MANAGER', 
+                    employmentEndDate: null,
                     OR: [
                         { departmentId: request.requester.departmentId },
                         { secondaryDepartmentId: request.requester.departmentId }

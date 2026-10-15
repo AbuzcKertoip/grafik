@@ -39,6 +39,7 @@ model User {
   email                   String?                 @unique
   emergencyContact        String?
   discordId               String?
+  employmentEndDate       DateTime?
   departmentId            Int?
   secondaryDepartmentId   Int?
   cars                    Car[]

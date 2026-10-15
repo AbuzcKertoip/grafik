@@ -158,6 +158,7 @@ export async function approveMonthlyVacationReport(year: number, month: number) 
         const hrDept = await prisma.department.findFirst({ where: { name: 'HR' } });
         const hrUsers = await prisma.user.findMany({
             where: {
+                employmentEndDate: null,
                 OR: [
                     { role: 'HR' },
                     { permissions: { some: { permission: { slug: 'manage_hr_data' } } } },

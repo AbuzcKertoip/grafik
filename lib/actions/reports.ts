@@ -52,7 +52,8 @@ export async function getWorkTimeReport(year: number, month: number, departmentI
                 { departmentId: targetDepartmentId },
                 { secondaryDepartmentId: targetDepartmentId }
             ] : undefined,
-            role: { not: "ADMIN" } // Exclude admins from reports usually
+            role: { not: "ADMIN" }, // Exclude admins from reports usually
+            employmentEndDate: null
         },
         include: {
             department: true
@@ -100,7 +101,8 @@ export async function getVacationsReport(year: number, departmentId?: number): P
                 { departmentId: targetDepartmentId },
                 { secondaryDepartmentId: targetDepartmentId }
             ] : undefined,
-            role: { not: "ADMIN" }
+            role: { not: "ADMIN" },
+            employmentEndDate: null
         },
         include: {
             department: true,
@@ -320,7 +322,7 @@ export async function getVacationBalanceReportData(
     const reportMonthEnd = new Date(year, month, 0, 23, 59, 59, 999) // month is 1-indexed, so month+0 = 0th day of next month = last day of this month
 
     const users = await prisma.user.findMany({
-        where: { role: { not: "ADMIN" } },
+        where: { role: { not: "ADMIN" }, employmentEndDate: null },
         include: {
             department: true,
             vacations: {

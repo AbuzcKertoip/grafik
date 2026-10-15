@@ -92,6 +92,9 @@ export async function getUsers(requestedDepartmentId?: string | null) {
         where.role = { not: 'ADMIN' }
     }
 
+    // Wykluczenie zwolnionych pracowników z aktywnych list
+    where.employmentEndDate = null
+
     // Include department info for frontend display if needed
     return await prisma.user.findMany({
         where,

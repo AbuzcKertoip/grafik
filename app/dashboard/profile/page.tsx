@@ -17,7 +17,7 @@ import { BossMonthlyReport } from "@/components/hr/boss-monthly-report";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User as UserIcon, Shield } from "lucide-react";
+import { User as UserIcon, Shield, UserX } from "lucide-react";
 
 function getContractTypeLabel(contractType: string): string {
     switch (contractType) {
@@ -120,6 +120,12 @@ export default async function ProfilePage({
                         {user.role}
                         <span className="text-xs bg-muted px-2 py-0.5 rounded">{getContractTypeLabel(contractType)}</span>
                     </p>
+                    {user.employmentEndDate && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+                            <UserX className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                            <span>Konto zarchiwizowane • Zwolniono dnia {new Date(user.employmentEndDate).toLocaleDateString('pl-PL')}</span>
+                        </div>
+                    )}
                 </div>
             </div>
 

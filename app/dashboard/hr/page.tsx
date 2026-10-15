@@ -22,7 +22,7 @@ export default async function HRPage() {
     const { role, departmentId } = session.user;
     const isSzefOrAdmin = role === 'SZEF' || role === 'ADMIN';
 
-    const whereClause: any = { role: { not: 'ADMIN' } };
+    const whereClause: any = { role: { not: 'ADMIN' }, employmentEndDate: null };
 
     // Krok 1: Sprawdź czy Manager należy do działu "HR"
     let isManagerInHR = false;

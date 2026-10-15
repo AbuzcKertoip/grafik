@@ -45,6 +45,16 @@ export const authOptions: NextAuthOptions = {
                     return null
                 }
 
+                // Blokada logowania dla zwolnionych pracowników
+                if (user.employmentEndDate && new Date(user.employmentEndDate) <= new Date()) {
+                    await createLog({
+                        action: "LOGIN_FAILED",
+                        description: `Próba logowania zwolnionego pracownika: ${user.username}`,
+                        errorCodeKey: "AUTH_LOGIN_FAILED"
+                    });
+                    return null
+                }
+
                 const isValid = await verifyPassword(credentials.password, user.password)
 
                 if (!isValid) {

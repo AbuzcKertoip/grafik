@@ -65,7 +65,8 @@ export async function processAndSendExpirationAlerts(isManual: boolean = false) 
     // Find expiring medical exams (all, not just unnotified)
     const medicalExams = await prisma.medicalExam.findMany({
         where: {
-            validUntil: { lte: targetDate }
+            validUntil: { lte: targetDate },
+            user: { employmentEndDate: null }
         },
         include: { user: { select: { id: true, name: true, username: true, email: true } } }
     })

@@ -65,6 +65,11 @@ export async function getVacations(year: number) {
         where.userId = parseInt(user.id)
     }
 
+    where.user = {
+        ...(where.user || {}),
+        employmentEndDate: null
+    }
+
     return await prisma.vacation.findMany({
         where,
         include: { user: true },
@@ -298,13 +303,14 @@ export async function createVacation(data: any) {
                     }
                     if (conditions.length > 0) {
                         targetRecipients = await prisma.user.findMany({
-                            where: { role: "MANAGER", OR: conditions }
+                            where: { role: "MANAGER", OR: conditions, employmentEndDate: null }
                         })
                     }
                 } else if (!isStandardLeave) {
                     // Route to HR Manager
                     const hrManager = await prisma.user.findFirst({
                         where: {
+                            employmentEndDate: null,
                             permissions: {
                                 some: { permission: { slug: "manage_hr_data" } }
                             }
@@ -474,7 +480,7 @@ export async function approveVacation(id: number) {
             }
             if (conditions.length > 0) {
                 const managers = await prisma.user.findMany({
-                    where: { role: "MANAGER", OR: conditions }
+                    where: { role: "MANAGER", OR: conditions, employmentEndDate: null }
                 })
                 
                 const managerHtml = `
@@ -594,7 +600,7 @@ export async function cancelVacation(id: number) {
                 }
                 
                 const managers = await prisma.user.findMany({
-                    where: { role: "MANAGER", OR: conditions }
+                    where: { role: "MANAGER", OR: conditions, employmentEndDate: null }
                 })
 
                 const adminEmail = process.env.ADMIN_EMAIL

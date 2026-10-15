@@ -35,6 +35,7 @@ export default async function FleetPage() {
 
     const cars = await getCars()
     const users = await prisma.user.findMany({
+        where: { employmentEndDate: null },
         orderBy: { name: 'asc' },
         select: {
             id: true,

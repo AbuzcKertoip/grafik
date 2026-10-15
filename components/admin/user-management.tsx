@@ -17,9 +17,18 @@ import { Badge } from "@/components/ui/badge"
 import { UserEditDialog } from "./user-edit-dialog"
 import { UserCreateDialog } from "./user-create-dialog"
 import { useRouter } from "next/navigation"
-import { UserPlus, UserX } from "lucide-react"
-import { deleteEmployee } from "@/lib/actions/admin"
+import { UserPlus, UserX, AlertTriangle } from "lucide-react"
+import { terminateEmployee } from "@/lib/actions/admin"
 import { toast } from "sonner"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 interface UserManagementProps {
     users: any[]
@@ -34,6 +43,9 @@ export function UserManagement({ users: initialUsers, departments, permissions, 
     const [selectedUser, setSelectedUser] = useState<any>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+    const [userToTerminate, setUserToTerminate] = useState<any>(null)
+    const [terminationDate, setTerminationDate] = useState(() => new Date().toISOString().split("T")[0])
+    const [isTerminating, setIsTerminating] = useState(false)
     const isSzef = currentUser?.role === 'SZEF'
     const canManageUsers = !isSzef
 
@@ -42,15 +54,27 @@ export function UserManagement({ users: initialUsers, departments, permissions, 
         router.refresh()
     }
 
-    const handleDeleteEmployee = async (id: number) => {
-        if (!window.confirm("UWAGA: Czy na pewno chcesz PEREKMANENTNIE USUNĄĆ tego pracownika? Operacja ta skasuje bezpowrotnie jego użer, nadane urlopy, karty czasu i dostępy!")) return
+    const handleConfirmTerminate = async () => {
+        if (!userToTerminate) return
+        if (!terminationDate) {
+            toast.error("Wybierz poprawną datę zakończenia pracy.")
+            return
+        }
 
-        const result = await deleteEmployee(id)
-        if (result.success) {
-            toast.success("Pracownik został w pełni poddany usunięciu.")
-            handleUpdate() // Odświeża zawartość po skasowaniu
-        } else {
-            toast.error(result.error || "Wystąpił problem z wymazywaniem rekordu.")
+        setIsTerminating(true)
+        try {
+            const result = await terminateEmployee(userToTerminate.id, new Date(terminationDate))
+            if (result.success) {
+                toast.success(`Pracownik ${userToTerminate.name || userToTerminate.username} został przeniesiony do archiwum.`)
+                setUserToTerminate(null)
+                handleUpdate()
+            } else {
+                toast.error(result.error || "Wystąpił problem ze zwolnieniem pracownika.")
+            }
+        } catch (error) {
+            toast.error("Wystąpił nieoczekiwany błąd.")
+        } finally {
+            setIsTerminating(false)
         }
     }
 
@@ -144,11 +168,15 @@ export function UserManagement({ users: initialUsers, departments, permissions, 
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handleDeleteEmployee(user.id)}
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => {
+                                                    setUserToTerminate(user)
+                                                    setTerminationDate(new Date().toISOString().split("T")[0])
+                                                }}
+                                                className="text-amber-700 hover:text-amber-800 hover:bg-amber-50 dark:text-amber-500 dark:hover:bg-amber-950/30"
+                                                title="Zwolnij pracownika (przenieś do archiwum)"
                                             >
                                                 <UserX className="h-4 w-4 mr-2" />
-                                                Usuń
+                                                Zwolnij
                                             </Button>
                                         </TableCell>
                                     )}
@@ -183,6 +211,61 @@ export function UserManagement({ users: initialUsers, departments, permissions, 
                 departments={departments}
                 onUpdate={handleUpdate}
             />
+
+            <Dialog open={!!userToTerminate} onOpenChange={(open) => { if (!open) setUserToTerminate(null) }}>
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500 mb-1">
+                            <AlertTriangle className="h-5 w-5" />
+                            <DialogTitle>Zwolnij pracownika</DialogTitle>
+                        </div>
+                        <DialogDescription>
+                            Przenosisz pracownika <strong className="text-foreground">{userToTerminate?.name || userToTerminate?.username}</strong> do archiwum zwolnionych.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 p-3 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                            <p className="font-semibold">Co to oznacza:</p>
+                            <ul className="list-disc list-inside space-y-0.5 text-muted-foreground dark:text-amber-400/80">
+                                <li>Pracownik straci możliwość logowania do aplikacji.</li>
+                                <li>Zostanie usunięty z aktywnych grafików, list HR i raportów bieżących.</li>
+                                <li>Wszelkie przypisane pojazdy służbowe zostaną odpięte.</li>
+                                <li>Wszystkie dotychczasowe dane (wnioski, historia, badania, sprzęt) <strong>zostaną zachowane</strong> w Archiwum.</li>
+                            </ul>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="termination-date" className="text-sm font-medium">
+                                Data zakończenia pracy
+                            </Label>
+                            <Input
+                                id="termination-date"
+                                type="date"
+                                value={terminationDate}
+                                onChange={(e) => setTerminationDate(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setUserToTerminate(null)}
+                            disabled={isTerminating}
+                        >
+                            Anuluj
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleConfirmTerminate}
+                            disabled={isTerminating}
+                        >
+                            {isTerminating ? "Przetwarzanie..." : "Potwierdź zwolnienie"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Card>
     )
 }

@@ -8,6 +8,8 @@ export const ERROR_CODES = {
     USER_UPDATED: { code: "USR-002", label: "Aktualizacja Użytkownika", isError: false },
     USER_ROLE_CHANGED: { code: "USR-003", label: "Zmiana Roli Użytkownika", isError: false },
     USER_DELETED: { code: "USR-004", label: "Usunięcie Użytkownika", isError: false },
+    EMPLOYEE_TERMINATED: { code: "USR-005", label: "Zwolnienie Pracownika (Archiwizacja)", isError: false },
+    EMPLOYEE_REINSTATED: { code: "USR-006", label: "Przywrócenie Pracownika z Archiwum", isError: false },
 
     // Schedule Events
     SCHEDULE_MODIFIED: { code: "SCH-001", label: "Modyfikacja Grafiku", isError: false },

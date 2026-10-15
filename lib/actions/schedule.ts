@@ -100,6 +100,11 @@ export async function getSchedule(year: number, month: number) {
         }
     }
 
+    where.user = {
+        ...(where.user || {}),
+        employmentEndDate: null
+    }
+
     const schedule = await prisma.scheduleDay.findMany({
         where,
         include: { user: true } // Include user to check correctness if needed, or just standard return
@@ -167,7 +172,8 @@ export async function generateSchedule(year: number, month: number, targetDepart
         OR: [
              { departmentId: finalDepartmentId },
              { secondaryDepartmentId: finalDepartmentId }
-        ]
+        ],
+        employmentEndDate: null
     };
 
     const usersRaw = await (prisma as any).user.findMany({
@@ -900,7 +906,8 @@ export async function clearSchedule(year: number, month: number, targetDepartmen
             OR: [
                 { departmentId: finalDepartmentId },
                 { secondaryDepartmentId: finalDepartmentId }
-            ]
+            ],
+            employmentEndDate: null
         },
         select: { id: true }
     })
